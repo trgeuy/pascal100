@@ -24,10 +24,12 @@ std::string Region::describe(bool ext) const {
     if (kind == RegionKind::Rom && size == 0)
         std::snprintf(buf, sizeof buf, wide ? "rom  %06X         (empty socket)" : "rom  %04X       (empty socket)",
                       (unsigned)at);
-    else if (kind == RegionKind::Rom)
-        std::snprintf(buf, sizeof buf, wide ? "rom  %06X-%06X  %s" : "rom  %04X-%04X  %s", (unsigned)at,
-                      (unsigned)(at + size - 1), mount.c_str());
-    else if (size >= 1024 && size % 1024 == 0)
+    else if (kind == RegionKind::Rom) {
+        // The mount path has no length limit, so it goes on after the buffer (#905).
+        std::snprintf(buf, sizeof buf, wide ? "rom  %06X-%06X  " : "rom  %04X-%04X  ", (unsigned)at,
+                      (unsigned)(at + size - 1));
+        return std::string(buf) + mount;
+    } else if (size >= 1024 && size % 1024 == 0)
         std::snprintf(buf, sizeof buf, wide ? "ram  %06X-%06X  %uK" : "ram  %04X-%04X  %uK",
                       (unsigned)at, (unsigned)(at + size - 1), (unsigned)(size / 1024));
     else
