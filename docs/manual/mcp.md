@@ -306,7 +306,9 @@ The tools let an assistant operate the whole machine:
 - Save the state of the whole machine in a snapshot, and restore it.
 
 When no tool does what it needs, such as a conditional breakpoint or an octal listing, the
-`monitor` tool runs any monitor command and returns its text.
+`monitor` tool runs any monitor command and returns its text. The tool
+refuses a `!` command, because the output of a host shell command would go between the server's
+messages.
 
 On a board with two processors, `regs`, `step` and `run` give the active core in the `core`
 field. A `breakpoints` `add` of kind `pc` can name one core in `unit`, as `<board>:<unit>`,
