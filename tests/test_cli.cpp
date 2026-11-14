@@ -1480,10 +1480,6 @@ void test_cli() {
               "and so does every short name's value");
         CHECK(field(row(t, "port"), 2) == col(t, "property", "legal"), "and the legal column");
 
-        // ---- SHOW BOARD <type>'s sub-unit schema: the key column ----
-        CHECK(field(row(t, "writeprotect"), 1) == col(t, "key", "type"),
-              "an alias's text starts under 'type'");
-
         // ---- SHOW <id>: units, and a unit name longer than 7 ----
         show("BOARDS ADD interfacer4 if0");
         t = show("SHOW if0");
@@ -1762,8 +1758,13 @@ void test_cli() {
         // A bounded int prints its range in the property's own radix...
         CHECK(s.find("values: 0x0 .. 0xFE") != std::string::npos,
               "a port's range is shown in hex, the radix it is written in");
-        // ...and a bool as on|off.
-        CHECK(s.find("values: on | off") != std::string::npos, "a bool is on | off");
+        // ...and a bool as true | false -- the spelling of its default and of CONFIG SAVE,
+        // not on | off. (`parity` is an enum whose two choices are on and off.)
+        const size_t sw = s.find("\n  enabled ");
+        const size_t sv = s.find("values: ", sw);
+        CHECK(sw != std::string::npos && sv != std::string::npos &&
+                  s.compare(sv, 20, "values: true | false") == 0,
+              "a bool is true | false");
         // A free-form endpoint string constrains nothing, so it gets NO values line:
         // `connect` is the last property of unit a, so nothing between it and unit b's
         // heading may advertise values.
@@ -1939,6 +1940,59 @@ void test_cli() {
               "a bogus option prints usage");
         CHECK(ob.str().find("Unit 'serial'") == std::string::npos,
               "a bogus option does not fall through to a listing");
+    }
+
+    // -----------------------------------------------------------------------
+    // #921: a sub-unit table's keys are labelled by WHERE they can be used, they are
+    // printed by the type view and only pointed at by SHOW <id>, and HELP REGION lists
+    // every key REGION ADD takes, from the same schema.
+    // -----------------------------------------------------------------------
+    SECTION("cli: sub-unit keys -- where they work, where they show, HELP REGION (#921)");
+    {
+        // REGION ADD fills [[board.region]], so the region heading names it...
+        Machine            mr;
+        Monitor            monR(mr);
+        std::ostringstream orr;
+        monR.exec("SHOW BOARD memory units", orr);
+        CHECK(orr.str().find("[[board.region]]  (in a machine file, or REGION ADD)") !=
+                  std::string::npos,
+              "the region keys are labelled with REGION ADD too");
+
+        // ...and no monitor command adds a drive, so the drive heading does not.
+        Machine            md;
+        Monitor            monD(md);
+        std::ostringstream od;
+        monD.exec("SHOW BOARD tarbell units", od);
+        CHECK(od.str().find("[[board.drive]]  (in a machine file)\n") != std::string::npos,
+              "the drive keys are labelled machine file only");
+        CHECK(od.str().find("REGION ADD") == std::string::npos,
+              "the drive heading does not name REGION ADD");
+
+        // SHOW <id> points at the type view and prints no copy of the key table.
+        Machine            mi;
+        Monitor            monI(mi);
+        std::ostringstream oi;
+        monI.exec("BOARDS ADD memory m9", oi);
+        monI.exec("REGION ADD m9 type=ram at=0 size=4K", oi);
+        std::ostringstream os;
+        monI.exec("SHOW m9", os);
+        CHECK(os.str().find("[[board.region]] keys: SHOW BOARD memory UNITS") != std::string::npos,
+              "SHOW <id> points at SHOW BOARD <type> UNITS");
+        CHECK(os.str().find("relocate") == std::string::npos,
+              "SHOW <id> no longer prints the key table");
+
+        // HELP REGION lists every key in the schema -- relocate was the one it left out.
+        Machine            mh;
+        Monitor            monH(mh);
+        std::ostringstream oh;
+        monH.exec("HELP REGION", oh);
+        const auto keys = MemoryBoard::regionKeys();
+        CHECK(!keys.empty(), "the region schema has keys");
+        for (const auto& k : keys)
+            CHECK(oh.str().find("\n    " + k.name + " ") != std::string::npos ||
+                      oh.str().find("\n    " + k.name + "\n") != std::string::npos,
+                  ("HELP REGION lists the key '" + k.name + "'").c_str());
+        CHECK(oh.str().find("{region-keys}") == std::string::npos, "the token is expanded");
     }
 
     // -----------------------------------------------------------------------
