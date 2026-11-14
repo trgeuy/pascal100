@@ -306,6 +306,7 @@ mem0  (memory)
   [[board.region]]  (in a machine file)
 
   key              type             legal
+  ---------------- ---------------- ----------
   type             enum             ram|rom
   at               int              0000..FFFFFF
   size             int              1..16777216

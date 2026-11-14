@@ -95,7 +95,7 @@ Status byte:
 - **Properties:** board `swap_ports`; per unit (`[board.unit.a]`, `[board.unit.b]`) `port`,
   `enabled`, `baud`, the eight straps (`data_bits`, `parity_sense`, `parity`, `stop_bits`,
   `ca`, `cd`, `tx_int_enable`, `rx_int_enable`), `opt`, `rs232_inputs`, `overrun`, `rx_int`, `tx_int`,
-  `control` (read-only) and `connect`.
+  `control` (show-only) and `connect`.
 
 ### Reset
 
