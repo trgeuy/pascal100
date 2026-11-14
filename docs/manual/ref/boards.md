@@ -86,7 +86,7 @@ Generic 8085 CPU board. Decodes nothing -- it drives the bus. The 88-CPU's twin,
 |---|---|---|---|---|
 | `clock_hz` | int | `0` | `0` .. `100000000` | Crystal on the board. 0 runs flat out -- as fast as the host can. |
 | `idle` | bool | `true` | `on` \| `off` | At full speed, rest while the guest reads an empty serial line, on any port. On by default. The guest cannot see the rest. |
-| `achieved_hz` | int | — | — | LIVE: T-states per real second the run loop last reached -- the crystal you got, beside the one you asked for. Read-only; 0 until it has run. **(read-only — not a key you may set)** |
+| `achieved_hz` | int | — | — | LIVE: T-states per real second the run loop last reached -- the crystal you got, beside the one you asked for. Show-only; 0 until it has run. **(show-only — not a key you may set)** |
 
 
 ### `cpu286`
@@ -106,7 +106,7 @@ CompuPro CPU 286 (451B): an 80286 in real mode (unit 80286) with 8- and 16-bit I
 | `waits` | string | `B` | text | Jumper J1, the positions fitted (additive): A 1 memory, B 1 I/O, C 1 all, D 2 memory, E 2 I/O, F 2 all, G 4 sockets, H 1 memory write + 1 I/O. Empty = none (an illegal S-100 cycle). Default B |
 | `clock_hz` | int | `0` | `0` .. `100000000` | The 80286's clock: 8000000, 10000000 or 12500000 as sold. 0 runs flat out, timed as 8000000 |
 | `idle` | bool | `true` | `on` \| `off` | At full speed, rest while the guest reads an empty serial line, on any port. On by default. The guest cannot see the rest. |
-| `achieved_hz` | int | — | — | LIVE: T-states per real second the run loop last reached. Read-only; 0 until it has run. **(read-only — not a key you may set)** |
+| `achieved_hz` | int | — | — | LIVE: T-states per real second the run loop last reached. Read-only; 0 until it has run. **(show-only — not a key you may set)** |
 
 
 ### `cpu8588`
@@ -131,7 +131,7 @@ CompuPro CPU 8085/88 (161F): an 8085 (unit 8085) and an 8088 (unit 8088), one on
 | `clock_hz_8085` | int | `0` | `0` .. `100000000` | The 8085's clock (switch S4: 6000000 or 2000000; 5000000 with the parts-list crystal). 0 runs flat out, timed as 6000000 |
 | `clock_hz_8088` | int | `0` | `0` .. `100000000` | The 8088's clock (X2/3: 8000000; 5000000 with the parts-list crystal). 0 runs flat out, timed as 8000000 |
 | `idle` | bool | `true` | `on` \| `off` | At full speed, rest while the guest reads an empty serial line, on any port. On by default. The guest cannot see the rest. |
-| `achieved_hz` | int | — | — | LIVE: T-states per real second the run loop last reached. Read-only; 0 until it has run. **(read-only — not a key you may set)** |
+| `achieved_hz` | int | — | — | LIVE: T-states per real second the run loop last reached. Read-only; 0 until it has run. **(show-only — not a key you may set)** |
 
 
 ### `cpu8687`
@@ -153,7 +153,7 @@ CompuPro CPU 86/87 (186B): an 8086 (unit 8086) with 8- and 16-bit IEEE 696 trans
 | `poj_addr` | int | `0xFF000` | `0x0` .. `0xFF000` | Switch S5-1..8 (A19-A12): where the power-on jump goes, a 4K boundary in the low megabyte. All OFF = FF000 |
 | `clock_hz` | int | `0` | `0` .. `100000000` | The 8086's clock: 8000000 or 10000000 as shipped, 5000000 with an 8087. 0 runs flat out, timed as 8000000 |
 | `idle` | bool | `true` | `on` \| `off` | At full speed, rest while the guest reads an empty serial line, on any port. On by default. The guest cannot see the rest. |
-| `achieved_hz` | int | — | — | LIVE: T-states per real second the run loop last reached. Read-only; 0 until it has run. **(read-only — not a key you may set)** |
+| `achieved_hz` | int | — | — | LIVE: T-states per real second the run loop last reached. Read-only; 0 until it has run. **(show-only — not a key you may set)** |
 
 
 ### `pascal100`
@@ -171,7 +171,7 @@ Digicomp Research Pascal-100: a Z80 (unit z80) and the Western Digital MicroEngi
 | `reset_addr` | int | `0x0` | `0x0` .. `0xF000` | Switch U242: where the Z80 jumps after a reset, on a 4K boundary. Factory setting 0000 |
 | `clock_hz` | int | `0` | `0` .. `100000000` | The clock of both processors (header U102: 2 or 2.5 MHz in the manual, 3 MHz measured on a real box). 0 runs flat out -- as fast as the host can. |
 | `idle` | bool | `true` | `on` \| `off` | At full speed, rest while the guest reads an empty serial line, on any port. On by default. The guest cannot see the rest. |
-| `achieved_hz` | int | — | — | LIVE: T-states per real second the run loop last reached. Read-only; 0 until it has run. **(read-only — not a key you may set)** |
+| `achieved_hz` | int | — | — | LIVE: T-states per real second the run loop last reached. Read-only; 0 until it has run. **(show-only — not a key you may set)** |
 
 
 ### `spuz`
@@ -219,7 +219,7 @@ Generic Z80 CPU board. Decodes nothing -- it drives the bus. The 88-CPU's twin, 
 |---|---|---|---|---|
 | `clock_hz` | int | `0` | `0` .. `100000000` | Crystal on the board. 0 runs flat out -- as fast as the host can. |
 | `idle` | bool | `true` | `on` \| `off` | At full speed, rest while the guest reads an empty serial line, on any port. On by default. The guest cannot see the rest. |
-| `achieved_hz` | int | — | — | LIVE: T-states per real second the run loop last reached -- the crystal you got, beside the one you asked for. Read-only; 0 until it has run. **(read-only — not a key you may set)** |
+| `achieved_hz` | int | — | — | LIVE: T-states per real second the run loop last reached -- the crystal you got, beside the one you asked for. Show-only; 0 until it has run. **(show-only — not a key you may set)** |
 
 
 ## Memory
@@ -248,7 +248,7 @@ RAM/ROM board: a list of regions and PHANTOM* -- plain, unbanked memory
 | `seed` | int | `1` | any | Seed for fill=random. The same seed fills RAM the same way at every POWER, so a run is repeatable; change it for a different junk pattern |
 | `ext` | bool | `false` | `on` \| `off` | IEEE 696 extended addressing: true = decode A16-A23, region `at` is a 24-bit address and a region may be larger than 64K; false = A0-A15 only (the board answers in every 64K segment and holds at most 64K) |
 | `sixteen_bit` | bool | `false` | `on` \| `off` | IEEE 696: answer SIXTN* and move a word (even + odd byte) in one cycle |
-| `pages` | string | — | — | the composite page map -- which pages this board answers for. Derived from the regions you declared **(read-only — not a key you may set)** |
+| `pages` | string | — | — | the composite page map -- which pages this board answers for. Derived from the regions you declared **(show-only — not a key you may set)** |
 
 
 ## Disk
@@ -414,7 +414,7 @@ CompuPro M-Drive/H (board 197B): 512K of dynamic RAM used as a disk drive, on tw
 | `cascade` | int | `0` | `0` .. `7` | Switch S1-8..10: which 512K of the 4M address range this board holds, 0-7. The 1st board is 0; every board in the system needs its own |
 | `fill` | enum | `random` | `zero` \| `random` | RAM contents at power-on: zero \| random (real DRAM is not zeroed) |
 | `seed` | int | `1` | any | Seed for fill=random. The same seed fills the RAM the same way at every POWER, so a run is repeatable. Each cascade has its own pattern |
-| `address` | int | — | — | The 22-bit address counter. The guest loads it with three OUTs to the address port, high byte first **(read-only — not a key you may set)** |
+| `address` | int | — | — | The 22-bit address counter. The guest loads it with three OUTs to the address port, high byte first **(show-only — not a key you may set)** |
 
 
 ### `selch`
@@ -501,7 +501,7 @@ MITS 88-2SIO: two 6850 ACIAs, units 'a' and 'b'. Four ports at BASE+0..3
 | `interrupt` | enum | `none` | `none` \| `int` \| `vi0` \| `vi1` \| `vi2` \| `vi3` \| `vi4` \| `vi5` \| `vi6` \| `vi7` | Where this channel's IRQ is jumpered: none \| int \| vi0..vi7 *(interrupt strap)* |
 | `dcd` | enum | `ground` | `ground` \| `wired` | /DCD pin: grounded on the card, or wired to the connector |
 | `cts` | enum | `ground` | `ground` \| `wired` | /CTS pin: grounded on the card, or wired -- and then it gates the transmitter |
-| `lines` | string | — | — | Live pin state (read-only). CAPITALS = asserted. in: DCD CTS, out: RTS BRK **(read-only — not a key you may set)** |
+| `lines` | string | — | — | Live pin state (show-only). CAPITALS = asserted. in: DCD CTS, out: RTS BRK **(show-only — not a key you may set)** |
 | `connect` | string | `null` | text | The endpoint on the other end of the line (CONNECT sets this) |
 | `title` | string |  | text | The title of a terminal window on this unit. Empty = "MITS 88-2SIO a" |
 
@@ -513,7 +513,7 @@ MITS 88-2SIO: two 6850 ACIAs, units 'a' and 'b'. Four ports at BASE+0..3
 | `interrupt` | enum | `none` | `none` \| `int` \| `vi0` \| `vi1` \| `vi2` \| `vi3` \| `vi4` \| `vi5` \| `vi6` \| `vi7` | Where this channel's IRQ is jumpered: none \| int \| vi0..vi7 *(interrupt strap)* |
 | `dcd` | enum | `ground` | `ground` \| `wired` | /DCD pin: grounded on the card, or wired to the connector |
 | `cts` | enum | `ground` | `ground` \| `wired` | /CTS pin: grounded on the card, or wired -- and then it gates the transmitter |
-| `lines` | string | — | — | Live pin state (read-only). CAPITALS = asserted. in: DCD CTS, out: RTS BRK **(read-only — not a key you may set)** |
+| `lines` | string | — | — | Live pin state (show-only). CAPITALS = asserted. in: DCD CTS, out: RTS BRK **(show-only — not a key you may set)** |
 | `connect` | string | `null` | text | The endpoint on the other end of the line (CONNECT sets this) |
 | `title` | string |  | text | The title of a terminal window on this unit. Empty = "MITS 88-2SIO b" |
 
@@ -550,7 +550,7 @@ CompuPro Interfacer 1 (Godbout 133H): two serial channels 'a' and 'b', each a re
 | `overrun` | bool | `false` | `on` \| `off` | on = the line runs free at the baud rate: a character that arrives before the last one is read replaces it, and status D4 (OR) reads 1, as on the real board. off (default) = the line waits for the read, and no character is lost |
 | `rx_int` | enum | `none` | `none` \| `vi0` \| `vi1` \| `vi2` \| `vi3` \| `vi4` \| `vi5` \| `vi6` \| `vi7` | J11: where RxINT (DAV AND RXINTE) is jumpered: none \| vi0..vi7 *(interrupt strap)* |
 | `tx_int` | enum | `none` | `none` \| `vi0` \| `vi1` \| `vi2` \| `vi3` \| `vi4` \| `vi5` \| `vi6` \| `vi7` | J11: where TxINT (TBMT AND TXINTE) is jumpered: none \| vi0..vi7. A LEVEL, held while the transmitter is idle *(interrupt strap)* |
-| `control` | int | — | — | What the guest last wrote to the control port (the 74LS175 latches) **(read-only — not a key you may set)** |
+| `control` | int | — | — | What the guest last wrote to the control port (the 74LS175 latches) **(show-only — not a key you may set)** |
 | `connect` | string | `null` | text | The endpoint on this channel's line (CONNECT sets this): a file, socket, serial port, in:/out: file, null, loopback |
 | `title` | string |  | text | The title of a terminal window on this unit. Empty = "CompuPro Interfacer 1 a" |
 
@@ -574,7 +574,7 @@ CompuPro Interfacer 1 (Godbout 133H): two serial channels 'a' and 'b', each a re
 | `overrun` | bool | `false` | `on` \| `off` | on = the line runs free at the baud rate: a character that arrives before the last one is read replaces it, and status D4 (OR) reads 1, as on the real board. off (default) = the line waits for the read, and no character is lost |
 | `rx_int` | enum | `none` | `none` \| `vi0` \| `vi1` \| `vi2` \| `vi3` \| `vi4` \| `vi5` \| `vi6` \| `vi7` | J11: where RxINT (DAV AND RXINTE) is jumpered: none \| vi0..vi7 *(interrupt strap)* |
 | `tx_int` | enum | `none` | `none` \| `vi0` \| `vi1` \| `vi2` \| `vi3` \| `vi4` \| `vi5` \| `vi6` \| `vi7` | J11: where TxINT (TBMT AND TXINTE) is jumpered: none \| vi0..vi7. A LEVEL, held while the transmitter is idle *(interrupt strap)* |
-| `control` | int | — | — | What the guest last wrote to the control port (the 74LS175 latches) **(read-only — not a key you may set)** |
+| `control` | int | — | — | What the guest last wrote to the control port (the 74LS175 latches) **(show-only — not a key you may set)** |
 | `connect` | string | `null` | text | The endpoint on this channel's line (CONNECT sets this): a file, socket, serial port, in:/out: file, null, loopback |
 | `title` | string |  | text | The title of a terminal window on this unit. Empty = "CompuPro Interfacer 1 b" |
 
@@ -592,9 +592,9 @@ CompuPro Interfacer 3 (board 174): eight serial channels user0..user7, each a 26
 | `port` | int | `0x10` | `0x0` .. `0xF8` | Switch S1-2..6 (A7-A3): the base of the 8-port block, a multiple of 8. CompuPro software uses 10H. S1-1 is `enabled` |
 | `users` | enum | `0-7` | `0-7` \| `8-15` \| `16-23` \| `24-31` | Switches S1-7/S1-8: which group of eight users this board answers, by bits D3-D4 of the user select byte. Up to four boards share one block |
 | `waits` | enum | `0` | `0` \| `1` \| `2` | J17: wait states on each USART access (relative ports 0-3). 0 = no shunt, 1 = A-C, 2 = B-C. The interrupt and user select ports never wait |
-| `select` | int | — | — | The user select latch U34 (D0-D2 user, D3-D4 board), as last written **(read-only — not a key you may set)** |
-| `tx_mask` | int | — | — | The transmit interrupt mask (relative port 4), as last written **(read-only — not a key you may set)** |
-| `rx_mask` | int | — | — | The receive interrupt mask (relative port 5), as last written **(read-only — not a key you may set)** |
+| `select` | int | — | — | The user select latch U34 (D0-D2 user, D3-D4 board), as last written **(show-only — not a key you may set)** |
+| `tx_mask` | int | — | — | The transmit interrupt mask (relative port 4), as last written **(show-only — not a key you may set)** |
+| `rx_mask` | int | — | — | The receive interrupt mask (relative port 5), as last written **(show-only — not a key you may set)** |
 
 #### Unit `user0` — `[board.unit.user0]`
 
@@ -692,10 +692,10 @@ CompuPro Interfacer 4 (board 187C): four users behind the Interfacer 3's 8-port 
 | `waits` | enum | `0` | `0` \| `1` \| `2` \| `3` | J6/J7/J8: wait states on each access of ports 0-3. The interrupt and user select ports never wait. Set every board at the base the same |
 | `j26` | enum | `ab-cd` | `ab-cd` \| `ac-bd` | J26: ab-cd = the parallel ports are relative user 0 (standard, and what MP/M 8-16 needs); ac-bd = they are relative user 2 and the middle serial channel is user 0. The status and mask bits do NOT move |
 | `sense` | int | `0xFF` | `0x0` .. `0xFF` | Switch S1-3..10, read at relative port 0 of the parallel user: bit 7 = S1-3 ... bit 0 = S1-10. A switch ON reads 0. The manual's set-up has all OFF |
-| `select` | int | — | — | The user select latch U18 (D0-D1 user, D2 half, D3-D4 group), as last written **(read-only — not a key you may set)** |
-| `tx_mask` | int | — | — | This board's transmit interrupt mask (bit 0 the Centronics port, bits 1-3 users 1-3) **(read-only — not a key you may set)** |
-| `rx_mask` | int | — | — | This board's receive interrupt mask (bit 0 the Universal Parallel port, bits 1-3 users 1-3) **(read-only — not a key you may set)** |
-| `control` | int | — | — | Control-C (U13): D0 AFX, D1 INIT, D2 SLCTIN, D3 LED **(read-only — not a key you may set)** |
+| `select` | int | — | — | The user select latch U18 (D0-D1 user, D2 half, D3-D4 group), as last written **(show-only — not a key you may set)** |
+| `tx_mask` | int | — | — | This board's transmit interrupt mask (bit 0 the Centronics port, bits 1-3 users 1-3) **(show-only — not a key you may set)** |
+| `rx_mask` | int | — | — | This board's receive interrupt mask (bit 0 the Universal Parallel port, bits 1-3 users 1-3) **(show-only — not a key you may set)** |
+| `control` | int | — | — | Control-C (U13): D0 AFX, D1 INIT, D2 SLCTIN, D3 LED **(show-only — not a key you may set)** |
 
 #### Unit `centronics` — `[board.unit.centronics]`
 
@@ -872,7 +872,7 @@ Host Bridge: guest <-> host file transfer, sandboxed. OUR OWN BOARD, not a perio
 |---|---|---|---|---|
 | `port` | int | `0xB0` | `0x0` .. `0xFE` | Base port. Two ports: BASE+0 command/status, BASE+1 data |
 | `hostdir` | string |  | text | The sandbox root. Guest names resolve here and CANNOT escape it. Empty = the shell's working directory |
-| `hostdir_root` | string | — | — | LIVE: the sandbox root as RESOLVED -- the actual directory the guest is fenced into. Read-only; `hostdir` is what was written. **(read-only — not a key you may set)** |
+| `hostdir_root` | string | — | — | LIVE: the sandbox root as RESOLVED -- the actual directory the guest is fenced into. Show-only; `hostdir` is what was written. **(show-only — not a key you may set)** |
 | `readonly` | bool | `false` | `on` \| `off` | Refuse OPEN_WRITE and DELETE -- the guest may read the host, not change it |
 
 
@@ -893,10 +893,10 @@ CompuPro System Support 1: multifunction S-100 board. Dual 8259A interrupt contr
 | `memory_at` | int | `0xFF000` | `0x0` .. `0xFFF000` | S2 (A23-A16) and S3-1..4 (A15-A12): the 24-bit address of the 4K block, on a 4K boundary. Default 0FF000 (CompuPro's CP/M-86 setting) |
 | `memory_global` | bool | `false` | `on` \| `off` | S1-6 XA: true = the 4K block ignores A16-A23 and answers in every 64K page; false (default) = it answers only at memory_at's A16-A23 |
 | `memory_phantom` | enum | `disable` | `disable` \| `enable` \| `ignore` | S1-7 PHD / S1-8 PHE: what PHANTOM* does to the 4K block. disable (default, PHD ON), enable (PHE ON: on only while PHANTOM* is asserted) or ignore (both OFF) |
-| `clock` | string | — | — | LIVE: the date/time the MSM5832 is showing, and its offset from host time **(read-only — not a key you may set)** |
-| `timer` | string | — | — | LIVE: the three 8253 counters -- mode, current count and OUT level **(read-only — not a key you may set)** |
-| `pic` | string | — | — | LIVE: the master/slave 8259A -- IRR/ISR/IMR and the master's INT pin **(read-only — not a key you may set)** |
-| `mathchip` | string | — | — | LIVE: the math chip -- busy/idle, stack pointer, status, top of stack, END/SVREQ/ERR **(read-only — not a key you may set)** |
+| `clock` | string | — | — | LIVE: the date/time the MSM5832 is showing, and its offset from host time **(show-only — not a key you may set)** |
+| `timer` | string | — | — | LIVE: the three 8253 counters -- mode, current count and OUT level **(show-only — not a key you may set)** |
+| `pic` | string | — | — | LIVE: the master/slave 8259A -- IRR/ISR/IMR and the master's INT pin **(show-only — not a key you may set)** |
+| `mathchip` | string | — | — | LIVE: the math chip -- busy/idle, stack pointer, status, top of stack, END/SVREQ/ERR **(show-only — not a key you may set)** |
 
 #### Unit `serial` — `[board.unit.serial]`
 

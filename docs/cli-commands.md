@@ -266,6 +266,7 @@ INTERRUPTS
   88-VI   vi0              enabled, current level 7 (live)
 
   LINE  VECTOR             STRAPPED             NOW
+  ----  -----------------  -------------------- -------
   VI0   RST 0  C7 -> 0000  --                   --
   ...
   VI7   RST 7  FF -> 0038  sio0:a               WINS  <-- vi0 will jam FF
@@ -326,6 +327,7 @@ pascal100> CONSOLE
 console  (the host keyboard and screen -- not a tty)
 
   property         value            legal
+  ---------------- ---------------- ----------
   stop             0x5              0x1..0x1F
   base             hex              hex|octal
   history          50               0..10000
