@@ -43,6 +43,7 @@ public:
     explicit AgentTap(std::unique_ptr<ByteStream> inner) : inner_(std::move(inner)) {}
 
     std::string doDescribe() const override { return inner_->describe(); }
+    bool        realWire() const override { return inner_->realWire(); }
 
     size_t read(uint8_t* buf, size_t n) override {
         if (!inject_.empty()) {

@@ -2516,6 +2516,17 @@ void test_mcp() {
         CHECK(tap.takeDropped() == 10 && tap.takeDropped() == 0, "dropped() counts the rest, once");
     }
 
+    SECTION("AgentTap: a tapped real port is still a real wire (altairsim #938)");
+    {
+        class Wire : public ScriptedStream {
+        public:
+            bool realWire() const override { return true; }
+        };
+        AgentTap wire(std::make_unique<Wire>());
+        CHECK(wire.realWire(), "a tap on a real serial port says realWire()");
+        AgentTap buffer(std::make_unique<ScriptedStream>());
+        CHECK(!buffer.realWire(), "and a tap on a host buffer does not");
+    }
     SECTION("MCP: send, recv and run reach any serial unit with `unit` (AgentTap)");
     {
         setAgentTaps(true);  // as main() does for --mcp, before the machine loads
