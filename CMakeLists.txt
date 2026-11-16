@@ -761,6 +761,7 @@ add_executable(altair_tests
   tests/test_telnet.cpp
   tests/test_wd17xx.cpp
   tests/test_upd765.cpp
+  tests/test_floppy_drive.cpp
   tests/test_bitserial.cpp
   tests/test_i8257.cpp
   tests/test_scn2681.cpp
