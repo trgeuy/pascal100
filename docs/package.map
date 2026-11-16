@@ -53,7 +53,7 @@
 # against THAT FILE. Keep the .toml and its image together and the folder boots wherever
 # it is copied to -- which is the whole point of the rule.
 #
-# AND NOT EVERY EXAMPLE'S MEDIA IS AN IMAGE. examples/debugger's is a 46-byte program: a
+# AND NOT EVERY EXAMPLE'S MEDIA IS AN IMAGE. examples/debugger's is a 54-byte program: a
 # .HEX to LOAD and the .PRN listing that SYMBOLS LOAD reads, which is the first line of its
 # own walkthrough. So build-package.sh strips a .ASM/.PRN pair only from an example that
 # ships a disk or a tape -- there it is how the image was made, and it stays in the tree.

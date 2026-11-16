@@ -31,7 +31,7 @@ type `REGS`.
 
 ```
 pascal100> REGS            (examples/debugger, stopped at PUTC)
-C0Z0M0E1I0V0K0 A=48 BC=0000 DE=0000 HL=011F SP=013C IE=0 PC=0113  PUSH PSW
+C0Z0M0E1I0V0K0 A=48 BC=0000 DE=0000 HL=0127 SP=0144 IE=0 PC=011B  PUSH PSW
 ```
 
 Each register has the name that you use with `SET REG`: the pairs `BC`, `DE` and `HL`, the
@@ -174,17 +174,17 @@ For this reason, an id is not a count of the breakpoints that are set.
 state of the machine.** An address breakpoint stops with `PC` *on* the instruction at the
 address. That instruction has not run yet.
 
-This example is `examples/debugger`, with `HELLO.HEX` loaded. `PUTC` (`0113`) is the routine
+This example is `examples/debugger`, with `HELLO.HEX` loaded. `PUTC` (`011B`) is the routine
 that sends one character:
 
 ```
-pascal100> BREAK 113
-breakpoint 1: pc     0113
+pascal100> BREAK 11B
+breakpoint 1: pc     011B
 pascal100> RUN 100
 
-breakpoint 1 (pc     0113) -- stopped at 0113
-6 instructions, 58 T-states.
-C0Z0M0E1I0V0K0 A=48 BC=0000 DE=0000 HL=011F SP=013C IE=0 PC=0113  PUSH PSW
+breakpoint 1 (pc     011B) -- stopped at 011B
+10 instructions, 92 T-states.
+C0Z0M0E1I0V0K0 A=48 BC=0000 DE=0000 HL=0127 SP=0144 IE=0 PC=011B  PUSH PSW
 ```
 
 The first line of the report names the breakpoint and the address where the machine stopped.
@@ -193,17 +193,17 @@ line that `REGS` shows.
 
 A cycle breakpoint gives the same report, with one difference. For a cycle breakpoint, *stopped
 at* is the address of the instruction that made the access, not the watched address. The report gives you
-the instruction that made the access. In this example, the breakpoint finds a write to `013D`,
+the instruction that made the access. In this example, the breakpoint finds a write to `0145`,
 in the stack. `PC` is on the `CALL` that pushes its return address there:
 
 ```
-pascal100> BREAK MEM W 13D
-breakpoint 1: mem w  00013D
+pascal100> BREAK MEM W 145
+breakpoint 1: mem w  000145
 pascal100> RUN 100
 
-breakpoint 1 (mem w  00013D) -- stopped at 010B
-5 instructions, 41 T-states.
-C0Z0M0E1I0V0K0 A=48 BC=0000 DE=0000 HL=011F SP=013E IE=0 PC=010B  CALL 0113
+breakpoint 1 (mem w  000145) -- stopped at 0113
+9 instructions, 75 T-states.
+C0Z0M0E1I0V0K0 A=48 BC=0000 DE=0000 HL=0127 SP=0146 IE=0 PC=0113  CALL 011B
 ```
 
 ### Conditions: `IF`
@@ -238,8 +238,8 @@ These are the same registers that `BREAK <addr> IF` at that instruction tests.
 
 **A cycle breakpoint with `IF` stops *after* the instruction, not before it.** The monitor can
 test the condition only at the end of the instruction, so the access has occurred. In
-`examples/debugger`, `BREAK MEM W 13D` stops at `010B`, on the `CALL` that writes the byte.
-`BREAK MEM W 13D IF A==48` stops at `0113`, after the `CALL` ran. The report still names the
+`examples/debugger`, `BREAK MEM W 145` stops at `0113`, on the `CALL` that writes the byte.
+`BREAK MEM W 145 IF A==48` stops at `011B`, after the `CALL` ran. The report still names the
 breakpoint and its condition.
 
 ```
@@ -566,22 +566,26 @@ does not show which bytes are addresses.
 
 ```
 pascal100> SYMBOLS LOAD HELLO.PRN
-12 symbol(s) from HELLO.PRN
+14 symbol(s) from HELLO.PRN
 pascal100> LOAD HELLO.HEX
-loaded 46 bytes (1 page) from HELLO.HEX (000100-00012D)
+loaded 54 bytes (1 page) from HELLO.HEX (000100-000135)
 pascal100> DISASM START-DONE
 START:
-0100  31 3E 01  LXI SP,STACK
-0103  21 1F 01  LXI H,MSG
+0100  31 46 01  LXI SP,STACK
+0103  3E 03     MVI A,03
+0105  D3 10     OUT 10
+0107  3E 15     MVI A,15
+0109  D3 10     OUT 10
+010B  21 27 01  LXI H,MSG
 LOOP:
-0106  7E        MOV A,M
-0107  B7        ORA A
-0108  CA 12 01  JZ DONE
-010B  CD 13 01  CALL PUTC
-010E  23        INX H
-010F  C3 06 01  JMP LOOP
+010E  7E        MOV A,M
+010F  B7        ORA A
+0110  CA 1A 01  JZ DONE
+0113  CD 1B 01  CALL PUTC
+0116  23        INX H
+0117  C3 0E 01  JMP LOOP
 DONE:
-0112  76        HLT
+011A  76        HLT
 ```
 
 `START` is `0100`, so the range starts at `0100`. A name works as an address in each command.
@@ -589,7 +593,7 @@ The listing also changes in two ways:
 
 - **A program label** is on its own line above its address, as in an assembler listing.
   `START:` is above `0100`. For this reason, you can see where a jump goes to.
-- **A 16-bit operand** shows as a name. `CALL 0113` becomes `CALL PUTC`, and `LXI SP,013E`
+- **A 16-bit operand** shows as a name. `CALL 011B` becomes `CALL PUTC`, and `LXI SP,0146`
   becomes `LXI SP,STACK`.
 
 These two changes use different symbols, for a reason:
@@ -607,7 +611,7 @@ Only a 16-bit operand shows as an address. A byte value stays a number. In `PUTC
 `ANI 02` do not become `TTYS` and `TXRDY`, although `HELLO.ASM` has an `EQU` for each value. A
 one-byte value is a port or a count, not an address.
 
-> **Try it.** `examples/debugger/` is a 46-byte program for these rules. It has a `.PRN` for
+> **Try it.** `examples/debugger/` is a 54-byte program for these rules. It has a `.PRN` for
 > `SYMBOLS LOAD`, a `.HEX` for `LOAD`, and a `README`. The `README` starts with a `DISASM` that
 > shows symbols. Next, it steps through the program, stops at a label, and runs the program until
 > it prints. You can see each rule above in the example, including the `EQU` operand and the
@@ -914,7 +918,7 @@ debug  (runtime diagnostics -- the sink and flags do not survive CONFIG SAVE)
   CHANNEL  FLAGS  (an enabled flag is UPPER-CASE)
   -------  --------------------------------------
   socket   connect
-  6850     serial
+  6850     serial reset
 
   SET <channel> DEBUG=<flag>[,<flag>]  enables;  NODEBUG=<flag> disables;
   DEBUG=all / DEBUG=none turn every flag on / off.
@@ -942,16 +946,34 @@ does not leave half of the list set.
 Each report line starts with **the address of the instruction that operated the chip or the
 board**, and then the name of the diagnostic channel. For this reason, a report line shows you
 the code that operates it. In `examples/debugger`, `HELLO` sends each character with the
-`OUT 11` at `011C`:
+`OUT 11` at `0124`:
 
 ```
-011C  6850: a tx 48
-011C  6850: a tx 45
-011C  6850: a tx 4C
+0124  6850: a tx 48
+0124  6850: a tx 45
+0124  6850: a tx 4C
 ```
 
 At the monitor prompt, the machine is stopped and no instruction operates the board. The
 address column then shows `----`.
+
+The `reset` flag of the `6850` channel finds a program that uses a 6850 before the program
+resets it. A real 6850 does nothing after power-on until the program writes a master reset
+(`03`) to its control port. The flag reports the first status read, data read, control write
+and data write of each chip before the master reset. The line names the chip and the port:
+
+```
+pascal100> SET 6850 DEBUG=reset
+pascal100> IN 10
+----  6850: a port 10: status read before a master reset (held since power-on)
+port 10 -> 00
+pascal100> OUT 11 41
+----  6850: a port 11: data write 41 before a master reset (held since power-on)
+port 11 <- 41
+```
+
+A master reset is the correct first write, so the flag does not report it. After the master
+reset, the chip makes no more reports.
 
 **All the diagnostic channels send their reports to one place.** Set it with `SET CONSOLE
 DEBUG=`:
@@ -1001,16 +1023,16 @@ one character at a time, with the routine `PUTC`. The session follows one charac
 
 ```
 pascal100> SYMBOLS LOAD HELLO.PRN
-12 symbol(s) from HELLO.PRN
+14 symbol(s) from HELLO.PRN
 pascal100> LOAD HELLO.HEX
-loaded 46 bytes (1 page) from HELLO.HEX (000100-00012D)
+loaded 54 bytes (1 page) from HELLO.HEX (000100-000135)
 pascal100> BREAK PUTC
-breakpoint 1: pc     0113
+breakpoint 1: pc     011B
 pascal100> RUN START
 
-breakpoint 1 (pc     0113) -- stopped at 0113
-6 instructions, 58 T-states.
-C0Z0M0E1I0V0K0 A=48 BC=0000 DE=0000 HL=011F SP=013C IE=0 PC=0113  PUSH PSW
+breakpoint 1 (pc     011B) -- stopped at 011B
+10 instructions, 92 T-states.
+C0Z0M0E1I0V0K0 A=48 BC=0000 DE=0000 HL=0127 SP=0144 IE=0 PC=011B  PUSH PSW
 ```
 
 The breakpoint shows the registers, so you do not need `REGS`. `PC` is on `PUSH PSW`, the first
@@ -1019,24 +1041,24 @@ instruction of the routine. `A` holds `48`, the `H`. Disassemble the routine:
 ```
 pascal100> DISASM
 PUTC:
-0113  F5        PUSH PSW
+011B  F5        PUSH PSW
 PWAIT:
-0114  DB 10     IN 10
-0116  E6 02     ANI 02
-0118  CA 14 01  JZ PWAIT
-011B  F1        POP PSW
-011C  D3 11     OUT 11
-011E  C9        RET
+011C  DB 10     IN 10
+011E  E6 02     ANI 02
+0120  CA 1C 01  JZ PWAIT
+0123  F1        POP PSW
+0124  D3 11     OUT 11
+0126  C9        RET
 MSG:
-011F  48        MOV C,B
-0120  45        MOV B,L
-0121  4C        MOV C,H
-0122  4C        MOV C,H
-0123  4F        MOV C,A
-0124  2C        INR L
-0125  20        RIM
-0126  57        MOV D,A
-0127  4F        MOV C,A
+0127  48        MOV C,B
+0128  45        MOV B,L
+0129  4C        MOV C,H
+012A  4C        MOV C,H
+012B  4F        MOV C,A
+012C  2C        INR L
+012D  20        RIM
+012E  57        MOV D,A
+012F  4F        MOV C,A
 ```
 
 This is how the routine works:
@@ -1055,22 +1077,22 @@ Step through the routine, and see the `H` go out and the `E` come in:
 
 ```
 pascal100> STEP 12
-C0Z0M0E1I0V0K0 A=48 BC=0000 DE=0000 HL=011F SP=013A IE=0 PC=0114  IN 10
-C0Z0M0E1I0V0K0 A=02 BC=0000 DE=0000 HL=011F SP=013A IE=0 PC=0116  ANI 02
-C0Z0M0E0I1V0K0 A=02 BC=0000 DE=0000 HL=011F SP=013A IE=0 PC=0118  JZ PWAIT
-C0Z0M0E0I1V0K0 A=02 BC=0000 DE=0000 HL=011F SP=013A IE=0 PC=011B  POP PSW
-C0Z0M0E1I0V0K0 A=48 BC=0000 DE=0000 HL=011F SP=013C IE=0 PC=011C  OUT 11
-C0Z0M0E1I0V0K0 A=48 BC=0000 DE=0000 HL=011F SP=013C IE=0 PC=011E  RET
-C0Z0M0E1I0V0K0 A=48 BC=0000 DE=0000 HL=011F SP=013E IE=0 PC=010E  INX H
-C0Z0M0E1I0V0K0 A=48 BC=0000 DE=0000 HL=0120 SP=013E IE=0 PC=010F  JMP LOOP
-C0Z0M0E1I0V0K0 A=48 BC=0000 DE=0000 HL=0120 SP=013E IE=0 PC=0106  MOV A,M
-C0Z0M0E1I0V0K0 A=45 BC=0000 DE=0000 HL=0120 SP=013E IE=0 PC=0107  ORA A
-C0Z0M0E0I0V0K0 A=45 BC=0000 DE=0000 HL=0120 SP=013E IE=0 PC=0108  JZ DONE
-C0Z0M0E0I0V0K0 A=45 BC=0000 DE=0000 HL=0120 SP=013E IE=0 PC=010B  CALL PUTC
+C0Z0M0E1I0V0K0 A=48 BC=0000 DE=0000 HL=0127 SP=0142 IE=0 PC=011C  IN 10
+C0Z0M0E1I0V0K0 A=02 BC=0000 DE=0000 HL=0127 SP=0142 IE=0 PC=011E  ANI 02
+C0Z0M0E0I1V0K0 A=02 BC=0000 DE=0000 HL=0127 SP=0142 IE=0 PC=0120  JZ PWAIT
+C0Z0M0E0I1V0K0 A=02 BC=0000 DE=0000 HL=0127 SP=0142 IE=0 PC=0123  POP PSW
+C0Z0M0E1I0V0K0 A=48 BC=0000 DE=0000 HL=0127 SP=0144 IE=0 PC=0124  OUT 11
+C0Z0M0E1I0V0K0 A=48 BC=0000 DE=0000 HL=0127 SP=0144 IE=0 PC=0126  RET
+C0Z0M0E1I0V0K0 A=48 BC=0000 DE=0000 HL=0127 SP=0146 IE=0 PC=0116  INX H
+C0Z0M0E1I0V0K0 A=48 BC=0000 DE=0000 HL=0128 SP=0146 IE=0 PC=0117  JMP LOOP
+C0Z0M0E1I0V0K0 A=48 BC=0000 DE=0000 HL=0128 SP=0146 IE=0 PC=010E  MOV A,M
+C0Z0M0E1I0V0K0 A=45 BC=0000 DE=0000 HL=0128 SP=0146 IE=0 PC=010F  ORA A
+C0Z0M0E0I0V0K0 A=45 BC=0000 DE=0000 HL=0128 SP=0146 IE=0 PC=0110  JZ DONE
+C0Z0M0E0I0V0K0 A=45 BC=0000 DE=0000 HL=0128 SP=0146 IE=0 PC=0113  CALL PUTC
 ```
 
 `IN 10` read `02`: the transmitter was ready at once, so `JZ PWAIT` did not go back. `POP PSW`
-put the `H` (`48`) back in `A`, and `OUT 11` sent it. After `RET`, `INX H` moved `HL` to `0120`,
+put the `H` (`48`) back in `A`, and `OUT 11` sent it. After `RET`, `INX H` moved `HL` to `0128`,
 and `MOV A,M` got the next character, `45`, the `E`. `ORA A` found that it is not the zero at
 the end of the text, so the program calls `PUTC` again. A bare `RUN` now stops at the
 breakpoint again, with `A=45`.

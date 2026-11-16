@@ -22,7 +22,7 @@
 [machine]
 name = "debugger-demo"
 
-# The processor. `clock_hz = 0` is flat out (the default); the demo is 46 bytes and a
+# The processor. `clock_hz = 0` is flat out (the default); the demo is 54 bytes and a
 # short loop, so it finishes the instant you RUN it either way.
 [[board]]
 type = "8085"
