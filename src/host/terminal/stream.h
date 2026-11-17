@@ -61,6 +61,7 @@ public:
     size_t doWrite(const uint8_t* buf, size_t n) override;  // guest -> screen
     bool   readable() const override;
     bool   writable() const override { return true; }  // the terminal never stalls the guest
+    size_t rxPending() const override;  // keys and reports the guest has not read
 
     void pump() override;  // paint the frame, once per slice, on the main thread
 

@@ -325,6 +325,7 @@ two fields.
 |---|---|
 | `BOARDS` | the backplane |
 | `SHOW <id>` | one board: each setting, its value, and the values that it accepts |
+| `SHOW <id>:<unit>` | one unit: what it holds and its settings. For a serial unit, also the bytes that wait for the guest (`rx waiting`) and for the host (`tx waiting`) |
 | `SHOW MACHINE` | the whole machine |
 | `SHOW MOUNTS` | every disk and ROM in the machine, and what is in it |
 | `SHOW CONSOLE` | which unit has your keyboard, and which transforms apply to its bytes |
