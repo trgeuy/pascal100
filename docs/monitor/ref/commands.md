@@ -1277,11 +1277,13 @@ This does NOT choose which board is the console -- CONNECT does that
 ### SHOW — `SH[OW]`
 
 ```
-SHOW <id>|BOARDS|BOARD <type> [UNITS]|MACHINES|MACHINE [<name>]|BUS [MAP|IO|IRQ|DMA|CONTENTION]|ROMS|MOUNTS|PATHS|CONSOLE|DISPLAY|TERMINAL|SERIAL|DEBUG|SYMBOLS|CLOCK|VERSION
+SHOW <id>[:<unit>]|BOARDS|BOARD <type> [UNITS]|MACHINES|MACHINE [<name>]|BUS [MAP|IO|IRQ|DMA|CONTENTION]|ROMS|MOUNTS|PATHS|CONSOLE|DISPLAY|TERMINAL|SERIAL|DEBUG|SYMBOLS|CLOCK|VERSION
 ```
 
 ```
 SHOW mem0           ; regions and properties
+SHOW sio0:b         ; one unit: what it holds, its properties, and for a serial
+                    ; unit the bytes waiting for the guest (rx) and the host (tx)
 SHOW BOARDS         ; the board types you can add
 SHOW BOARD disk1    ; one type's description and properties (add UNITS for just those)
 SHOW MACHINES       ; the built-in machines you can boot

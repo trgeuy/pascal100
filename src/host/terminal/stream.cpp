@@ -164,6 +164,7 @@ size_t TerminalStream::doWrite(const uint8_t* buf, size_t n) {
 }
 
 bool TerminalStream::readable() const { return emu_->hasReply(); }
+size_t TerminalStream::rxPending() const { return emu_->replyPending(); }
 
 void TerminalStream::keyAscii(uint8_t b) {
     // Inbound (keyboard -> guest). Fold HERE, not in read(): read() drains the reply
