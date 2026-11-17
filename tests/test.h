@@ -67,6 +67,7 @@ void test_isa();
 void test_z80_isa();
 void test_pmachine();
 void test_8085_isa();
+void test_8088_isa();
 void test_cpu();
 void test_status();
 void test_z80_cpu();

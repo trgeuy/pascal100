@@ -75,8 +75,10 @@ static const std::vector<CommandDef> kCommands = {
      "return address instead of stepping into it; anything else is a plain single\n"
      "step. It is a temporary breakpoint at the return plus a RUN, so the callee is\n"
      "LIVE -- it can use the console, and ^E (STOP) or ^C stops it. On a HLT that\n"
-     "nothing can end, NEXT does nothing. RESET ends the halt. On a P-code core\n"
-     "(the Pascal-100's MicroEngine) NEXT is a plain STEP.\n"
+     "nothing can end, NEXT does nothing. RESET ends the halt. On the 8088, NEXT\n"
+     "steps over CALL (near, far and indirect) and INT n, INT 3 and INTO -- a BDOS\n"
+     "call on CP/M-86 and MP/M is INT E0. On a P-code core (the Pascal-100's\n"
+     "MicroEngine) NEXT is a plain STEP.\n"
      "\n"
      "  N  ; over the CALL/RST at PC (else single-step)"},
     // RUN is the front panel's switch. It REPLACED GO (Patrick, 2026-07-12) -- there
@@ -594,21 +596,26 @@ static const std::vector<CommandDef> kCommands = {
      "\n"
      "  REGI ADD mem0 type=ram at=0 size=48K\n"
      "  REGI ADD mem0 type=rom at=F000 mount=builtin:ssm-8080mon"},
-    {"DISASM", true, nullptr, "DISASM [<addr>|<range>] [n] [CPU=8080]",  // DI
+    {"DISASM", true, nullptr, "DISASM [<addr>|<seg:off>|<range>] [n] [CPU=8080]",  // DI
      "It needs an INSTRUCTION SET, not a CPU -- so it works on an empty backplane.\n"
      "You normally never type CPU=: the active core says what it speaks, and DISASM\n"
      "asks it. It PEEKS, so it cannot consume a byte from a UART in the range.\n"
      "\n"
      "n is how many INSTRUCTIONS to decode -- a count, so it is decimal, and 16 when\n"
      "you leave it off. It only applies to a start address: give a RANGE and the range\n"
-     "decides where to stop. CPU= is an instruction set, one of 8080 or z80, and is\n"
-     "only for when the machine has no CPU to ask.\n"
+     "decides where to stop. CPU= is an instruction set, one of 8080, 8085, z80, pcode\n"
+     "or 8088, and is only for when the machine has no CPU to ask.\n"
+     "\n"
+     "On the 8088 an address is SEG:OFF, as in an 8086 listing. A bare number is an\n"
+     "offset in CS (as DOS DEBUG's U), and DI with no address starts at CS:IP. A\n"
+     "range is not taken there yet.\n"
      "\n"
      "  DI FF00          ; sixteen instructions of the boot PROM\n"
      "  DI FF00 40       ; forty of them instead\n"
      "  DI               ; carry on from there\n"
      "  DI 0-2F          ; exactly that range\n"
-     "  DI FF00 CPU=z80  ; decode as Z80 when nothing in the machine can say"},
+     "  DI FF00 CPU=z80  ; decode as Z80 when nothing in the machine can say\n"
+     "  DI 1759:019F     ; the 8088: sixteen instructions at segment 1759, offset 019F"},
     // SYMBOLS is not LOAD. LOAD is memory all the way down (every format it takes
     // becomes bytes in the address space); a symbol table has no address space to land
     // in -- it is the debugger's NAMES for one, host-side like a breakpoint, surviving

@@ -183,6 +183,8 @@ private:
     struct Insn insnAt(uint32_t addr, const class Disassembler& d);
     // The instruction at core `c`'s PC, peeked the way that core fetches (CpuCard::peekCodeByte).
     struct Insn insnAtPc(class CpuCore* c, const class Disassembler& d);
+    uint8_t peek8088(class CpuCore* c, uint16_t seg, uint16_t off);
+    uint8_t disasmLine8088(uint16_t seg, uint16_t off, const class Disassembler& d, std::ostream& out);
 
     // Rewrite a disassembled operand as a symbol when one is loaded: `CALL 0005`
     // becomes `CALL BDOS`. The decoder tells us the 16-bit operand's VALUE (in.operand,
@@ -331,6 +333,12 @@ private:
     // A STEP or a GO moves it to the PC, because after the machine stops the thing
     // you want to look at is what it is about to do next, every time.
     uint32_t disasmNext_ = 0;
+    // The 8088 lists in SEG:OFF (isa/isa8088.cpp). A bare DI continues in disasm88Seg_ at
+    // disasmNext_ only after an 8088 DI; anything that moves the PC (STEP, NEXT, RUN) sets
+    // disasmNext_ through setDisasmNext, which drops that, so the next DI starts at CS:IP.
+    uint16_t disasm88Seg_ = 0;
+    bool disasm88Set_ = false;
+    void setDisasmNext(uint32_t a) { disasmNext_ = a; disasm88Set_ = false; }
 
     // EXAMINE HAS NO CURSOR HERE, AND MUST NOT GROW ONE. The panel has no address
     // latch of its own: it jams the switches into the PROGRAM COUNTER and lets the CPU

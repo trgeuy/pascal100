@@ -343,6 +343,7 @@ add_library(altair_core STATIC
   src/isa/isa8085.cpp
   src/isa/isaZ80.cpp
   src/isa/isaPcode.cpp
+  src/isa/isa8088.cpp
   src/cpu/cpu8085.cpp
   src/cpu/cpu8088.cpp
   src/cpu/cpuZ80.cpp
@@ -714,6 +715,7 @@ add_executable(altair_tests
   tests/test_z80_isa.cpp
   tests/test_pmachine.cpp
   tests/test_8085_isa.cpp
+  tests/test_8088_isa.cpp
   tests/test_cpu.cpp
   tests/test_status.cpp
   tests/test_z80_cpu.cpp
