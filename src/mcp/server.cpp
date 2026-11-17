@@ -308,8 +308,11 @@ Json toolList() {
                                "is given.");
         p["hi"]    = intSchema("Optional: decode from `addr` through this address inclusive, "
                                "instead of a fixed count.");
-        p["cpu"]   = strSchema("Instruction set, e.g. 8080 or z80. Defaults to the machine's "
-                               "active CPU; required if the backplane has no processor.");
+        p["cpu"]   = strSchema("Instruction set, e.g. 8080, z80 or 8088. Defaults to the "
+                               "machine's active CPU; required if the backplane has no processor.");
+        p["segment"] = intSchema("8088 only: the segment; `addr` and `hi` are then offsets in "
+                                 "it (an 8086 listing is in seg:off terms). Defaults to CS when "
+                                 "the 8088 is the active core, else 0.");
         list.push(tool("disasm",
                        "Disassemble memory. Reads non-invasively through a peek (no UART byte is "
                        "consumed, no snoop latch tripped) and decodes with the stateless "
@@ -2081,7 +2084,32 @@ Json callTool(Machine& m, McpSession& sess, const std::string& name, const Json&
             for (const auto& s : instructionSets()) known += " " + s;
             return textResult("no instruction set '" + isa + "'. Known:" + known, true);
         }
-        auto peek = [&](uint16_t a) { return m.bus.peek(a); };
+        // The 8088 decodes offsets in one segment (isa/isa8088.cpp): the peek adds the base.
+        // Through the CPU card when the 8088 is the active core, as the monitor's DISASM
+        // reads (the CPU 8085/88 adds its A20-A23 latch); else straight off the bus.
+        const bool x86 = std::string(dis->name()) == "8088";
+        CpuCore* x86core = nullptr;
+        if (CpuCore* c = m.cpu(); c && std::string(c->isa()) == "8088") x86core = c;
+        uint32_t segBase = 0;
+        if (x86) {
+            uint32_t seg = 0;
+            if (args.has("segment")) {
+                const long long sv = args.at("segment").integer();
+                if (sv < 0 || sv > 0xFFFF)
+                    return textResult("segment must be 0..65535 (0000..FFFF).", true);
+                seg = (uint32_t)sv;
+            } else if (x86core) {
+                for (const RegDef& r : x86core->registers())
+                    if (r.name == "CS") seg = r.get() & 0xFFFF;
+            }
+            segBase = seg << 4;
+        }
+        CpuCard* card = m.cpuCard();
+        auto peek = [&](uint16_t a) {
+            if (!x86) return m.bus.peek(a);
+            const uint32_t lin = (segBase + a) & 0xFFFFF;
+            return card && x86core ? card->peekCodeByte(x86core, m.bus, lin) : m.bus.peekX(lin);
+        };
 
         uint32_t at   = (uint32_t)args.at("addr").integer();
         bool     rng  = args.has("hi");
@@ -2094,6 +2122,7 @@ Json callTool(Machine& m, McpSession& sess, const std::string& name, const Json&
             Insn in = dis->at((uint16_t)at, peek, 16);
             Json line = Json::obj();
             line["addr"] = Json((long long)at);
+            if (x86) line["segment"] = Json((long long)(segBase >> 4));
             Json b = Json::arr();
             std::string hexbytes;
             for (int k = 0; k < in.len; ++k) {
@@ -2107,8 +2136,13 @@ Json callTool(Machine& m, McpSession& sess, const std::string& name, const Json&
             line["len"]   = Json((long long)in.len);
             line["undocumented"] = Json(in.undocumented);
             lines.push(line);
-            std::snprintf(buf, sizeof buf, "%04X  %-9s %s%s\n", at, hexbytes.c_str(),
-                          in.text.c_str(), in.undocumented ? "   ; undocumented" : "");
+            if (x86)
+                std::snprintf(buf, sizeof buf, "%04X:%04X  %-18s %s%s\n", segBase >> 4, at,
+                              hexbytes.c_str(), in.text.c_str(),
+                              in.undocumented ? "   ; undocumented" : "");
+            else
+                std::snprintf(buf, sizeof buf, "%04X  %-9s %s%s\n", at, hexbytes.c_str(),
+                              in.text.c_str(), in.undocumented ? "   ; undocumented" : "");
             text += buf;
             at += in.len;
         }

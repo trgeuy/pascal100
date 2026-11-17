@@ -114,8 +114,10 @@ The switch defaults are the manual's quick-start settings (p.4).
   no ADSB\* line.
 - **The reset-on-swap pulse** is not timed. The real board gives a pulse of about 2 us.
 - **The status PROM (U30)** is not modeled. Each core gives its own status bits to the bus.
-- **The 8088 disassembler** does not exist yet. DISASM, and NEXT's step-over, work only on the
-  8085.
+- **The 8088 disassembler** (`src/isa/isa8088.cpp`) is written from Intel's encoding tables (the
+  *iAPX 88 Book*, 1981, pp. 61-62) and prints DDT86's text. Addresses are `SEG:OFF`. `NEXT`
+  steps over `CALL` and `INT` on the 8088. There is no 8088 assembler, so `EDIT` takes only
+  bytes on the 8088.
 
 ## Verification
 
