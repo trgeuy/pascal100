@@ -23,6 +23,9 @@ program. Use it on a build with no window.
 
 `^E` (STOP) gives the keyboard back to the monitor at any time. `RUN` continues the guest.
 
+**Go back to the `A>` prompt before you stop or quit.** A BIOS can keep written data in memory
+for a short time ([Keep your disk safe](../../docs/manual/disks.md#go-back-to-the-a-prompt-before-you-stop)).
+
 ## Which CompuPro system is this?
 
 CompuPro sold three operating systems for the CPU 8085/88 card. This example is the second:
@@ -51,8 +54,9 @@ Then type `B:STAT B:*.COM` at the `A>` prompt.
 
 ## The machine
 
-A CompuPro CPU 8085/88, an Interfacer 1 for the console, a Disk 1 floppy controller at `C0`, the
-host bridge at `B0` and 1 MB of RAM. The Disk 1 boot ROM (routine 4) runs on the 8085 and reads the boot sector. That code
+A CompuPro CPU 8085/88, an Interfacer 1 for the console, a Disk 1 floppy controller at `C0`, a
+System Support 1 at `50` for its clock (`CLOCK` shows the host's time; the serial port is not
+connected), the host bridge at `B0` and 1 MB of RAM. The Disk 1 boot ROM (routine 4) runs on the 8085 and reads the boot sector. That code
 does `IN FD`: the card gives the bus to the 8088, which loads `CPM.SYS` and starts CP/M 8-16.
 
 **The host bridge.** `R`, `W` and `HDIR` copy files between the CP/M disk and the folder you

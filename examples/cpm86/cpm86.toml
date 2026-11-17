@@ -50,6 +50,16 @@ routine = 4
   unit  = 0
   mount = "cpm86-11.dsk"
 
+# THE SYSTEM SUPPORT 1 at 50-5F, for its clock (CLOCK.CMD; the time is the host's own). Its
+# serial port is not connected: the console is on the Interfacer 1.
+[[board]]
+type = "ss1"
+id   = "ss1"
+base = 50
+
+  [board.unit.serial]
+  connect = "null"
+
 # THE HOST BRIDGE at B0, for R, W and HDIR (R.CMD, W.CMD and HDIR.CMD on the disk). hostdir ""
 # = the folder you started pascal100 in.
 [[board]]
