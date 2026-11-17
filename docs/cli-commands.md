@@ -44,7 +44,7 @@ derived from. It is here for the notes; the list itself is `HELP`'s, which print
 |---|---|---|
 | `D` | DUMP | |
 | `S` | STEP | |
-| `N` | NEXT | STEP that runs *over* a CALL/RST (on the 8088, a CALL/INT) instead of into it |
+| `N` | NEXT | STEP that runs *over* a CALL/RST instead of into it |
 | `R` | RUN | the panel's switch. `G` names nothing at all now |
 | `H` | HISTORY | the ring of recent bus cycles — always recording |
 | `M` | MOUNT | |

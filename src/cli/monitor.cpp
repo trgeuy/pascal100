@@ -2924,64 +2924,12 @@ Insn Monitor::insnAt(uint32_t at, const Disassembler& d) {
     return d.at((uint16_t)at, peek, octalMode() ? 8 : 16);
 }
 
-// The 8088 lists in CS:IP terms (isa/isa8088.cpp): the disassembler sees offsets in one
-// segment and the peek adds the segment base. True, with CS and IP, for a core that speaks
-// the 8088 instruction set; false for every other core.
-static bool csIp(CpuCore* c, uint16_t& cs, uint16_t& ip) {
-    if (!c || std::string(c->isa()) != "8088") return false;
-    bool haveCs = false, haveIp = false;
-    for (const RegDef& r : c->registers()) {
-        if (r.name == "CS") { cs = (uint16_t)r.get(); haveCs = true; }
-        if (r.name == "IP") { ip = (uint16_t)r.get(); haveIp = true; }
-    }
-    return haveCs && haveIp;
-}
-
-// A byte at seg:off, as the 8088 would fetch it -- through the card when there is one (the
-// CPU 8085/88 adds its A20-A23 latch), else straight off the bus.
-uint8_t Monitor::peek8088(CpuCore* c, uint16_t seg, uint16_t off) {
-    const uint32_t lin = (((uint32_t)seg << 4) + off) & 0xFFFFF;
-    CpuCard* card = m_.cpuCard();
-    return card && c ? card->peekCodeByte(c, m_.bus, lin) : m_.bus.peekX(lin);
-}
-
 Insn Monitor::insnAtPc(CpuCore* c, const Disassembler& d) {
-    uint16_t cs = 0, ip = 0;
-    if (csIp(c, cs, ip)) {
-        auto peek = [this, c, cs](uint16_t off) { return peek8088(c, cs, off); };
-        return d.at(ip, peek, octalMode() ? 8 : 16);
-    }
     CpuCard* card = m_.cpuCard();
     auto peek = [this, card, c](uint16_t a) {
         return card ? card->peekCodeByte(c, m_.bus, a) : m_.bus.peek(a);
     };
-    return d.at((uint16_t)c->pc(), peek, octalMode() ? 8 : 16);
-}
-
-// One DISASM line for the 8088, in the 8080 line's layout: a label line where SYMBOLS has one,
-// then SSSS:OOOO, the object bytes and the instruction with its operand named. Labels and
-// names are by OFFSET -- what an 8086 .SYM or .PRN holds.
-uint8_t Monitor::disasmLine8088(uint16_t seg, uint16_t off, const Disassembler& d,
-                                std::ostream& out) {
-    CpuCore* c = m_.cpu();
-    auto peek = [this, c, seg](uint16_t o) { return peek8088(c, seg, o); };
-    Insn in = d.at(off, peek, octalMode() ? 8 : 16);
-
-    for (const std::string& label : m_.syms.labelsAt(off)) out << label << ":\n";
-
-    std::string bytes;
-    for (int i = 0; i < in.len; ++i) {
-        bytes += fmtByte(peek((uint16_t)(off + i)));
-        bytes += ' ';
-    }
-    // Pad to six bytes -- an opcode, ModRM, a displacement word and an immediate word, the
-    // longest unprefixed 8088 instruction. A prefixed one runs past and pushes its text right.
-    int w = 6 * (byteWidth() + 1);
-    char buf[160];
-    std::snprintf(buf, sizeof buf, "%s:%s  %-*s %s", fmtWord(seg).c_str(), fmtWord(off).c_str(),
-                  w, bytes.c_str(), annotateOperands(in).c_str());
-    out << buf << "\n";
-    return in.len;
+    return d.at((uint16_t)c->pc(), peek, octalMode() ? 8 : 16);   // a 16-bit core: no disassembler for the 8088 yet
 }
 
 // Substitute a symbol for a 16-bit operand address: `CALL 0005` -> `CALL BDOS`. The
@@ -3136,22 +3084,16 @@ std::string Monitor::renderInsn(const Debugger::InsnRec& rec) {
     CpuCore* c = rec.core ? rec.core : m_.cpu();
     if (!c) return "";
 
-    auto regs = c->registers();
     std::string insn;
     if (const Disassembler* d = disassemblerFor(c->isa())) {
-        // The 8088 decodes at IP, an offset in CS (isa/isa8088.cpp); the record's PC is
-        // linear. Take IP from the record's own register values.
-        uint16_t at = (uint16_t)rec.pc;
-        if (std::string(c->isa()) == "8088")
-            for (size_t i = 0; i < regs.size() && i < rec.regs.size(); ++i)
-                if (regs[i].name == "IP") at = (uint16_t)rec.regs[i];
-        auto peek = [&rec, at](uint16_t a) -> uint8_t {
-            uint16_t off = (uint16_t)(a - at);
+        auto peek = [&rec](uint16_t a) -> uint8_t {
+            uint16_t off = (uint16_t)(a - rec.pc);
             return off < rec.nbytes ? rec.bytes[off] : (uint8_t)0;
         };
-        insn = annotateOperands(d->at(at, peek, octalMode() ? 8 : 16));
+        insn = annotateOperands(d->at(rec.pc, peek, octalMode() ? 8 : 16));
     }
 
+    auto regs = c->registers();
     return m_.coreTag(c) +
            regLine(regs, [&rec](size_t i) { return i < rec.regs.size() ? rec.regs[i] : 0u; },
                    insn);
@@ -4929,7 +4871,7 @@ bool Monitor::exec(const std::string& line, std::ostream& out) {
         // instruction at the new PC, exactly what the following STEP will execute.
         // Bare EXAMINE (EXAMINE NEXT) is a byte-at-a-time memory walk and stays quiet.
         if (addressed) {
-            setDisasmNext(A);  // a following bare DISASM continues from here, as after STEP/RUN
+            disasmNext_ = A;  // a following bare DISASM continues from here, as after STEP/RUN
             showRegs(out);
         }
         flush(out);
@@ -5034,7 +4976,7 @@ bool Monitor::exec(const std::string& line, std::ostream& out) {
         // DEPOSIT wrote at the PC and leaves it there.
         if (a.size() > 2) {
             cpu->setPc((uint16_t)(A - 1));
-            setDisasmNext(cpu->pc());
+            disasmNext_ = cpu->pc();
         }
         flush(out);
         // Push the last write's bus cycle to the panel (see EXAMINE). The burn/ROM
@@ -5594,56 +5536,6 @@ bool Monitor::exec(const std::string& line, std::ostream& out) {
             return true;
         }
 
-        // THE 8088: SEG:OFF, or an offset in CS (as DOS DEBUG's U). A range stays in its
-        // segment: SEG:LO-HI or SEG:LO/LEN, or LO-HI in CS. A bare DI carries on after an
-        // 8088 DI, and starts at CS:IP after anything that moved the PC (setDisasmNext).
-        if (std::string(d->name()) == "8088") {
-            uint16_t cs = 0, ip = 0;
-            const bool live = csIp(m_.cpu(), cs, ip);
-            uint16_t seg = disasm88Set_ ? disasm88Seg_ : cs;
-            uint32_t lo = disasm88Set_ ? disasmNext_ : ip, hi = 0;
-            uint32_t n = 16;  // a count, so DECIMAL, as on the 8080
-            bool haveRange = false;
-            if (a.size() >= 2) {
-                std::string t = a[1];
-                const size_t colon = t.find(':');
-                if (colon != std::string::npos) {
-                    uint32_t sv = 0;
-                    if (!addrSym(t.substr(0, colon), sv, out)) return true;
-                    if (sv > 0xFFFF) {
-                        out << "segment " << t.substr(0, colon) << " is more than 16 bits.\n";
-                        failed_ = true;
-                        return true;
-                    }
-                    seg = (uint16_t)sv;
-                    t = t.substr(colon + 1);
-                } else {
-                    seg = live ? cs : 0;
-                }
-                if (t.find('-') != std::string::npos || t.find('/') != std::string::npos) {
-                    if (!range(t, lo, hi, out)) return true;
-                    haveRange = true;
-                } else if (!addrSym(t, lo, out)) {
-                    return true;
-                }
-                if (lo > 0xFFFF || (haveRange && hi > 0xFFFF)) {
-                    out << "an 8088 offset is 16 bits: use SEG:OFF for an address past FFFF.\n";
-                    failed_ = true;
-                    return true;
-                }
-            }
-            if (a.size() >= 3 && !haveRange && !count(a[2], n, out)) return true;
-            uint32_t at = lo;
-            for (uint32_t i = 0; haveRange ? at <= hi : i < n; ++i) {
-                at += disasmLine8088(seg, (uint16_t)at, *d, out);
-                if (at > 0xFFFF) break;  // ran off the end of the segment; do not wrap silently
-            }
-            disasm88Seg_ = seg;
-            disasmNext_ = at & 0xFFFF;
-            disasm88Set_ = true;
-            return true;
-        }
-
         uint32_t lo = disasmNext_, hi = 0;
         uint32_t n = 16;  // a screenful, and a count -- so it is DECIMAL
         bool haveRange = false;
@@ -5662,7 +5554,7 @@ bool Monitor::exec(const std::string& line, std::ostream& out) {
             at += disasmLine(at, *d, out);
             if (at > 0xFFFF) break;  // ran off the top of memory; do not wrap silently
         }
-        setDisasmNext(at & 0xFFFF);
+        disasmNext_ = at & 0xFFFF;
         return true;
     }
 
@@ -5709,7 +5601,7 @@ bool Monitor::exec(const std::string& line, std::ostream& out) {
         // pump reflects the resting state, not per-instruction -- the lamps show the
         // last bus cycle, as they did on real hardware.
         m_.pump();
-        setDisasmNext(m_.cpu()->pc());   // ASKED AGAIN: the run may have switched cores (a two-core board)
+        disasmNext_ = m_.cpu()->pc();   // ASKED AGAIN: the run may have switched cores (a two-core board)
         if (!echo) {
             char b[96];
             std::snprintf(b, sizeof b, "%llu instructions, %llu T-states.",
@@ -5732,34 +5624,17 @@ bool Monitor::exec(const std::string& line, std::ostream& out) {
         if (!cpu) return true;
         if (refuseHalted(cpu, out, /*finalOnly=*/true)) return true;  // as a bare RUN
 
-        // The CALL/RST test is 8080 opcodes, which the Z80 shares; the 8088 has its own
-        // below. The Pascal-100's MicroEngine has no step-over here yet: NEXT is a STEP.
+        // The CALL/RST test is 8080 opcodes, which the Z80 shares. Any other instruction
+        // set (the Pascal-100's MicroEngine) has no step-over here yet: NEXT is a STEP.
         const std::string isa = cpu->isa();
         const bool i80 = isa == "8080" || isa == "8085" || isa == "z80";
         CpuCard* card = m_.cpuCard();
         uint8_t op = card ? card->peekCodeByte(cpu, m_.bus, cpu->pc()) : m_.bus.peek(cpu->pc());
         SigintGuard guard;
-        // The 8088's CALL and RST: CALL near/far/indirect and INT n, INT 3, INTO -- each
-        // comes back to the next instruction (a BDOS call on CP/M-86 and MP/M is INT E0).
-        bool overX86 = false;
-        if (isa == "8088") {
-            uint16_t cs = 0, ip = 0;
-            if (csIp(cpu, cs, ip)) {
-                uint16_t k = ip;
-                uint8_t o = peek8088(cpu, cs, k);
-                for (int i = 0; i < 14 && (o == 0x26 || o == 0x2E || o == 0x36 || o == 0x3E ||
-                                          o == 0xF0 || o == 0xF1 || o == 0xF2 || o == 0xF3);
-                     ++i)
-                    o = peek8088(cpu, cs, ++k);
-                const int r = (peek8088(cpu, cs, (uint16_t)(k + 1)) >> 3) & 7;
-                overX86 = o == 0xE8 || o == 0x9A || o == 0xCC || o == 0xCD || o == 0xCE ||
-                          (o == 0xFF && (r == 2 || r == 3));
-            }
-        }
-        if ((i80 && (isCall(op) || isRst(op))) || overX86) {
+        if (i80 && (isCall(op) || isRst(op))) {
             uint8_t len = 1;
             if (const Disassembler* d = disassemblerFor(isa)) len = insnAtPc(cpu, *d).len;
-            m_.debug.setStepTarget((int)((cpu->pc() + len) & cpu->pcMask()));
+            m_.debug.setStepTarget((cpu->pc() + len) & 0xFFFF);
             runMachine(out, /*stepOver=*/true);
             m_.debug.setStepTarget(-1);  // ALWAYS clear -- a real bp/HLT/ATTN may have stopped us first
         } else {
@@ -5770,7 +5645,7 @@ bool Monitor::exec(const std::string& line, std::ostream& out) {
         // Push the resting bus cycle to the panel (see EXAMINE). The CALL/RST branch
         // already pumped inside runMachine; this extra pump is diff-gated -- harmless.
         m_.pump();
-        setDisasmNext(m_.cpu()->pc());
+        disasmNext_ = m_.cpu()->pc();
         showRegs(out);
         return true;
     }
@@ -5885,7 +5760,7 @@ bool Monitor::exec(const std::string& line, std::ostream& out) {
         if (mcpMode_) {
             out << "PC set to " << fmtPc(cpu)
                 << "; not entering the run loop under MCP -- advance with the run tool.\n";
-            setDisasmNext(cpu->pc());
+            disasmNext_ = cpu->pc();
             showRegs(out);
             return true;
         }
@@ -5893,7 +5768,7 @@ bool Monitor::exec(const std::string& line, std::ostream& out) {
         runMachine(out);
 
         flush(out);
-        setDisasmNext(m_.cpu()->pc());
+        disasmNext_ = m_.cpu()->pc();
         showRegs(out);
         return true;
     }

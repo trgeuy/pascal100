@@ -343,7 +343,6 @@ const Isa8080Assembler k8080asm;
 const Disassembler* z80Disassembler();
 const Disassembler* isa8085Disassembler();
 const Disassembler* pcodeDisassembler();
-const Disassembler* isa8088Disassembler();
 
 const Disassembler* disassemblerFor(const std::string& isa) {
     std::string k;
@@ -352,7 +351,6 @@ const Disassembler* disassemblerFor(const std::string& isa) {
     if (k == "8085") return isa8085Disassembler();  // the 8080 set + RIM/SIM, its own table
     if (k == "z80") return z80Disassembler();
     if (k == "pcode") return pcodeDisassembler();  // the WD MicroEngine; no assembler, by design
-    if (k == "8088") return isa8088Disassembler();  // CLK decodes; offsets within one segment
     return nullptr;  // The caller reports it. Disassembling a Z80 as an 8080
                      // produces plausible, WRONG text -- worse than an error.
 }
@@ -372,6 +370,6 @@ const Assembler* assemblerFor(const std::string& isa) {
     return nullptr;
 }
 
-std::vector<std::string> instructionSets() { return {"8080", "8085", "z80", "pcode", "8088"}; }
+std::vector<std::string> instructionSets() { return {"8080", "8085", "z80", "pcode"}; }
 
 } // namespace altair

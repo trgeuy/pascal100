@@ -65,14 +65,14 @@ first line spells each one out as `name=value`. The second line has the eight ge
 The third line has the segment registers and `IP`. `[8088]` names the processor that has the bus:
 
 ```
-pascal100> REGS            (CP/M-86 on a CPU 8085/88, at the A> prompt)
-[8088] OF=0 DF=0 IF=0 TF=0 SF=0 ZF=1 AF=0 PF=1 CF=0
-AX=0000 BX=2509 CX=007F DX=0009 SP=2476 BP=0041 SI=2558 DI=232F
-CS=0041 DS=0041 SS=0041 ES=0041 IP=2756  JZ     2752
+pascal100> REGS            (on a CPU 8085/88, with the 8088 on line)
+[8088] OF=0 DF=0 IF=1 TF=0 SF=0 ZF=1 AF=0 PF=1 CF=0
+AX=0A10 BX=5CE6 CX=0000 DX=0000 SP=0B7E BP=0000 SI=0000 DI=006E
+CS=017E DS=05DF SS=05DF ES=0C66 IP=05B3
 ```
 
 The flags are overflow, direction, interrupt enable, trap, sign, zero, auxiliary carry, parity
-and carry. The instruction at `CS:IP` is at the end of the third line.
+and carry. There is no 8088 disassembler yet, so the line does not show the instruction.
 
 The flags are registers, and you can set them:
 
@@ -103,8 +103,7 @@ calls. Often you know that the subroutine works, and you want the *next* instruc
 code that you read. `NEXT` gives you that instruction.
 
 At a `CALL` or an `RST`, `NEXT` runs the subroutine without a stop at each instruction, and
-stops when the subroutine returns. On the 8088, `NEXT` does this at a `CALL` and at an `INT`.
-On CP/M-86 and MP/M 8-16, a BDOS call is `INT E0`, so `NEXT` runs the whole BDOS function. At any other instruction, `NEXT` does one step. `NEXT` sets a
+stops when the subroutine returns. At any other instruction, `NEXT` does one step. `NEXT` sets a
 breakpoint at the return address and runs to it, as you would do by hand. The subroutine runs
 as it does after `RUN`, at the speed that `clock_hz` sets, and it can read the console.
 If it does not return, press `Ctrl-E` or `Ctrl-C` to stop it. A breakpoint *inside* the
@@ -466,51 +465,6 @@ pascal100> DISASM 100-10A            (the same bytes, on an 8080 machine)
 0105  FE 10     CPI 10
 0107  FC DD 7E  CM 7EDD
 010A  05        DCR B
-```
-
-### The 8088: `SEG:OFF`
-
-An 8088 address has a segment and an offset. On the 8088, `DISASM` shows each address as
-`SEG:OFF`, and the operands of a branch are offsets in the same segment, as in an 8086 assembler
-listing. Give an address as `SEG:OFF`. A number with no segment is an offset in `CS`, as in the
-`U` command of DOS `DEBUG`. `DISASM` with no address starts at `CS:IP`.
-
-```
-DISASM 1759:019F          sixteen instructions at segment 1759, offset 019F
-DISASM 1759:0190-01B0     a range in one segment
-DISASM 019F               offset 019F in CS
-DISASM                    continue, or start at CS:IP after STEP, NEXT or RUN
-```
-
-This example is CP/M-86 at the `A>` prompt. The CCP calls the BDOS with `INT E0`. With a `.SYM`
-file loaded (`SYMBOLS LOAD`), `DISASM` shows names for the branch targets:
-
-```
-pascal100> DISASM 0041:0092-00A9
-0041:0092  B1 00              MOV    CL,00
-0041:0094  33 D2              XOR    DX,DX
-0041:0096  EB F3              JMP    BDOS
-0041:0098  8A D0              MOV    DL,AL
-0041:009A  B1 02              MOV    CL,02
-0041:009C  EB ED              JMP    BDOS
-0041:009E  B0 20              MOV    AL,20
-0041:00A0  51                 PUSH   CX
-0041:00A1  E8 F4 FF           CALL   CONOUT
-0041:00A4  59                 POP    CX
-0041:00A5  C3                 RET
-0041:00A6  B0 0D              MOV    AL,0D
-0041:00A8  E8 F5 FF           CALL   PUTCH
-```
-
-The symbol values are offsets, as in the `.SYM` file of an 8086 program. The names in this
-example come from a small `.SYM` file that we wrote for it.
-
-The 8088 runs some opcodes that Intel did not document. `DISASM` marks them as it marks the
-undefined bytes of the 8080, and shows what the 8088 does with them. For example, the 8088 runs
-`64` as `74` (`JZ`). The bytes `64 02` at offset `0100` show as:
-
-```
-0041:0100  64 02              ??= 64  *JZ     0104
 ```
 
 ## Symbols: `SYMBOLS`, `SHOW SYMBOLS`

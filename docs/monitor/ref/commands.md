@@ -36,10 +36,8 @@ STEP that does not descend. A CALL or RST runs to completion and stops at the
 return address instead of stepping into it; anything else is a plain single
 step. It is a temporary breakpoint at the return plus a RUN, so the callee is
 LIVE -- it can use the console, and ^E (STOP) or ^C stops it. On a HLT that
-nothing can end, NEXT does nothing. RESET ends the halt. On the 8088, NEXT
-steps over CALL (near, far and indirect) and INT n, INT 3 and INTO -- a BDOS
-call on CP/M-86 and MP/M is INT E0. On a P-code core (the Pascal-100's
-MicroEngine) NEXT is a plain STEP.
+nothing can end, NEXT does nothing. RESET ends the halt. On a P-code core
+(the Pascal-100's MicroEngine) NEXT is a plain STEP.
 
 ```
 N  ; over the CALL/RST at PC (else single-step)
@@ -615,7 +613,7 @@ unconfigured tracepoint traces to the console.
 ### DISASM — `DI[SASM]`
 
 ```
-DISASM [<addr>|<seg:off>|<range>] [n] [CPU=8080]
+DISASM [<addr>|<range>] [n] [CPU=8080]
 ```
 It needs an INSTRUCTION SET, not a CPU -- so it works on an empty backplane.
 You normally never type CPU=: the active core says what it speaks, and DISASM
@@ -623,12 +621,8 @@ asks it. It PEEKS, so it cannot consume a byte from a UART in the range.
 
 n is how many INSTRUCTIONS to decode -- a count, so it is decimal, and 16 when
 you leave it off. It only applies to a start address: give a RANGE and the range
-decides where to stop. CPU= is an instruction set, one of 8080, 8085, z80, pcode
-or 8088, and is only for when the machine has no CPU to ask.
-
-On the 8088 an address is SEG:OFF, as in an 8086 listing. A bare number is an
-offset in CS (as DOS DEBUG's U), and DI with no address starts at CS:IP. A
-range is not taken there yet.
+decides where to stop. CPU= is an instruction set, one of 8080 or z80, and is
+only for when the machine has no CPU to ask.
 
 ```
 DI FF00          ; sixteen instructions of the boot PROM
@@ -636,7 +630,6 @@ DI FF00 40       ; forty of them instead
 DI               ; carry on from there
 DI 0-2F          ; exactly that range
 DI FF00 CPU=z80  ; decode as Z80 when nothing in the machine can say
-DI 1759:019F     ; the 8088: sixteen instructions at segment 1759, offset 019F
 ```
 
 

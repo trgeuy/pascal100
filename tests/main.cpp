@@ -74,7 +74,6 @@ const struct {
     {"isa", test_isa},
     {"z80_isa", test_z80_isa},
     {"8085_isa", test_8085_isa},
-    {"8088_isa", test_8088_isa},
     {"cpu", test_cpu},
     {"status", test_status},
     {"z80_cpu", test_z80_cpu},
