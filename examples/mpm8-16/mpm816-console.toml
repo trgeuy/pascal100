@@ -1,7 +1,7 @@
 # CompuPro MP/M 8-16 2.1F from a Fujitsu M20 hard disk, on the terminal where you start the program.
 #
 #     cd examples/mpm8-16 && pascal100 mpm816-console.toml
-#     -> "CompuPro MP/M 8-16" and the 0A> prompt.
+#     -> "CompuPro MP/M 8-16" and the 0A> prompt (single-user: TTYS starts with SINGLE).
 #
 # TYPE SYNC BEFORE YOU STOP THE SIMULATOR. MP/M keeps a write cache for the hard disk and
 # writes it every 30 seconds, on LOGOUT and on SYNC. Writes still in the cache are lost when

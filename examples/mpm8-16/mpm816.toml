@@ -1,8 +1,11 @@
 # CompuPro MP/M 8-16 2.1F, multi-user, from a Fujitsu M20 hard disk: three terminal WINDOWS.
 #
 #     cd examples/mpm8-16 && pascal100 mpm816.toml
-#     -> three windows open: "MP/M console", "tty1" and "tty2". Each shows "CompuPro MP/M
-#        8-16" and the 0A> prompt. The monitor's pascal100> prompt stays where you started.
+#     -> three windows open: "MP/M console -- admin", "tty1 -- alice" and "tty2 -- bob". The
+#        console shows the 0A> prompt; tty1 and tty2 stay blank (TTYS starts with SINGLE). Type
+#        LOGOUT on the console: all three show "Name:". Log in as admin/admin on the console,
+#        alice/alice on tty1, bob/bob on tty2 (PASSWD on A:; README.md). The monitor's
+#        pascal100> prompt stays where you started.
 #
 # TYPE SYNC BEFORE YOU STOP THE SIMULATOR. MP/M keeps a write cache for the hard disk and
 # writes it every 30 seconds, on LOGOUT and on SYNC. Writes still in the cache are lost when
@@ -48,7 +51,7 @@ base = 50
 
   [board.unit.serial]
   connect = "terminal?width=900"
-  title   = "MP/M console"
+  title   = "MP/M console -- admin"
 
 # THE DISK 1 at C0, boot routine 6 (console on the SS-1). Drive 0 holds the boot floppy.
 [[board]]
@@ -123,10 +126,10 @@ users = "4-7"
   tx_int  = "vi3"
   rx_int  = "vi2"
   connect = "terminal?width=900"
-  title   = "tty2"
+  title   = "tty2 -- bob"
 
   [board.unit.user3]
   tx_int  = "vi3"
   rx_int  = "vi2"
   connect = "terminal?width=900"
-  title   = "tty1"
+  title   = "tty1 -- alice"
