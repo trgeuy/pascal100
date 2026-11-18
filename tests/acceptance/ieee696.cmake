@@ -4,8 +4,8 @@
 #   cpm22n-alias64k.toml  64K of 8-bit memory that answers in every 64K segment
 #   cpm22n-seg128k.toml   128K of 16-bit memory in segments 00 and 01 (set up like a RAM 23)
 #
-# Both are the Disk 1 machine of tests/media/compupro/cpm22n.toml with `bus = "ieee696"`. On
-# this bus the Z80 drives A8-A15 on every I/O cycle and the Disk 1 drives all 24 DMA address
+# Both are the Disk 1 machine of tests/media/compupro/cpm22n.toml. On
+# the IEEE 696 bus the Z80 drives A8-A15 on every I/O cycle and the Disk 1 drives all 24 DMA address
 # bits, so the boot, DIR, STAT and a PIP copy prove that every board on the machine still
 # decodes its ports from A0-A7 and that the DMA reaches segment 00 through the wide path.
 # tests/test_ieee696.cpp checks the same machines at the bus level.

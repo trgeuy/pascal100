@@ -430,8 +430,8 @@ None of this bars a board that *happens* to be a later S-100 design from being m
 > (standalone step 3b, 2026-11-09), with the front panel and the Turnkey board that needed it.
 > pascal100's bus is IEEE Std 696-1983 only: a **24-bit** memory address, a 16-bit I/O address
 > (boards decode A0-A7), and the sXTRQ\*/SIXTN\* 16-bit transfer. A board that ignores A16-A23
-> answers in every 64K segment, as on the real bus. A machine file may still say
-> `bus = "ieee696"`, so altairsim can load it; `bus = "altair"` is refused.
+> answers in every 64K segment, as on the real bus. The `bus` key in `[machine]` was removed on
+> 2026-11-18: a file that has one is refused, with a message to delete the line.
 >
 > **Built:** `BusCycle.ext/xtrq/dataHi`; the physical paths (`memReadX`/`memWriteX`/`peekX`)
 > with segment tables built only for a board that says `decodesExtended()`; the 16-bit

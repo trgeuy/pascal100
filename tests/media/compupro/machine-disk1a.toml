@@ -32,7 +32,6 @@
 
 [machine]
 name    = "disk1a"
-bus     = "ieee696"
 
 [[board]]
 type     = "z80"

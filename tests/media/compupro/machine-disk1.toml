@@ -51,7 +51,6 @@
 
 [machine]
 name    = "disk1"
-bus     = "ieee696"
 
 [[board]]
 type     = "z80"

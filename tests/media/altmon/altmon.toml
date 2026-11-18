@@ -9,7 +9,6 @@
 
 [machine]
 name    = "altmon"
-bus     = "ieee696"
 startup = ["RUN F800"]
 
 [[board]]

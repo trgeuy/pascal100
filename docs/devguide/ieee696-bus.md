@@ -1,10 +1,9 @@
 # The IEEE 696 bus
 
 pascal100 has one bus: IEEE Std 696-1983. altairsim, the program pascal100 began as, also has
-the Altair bus of 1975; pascal100 took that bus out in standalone step 3b (2026-11-09). A machine
-file may still say `bus = "ieee696"` in `[machine]`, so altairsim can load it; `bus = "altair"`
-is refused. The Monitor guide describes the addresses that the operator sees (*Addresses on an
-IEEE 696 machine*).
+the Altair bus of 1975; pascal100 took that bus out in standalone step 3b (2026-11-09), and the
+`bus` key in `[machine]` on 2026-11-18. The Monitor guide describes the addresses that the
+operator sees (*Addresses: 24 bits on the bus*).
 
 This page is for a board author. It tells you what to do, for each kind of board, so that the
 board works on the IEEE 696 bus. For most boards, the answer is: nothing.

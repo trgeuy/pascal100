@@ -115,7 +115,7 @@ so it is always current.
 which key it did not know, and the line of the file that the key is on:
 
 ```
-mine.toml: line 4: unknown [machine] key 'widget'. Valid keys: base bus name startup
+mine.toml: line 4: unknown [machine] key 'widget'. Valid keys: base name startup
 mine.toml: line 7: [[board]] cpu0: cpu0 has no property 'frobnicate'. Valid properties: achieved_hz clock_hz idle
 ```
 
@@ -265,21 +265,15 @@ builds the machine, and it shows each one on a `startup>` line.
 A path in a `startup` command is relative to the machine file, the same as every other relative
 path. A `startup` line and the same command that you type find the same file.
 
-### `bus`: the IEEE 696 bus
-
-```toml
-[machine]
-name = "mine"
-bus  = "ieee696"
-```
+### The bus: IEEE 696
 
 pascal100 has one bus, **IEEE Std 696-1983**, the later S-100 standard. It has 24 address lines
-(A0-A23), a 16-bit I/O address and 16-bit memory transfers. `bus` can only be `ieee696`, so you
-can leave the key out. It is accepted so that a machine file with `bus = "ieee696"` loads with
-no change. `bus = "altair"`, the bus of the 1975 Altair 8800, is refused:
+(A0-A23), a 16-bit I/O address and 16-bit memory transfers. There is nothing to choose, so a
+machine file has no `bus` key. A file written for altairsim can have a `bus` line. pascal100
+refuses it, and tells you to delete the line:
 
 ```
-mine.toml: line 3: bus = "altair": this build has the IEEE 696 bus only. Use bus = "ieee696", or leave the key out
+mine.toml: line 3: bus: pascal100 has one bus, IEEE 696, so there is nothing to choose. Delete this line
 ```
 
 These things are part of the IEEE 696 bus:

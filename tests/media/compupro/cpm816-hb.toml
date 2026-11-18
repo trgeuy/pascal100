@@ -6,7 +6,6 @@
 
 [machine]
 name = "cpm816-hb"
-bus  = "ieee696"
 
 [[board]]
 type = "cpu8588"

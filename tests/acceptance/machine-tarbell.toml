@@ -26,7 +26,6 @@
 
 [machine]
 name    = "tarbell"
-bus     = "ieee696"
 
 # THE CPU. A Z80 card; clock_hz = 0 runs it flat out (the crystal is on the card).
 [[board]]

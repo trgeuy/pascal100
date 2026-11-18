@@ -368,27 +368,31 @@ void test_ieee696() {
     {
         Machine m;
         std::string err;
-        bool ok = loadTomlText("[machine]\nname = \"t\"\nbus = \"s100\"\n", "t.toml", m, err);
-        CHECK(!ok && err.find("the bus is ieee696") != std::string::npos,
-              ("an unknown bus value is refused: " + err).c_str());
-        ok = loadTomlText("[machine]\nname = \"t\"\nbus = \"altair\"\n", "t.toml", m, err);
-        CHECK(!ok && err.find("this build has the IEEE 696 bus only") != std::string::npos,
-              ("bus = altair is refused and says why: " + err).c_str());
+        // 2026-11-18: the `bus` key is gone. IEEE 696 is the only bus, so every value --
+        // the old "ieee696" too -- is refused, and the message says the line can go.
+        for (const char* v : {"ieee696", "altair", "s100"}) {
+            bool ok = loadTomlText(std::string("[machine]\nname = \"t\"\nbus = \"") + v + "\"\n",
+                                   "t.toml", m, err);
+            CHECK(!ok && err.find("line 3") != std::string::npos &&
+                      err.find("pascal100 has one bus, IEEE 696") != std::string::npos &&
+                      err.find("Delete this line") != std::string::npos,
+                  ("bus = " + std::string(v) + " is refused and says why: " + err).c_str());
+        }
 
-        ok = loadTomlText("[machine]\nname = \"t\"\nbus = \"ieee696\"\n"
-                          "[[board]]\ntype = \"memory\"\nid = \"mem0\"\n",
-                          "t.toml", m, err);
-        CHECK(ok, ("bus = ieee696 loads: " + err).c_str());
+        bool ok = loadTomlText("[machine]\nname = \"t\"\n"
+                               "[[board]]\ntype = \"memory\"\nid = \"mem0\"\n",
+                               "t.toml", m, err);
+        CHECK(ok, ("no bus key: loads: " + err).c_str());
         std::string saved = saveTomlText(m);
-        CHECK(saved.find("bus      = \"ieee696\"") != std::string::npos,
-              "CONFIG SAVE writes bus = ieee696 (altairsim reads the file as the same machine)");
+        CHECK(saved.find("bus") == std::string::npos,
+              ("CONFIG SAVE writes no bus key: " + saved).c_str());
         Machine back;
         ok = loadTomlText(saved, "saved.toml", back, err);
-        CHECK(ok, "...and it round-trips");
+        CHECK(ok, ("...and it round-trips: " + err).c_str());
 
-        ok = loadTomlText("[machine]\nname = \"t\"\n", "t.toml", m, err);
-        CHECK(ok && saveTomlText(m).find("bus      = \"ieee696\"") != std::string::npos,
-              "no `bus` key: the same bus, and CONFIG SAVE still writes it");
+        ok = loadTomlText("[machine]\nname = \"t\"\nbsu = \"x\"\n", "t.toml", m, err);
+        CHECK(!ok && err.find("Valid keys: base name startup") != std::string::npos,
+              ("an unknown key lists the valid keys, and bus is not one: " + err).c_str());
     }
 
     SECTION("memory: ext and sixteen_bit");
@@ -759,21 +763,15 @@ void test_ieee696() {
     }
 
     {
-        // `bus` in a [machine] table written AFTER the boards.
+        // `bus` in a [machine] table written AFTER the boards: refused, on its own line.
         Machine m;
         std::string err;
-        bool ok = loadTomlText("[[board]]\ntype = \"memory\"\nid = \"mem0\"\next = true\n"
-                               "sixteen_bit = true\n"
+        bool ok = loadTomlText("[[board]]\ntype = \"memory\"\nid = \"mem0\"\n"
                                "[machine]\nname = \"t\"\nbus = \"ieee696\"\n",
                                "t.toml", m, err);
-        CHECK(ok, ("bus after the boards: " + err).c_str());
-        Machine bad;
-        ok = loadTomlText("[[board]]\ntype = \"memory\"\nid = \"mem0\"\n"
-                          "[machine]\nname = \"t\"\nbus = \"s100\"\n",
-                          "t.toml", bad, err);
         CHECK(!ok && err.find("line 6") != std::string::npos &&
-                  err.find("the bus is ieee696") != std::string::npos,
-              ("a bad bus after the boards names its own line: " + err).c_str());
+                  err.find("pascal100 has one bus") != std::string::npos,
+              ("bus after the boards names its own line: " + err).c_str());
     }
 
     {

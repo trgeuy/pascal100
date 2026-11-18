@@ -495,24 +495,22 @@ bool loadInto(const std::string& text, const std::string& source, Machine& m,
                 } else if (k == "startup") {
                     m.startup = t.list;
                 } else if (k == "bus") {
-                    // THE BUS (core/bus.h): IEEE 696 only. The key stays so a machine
-                    // file written for altairsim (bus = "ieee696") loads unchanged; the
-                    // Altair bus was taken out in standalone step 3b.
-                    if (v == "altair") {
-                        err = at(ln) + "bus = \"altair\": this build has the IEEE 696 bus "
-                              "only. Use bus = \"ieee696\", or leave the key out";
-                        return false;
-                    }
-                    if (v != "ieee696") {
-                        err = at(ln) + "bus = \"" + v + "\": the bus is ieee696";
-                        return false;
-                    }
+                    // THE BUS (core/bus.h) is IEEE 696, and there is no other: the Altair
+                    // bus was taken out in standalone step 3b, and the key itself on
+                    // 2026-11-18. A file written for altairsim is not of much use here
+                    // anyway -- our CompuPro boards have features altairsim's do not.
+                    //
+                    // REFUSED, like clock_hz, and not just an unknown key: say why, so a
+                    // reader with an old file knows the line can simply go.
+                    err = at(ln) + "bus: pascal100 has one bus, IEEE 696, so there is "
+                          "nothing to choose. Delete this line";
+                    return false;
                 } else {
                     // Not a PROPERTY (no SET reaches these), so the list is by hand.
-                    // clock_hz and sense are absent on purpose: refused above, not taken.
-                    std::string fix = rightCase(k, {"base", "bus", "name", "startup"});
+                    // clock_hz and bus are absent on purpose: refused above, not taken.
+                    std::string fix = rightCase(k, {"base", "name", "startup"});
                     err = at(ln) + "unknown [machine] key '" + k + "'" +
-                          (fix.empty() ? ". Valid keys: base bus name startup"
+                          (fix.empty() ? ". Valid keys: base name startup"
                                        : "; did you mean '" + fix + "'?");
                     return false;
                 }
@@ -1008,9 +1006,6 @@ std::string saveTomlText(Machine& m, std::string* err, const SaveConsoleHolds& h
     std::ostringstream f;
     f << "[machine]\n";
     f << "name     = " << tomlString(m.name, "machine name", err) << "\n";
-    // Always ieee696, the one bus: the key is a no-op here, but it keeps a saved file
-    // loadable as the same machine by altairsim, whose default is the Altair bus.
-    f << "bus      = \"ieee696\"\n";
     // No clock_hz here, and no sense either. Both are BOARD properties -- the crystal
     // is on the CPU card and the switches are on the front panel -- so both are
     // written out by the same generic properties() walk that writes every other

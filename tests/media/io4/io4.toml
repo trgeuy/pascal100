@@ -22,7 +22,6 @@
 
 [machine]
 name    = "io4"
-bus     = "ieee696"
 startup = ["RUN F000"]                 # cold-start the SSM 8080 monitor at its ORG
 
 # THE CPU. A Z80 (pascal100 2026-11-09: upstream's was an 8080 on the Altair bus; the

@@ -19,7 +19,7 @@
 
 [machine]
 name    = "mpm816-console"
-bus     = "ieee696"          # IEEE 696 (S-100): A0-A23, TMA arbitration for the Disk 2
+# The bus is IEEE 696 (S-100): A0-A23, TMA arbitration for the Disk 2.
 startup = ["RUN 0"]
 
 # THE CPU 8085/88: the 8085 boots; MP/M runs on the 8088 and SW! runs .COM files on the 8085.

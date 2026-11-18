@@ -34,7 +34,6 @@
 
 [machine]
 name    = "pascal100"
-bus     = "ieee696"
 
 [[board]]
 type     = "pascal100"

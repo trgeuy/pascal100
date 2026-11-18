@@ -20,7 +20,6 @@
 
 [machine]
 name    = "tarbelldd"
-bus     = "ieee696"
 startup = ["RUN 0"]
 
 [[board]]

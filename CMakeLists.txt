@@ -935,7 +935,7 @@ add_test(NAME acceptance-disk1
                  -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/acceptance/disk1.cmake)
 set_tests_properties(acceptance-disk1 PROPERTIES LABELS acceptance TIMEOUT 140)
 
-# The IEEE 696 bus type (Stage 2): CP/M 2.2N on the Disk 1 machine with `bus = "ieee696"`,
+# The IEEE 696 bus (Stage 2): CP/M 2.2N on the Disk 1 machine,
 # once with 64K of aliasing memory and once with 128K of 16-bit memory in two segments.
 add_test(NAME acceptance-ieee696
          COMMAND ${CMAKE_COMMAND}

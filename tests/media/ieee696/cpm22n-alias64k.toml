@@ -14,4 +14,3 @@
 [machine]
 base = "../compupro/cpm22n.toml"
 name = "ieee696-alias64k"
-bus  = "ieee696"
