@@ -1220,6 +1220,31 @@ void test_cli() {
     // (resolveKeyword). `BOARDS REM` was the report that started this; the rest ride
     // the same helper. This drives the real dispatcher, not the resolver in isolation.
     // -----------------------------------------------------------------------
+    SECTION("cli: BOARDS ADD with a bad key=value adds nothing");
+    {
+        Machine ma;
+        Monitor monA(ma);
+        std::ostringstream s;
+        monA.exec("BOARDS ADD interfacer1 if1", s);
+        auto ex = [&](const std::string& line) {
+            std::ostringstream o;
+            monA.exec(line.c_str(), o);
+            return o.str();
+        };
+        // `port` is per channel on the Interfacer 1 (if2:a port=): the board has none.
+        std::string o = ex("BOARDS ADD interfacer1 if2 port=10");
+        CHECK(o.find("has no property 'port'") != std::string::npos, "the bad key is named");
+        CHECK(o.find("if2 not added") != std::string::npos && o.find("interfacer1 added") == std::string::npos,
+              "...and it says the board was NOT added (no \"added\" under the error)");
+        CHECK(!ma.find("if2"), "...and the backplane has no if2 (it would sit on if1's ports)");
+        o = ex("BOARDS ADD interfacer1 if2 port");
+        CHECK(o.find("`port` is not key=value") != std::string::npos && !ma.find("if2"),
+              "a word with no = is refused too, not skipped");
+        o = ex("BOARDS ADD memory mem9 fill=zero");
+        CHECK(o.find("mem9: memory added") != std::string::npos && ma.find("mem9"),
+              "a good key=value still adds the board");
+    }
+
     SECTION("cli: subcommand selectors abbreviate -- BOARDS REM, SHOW MOU, SET CON, ...");
     {
         Machine ma;

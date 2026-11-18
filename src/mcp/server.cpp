@@ -2749,6 +2749,15 @@ int runMcp(Machine& m, std::istream& in, std::ostream& out, const std::string& m
             safeReplyError(Json(), -32700, "parse error: " + qm.parseErr);
             continue;
         }
+        // A WATCHER WHO HAS CONNECTED SEES THE NEXT BYTE. The idle tick above accepts a
+        // watcher within 10 ms, but a request that is already waiting is served without
+        // one: a `run` sent just after the watcher's connect() returned started the guest
+        // with the connection still in the listen backlog, and what the guest printed first
+        // went nowhere (MirrorStream::watching()). Pump once before each request, on this
+        // thread, so every connect that completed before the request is accepted first.
+        // Seen as the mirror-watch test missing the ALTMON banner under `ctest -j 8`.
+        if (!sess.mirror.empty()) m.pump();
+
         const Json& req    = qm.req;
         std::string method = req.at("method").str();
         Json        id     = req.at("id");

@@ -3605,15 +3605,32 @@ bool Monitor::exec(const std::string& line, std::ostream& out) {
                 failed_ = true;
                 return true;
             }
+            // All or nothing: a card set up wrong is not plugged in. A bad key=value takes
+            // the board back out, so the backplane is as it was and the line can be typed
+            // again. (Before 2026-11-18 the board stayed in with its defaults -- on top of
+            // another card's ports -- and "added" printed under the error.)
+            bool bad = false;
             for (size_t i = 4; i < a.size(); ++i) {
                 size_t eq = a[i].find('=');
-                if (eq == std::string::npos) continue;
+                if (eq == std::string::npos || eq == 0) {
+                    out << "`" << a[i] << "` is not key=value\n";
+                    bad = true;
+                    continue;
+                }
                 std::string k = a[i].substr(0, eq), v = a[i].substr(eq + 1);
                 std::string e2;
                 if (!setProperty(*b, k, v, e2)) {
                     out << e2 << "\n";
-                    failed_ = true;
+                    bad = true;
                 }
+            }
+            if (bad) {
+                const std::string id = b->id;
+                std::string       e3;
+                m_.remove(id, e3);
+                out << id << " not added\n";
+                failed_ = true;
+                return true;
             }
             out << b->id << ": " << b->type() << " added\n";
             return true;
