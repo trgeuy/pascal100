@@ -74,17 +74,16 @@ void SdlDisplay::destroyWindow(Window& win) {
     win.pendingClose = false;
 }
 
-// Tear down only the windows the operator clicked shut at a stopped prompt (host/display.h),
-// and drop them from the map so their Owner starts fresh if that board draws again. A machine
-// with two video boards keeps the other picture up. Cheap and reversible: the next frame a
-// board draws re-opens its window with no SDL re-init.
+// Tear down only the windows the operator clicked shut at a stopped prompt (host/display.h).
+// A machine with two video boards keeps the other picture up. The slot stays, marked, so the
+// window stays shut while the machine is stopped: a terminal repaints at the prompt, and when
+// this erased the slot (before 2026-11-17) the next repaint opened the window again at once.
+// RUN re-opens it (setRunning). Cheap: no SDL re-init.
 void SdlDisplay::closeWindow() {
-    for (auto it = windows_.begin(); it != windows_.end();) {
-        if (it->second.pendingClose) {
-            destroyWindow(it->second);
-            it = windows_.erase(it);
-        } else {
-            ++it;
+    for (auto& [owner, win] : windows_) {
+        if (win.pendingClose) {
+            destroyWindow(win);
+            win.closedWhileStopped = true;
         }
     }
 }
@@ -433,6 +432,10 @@ void SdlDisplay::setTitle(const std::string& name) {
 // up by ensureWindow() on one not yet open. One machine, one run state -- so all windows agree.
 void SdlDisplay::setRunning(bool running) {
     running_ = running;
+    // RUN brings back the windows closed at the prompt (closeWindow). Not the ones closed
+    // alone while the guest ran (Window::shutByOperator): those stay shut until a reload.
+    if (running)
+        for (auto& [owner, win] : windows_) win.closedWhileStopped = false;
     for (auto& [owner, win] : windows_) applyTitle(win);
 }
 
@@ -474,6 +477,7 @@ void SdlDisplay::yieldFocus() {
 Surface* SdlDisplay::acquire(Owner owner, const std::string& label, int w, int h, PixelFormat fmt,
                              int targetWidthPx) {
     Window& win = windows_[owner];  // find-or-create this board's window slot
+    if (win.shutByOperator || win.closedWhileStopped) return nullptr;  // closed: stays shut
     // The board's name, before the window is built so its first title carries it; retitle a
     // live window if the board ever renames itself (it does not today, so this is usually a no-op).
     if (win.label != label) {
@@ -534,9 +538,21 @@ void SdlDisplay::pollEvents() {
     };
 
     // The operator asked to close ONE window (its close box), routed by the running state at the
-    // moment it happened: while the guest RUNS this stops the guest and keeps every window (RUN
-    // resumes into them); while STOPPED it tears just that window down at the next idle tick.
+    // moment it happened. While the guest RUNS and another window is still open (an MP/M
+    // machine's tty1 and tty2), only this window goes and the guest keeps running: closing
+    // alice's terminal must not stop bob's. Closing the LAST window while it runs stops the
+    // guest and keeps the window (RUN resumes into it), as Ctrl-E does. While STOPPED it tears
+    // just that window down at the next idle tick.
     auto requestClose = [&](Window* w) {
+        if (running_ && w && w->window) {
+            bool others = false;
+            for (auto& [owner, win] : windows_) others = others || (&win != w && win.window);
+            if (others) {
+                destroyWindow(*w);         // the slot stays; drawLastFrame skips it
+                w->shutByOperator = true;  // and acquire() will not rebuild it
+                return;
+            }
+        }
         quitRequested_ = true;             // both loops act on takeQuitRequest()
         if (!running_ && w) w->pendingClose = true;  // stopped: closeWindow() takes the flagged one
     };
@@ -583,8 +599,11 @@ void SdlDisplay::pollEvents() {
             // App-level quit (Cmd-Q, or the platform's last-window signal): stop the guest, and
             // if already stopped, mark every window to go. No windowID -- it is the whole app.
             quitRequested_ = true;
+            // Only the windows still open: one already closed must not be marked again (it
+            // would lose its shutByOperator meaning and come back on RUN).
             if (!running_)
-                for (auto& [owner, win] : windows_) win.pendingClose = true;
+                for (auto& [owner, win] : windows_)
+                    if (win.window) win.pendingClose = true;
             break;
 
         // One window's close box. SDL sends SDL_EVENT_QUIT only when the LAST window closes, so

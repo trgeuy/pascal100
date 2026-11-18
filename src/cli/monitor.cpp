@@ -1130,7 +1130,7 @@ void Monitor::showBoard(Board* b, std::ostream& out) {
         } else {
             out << "  regions:\n";
             for (size_t i = 0; i < rs.size(); ++i) {
-                std::snprintf(buf, sizeof buf, "    %zu  %s", i, rs[i].describe().c_str());
+                std::snprintf(buf, sizeof buf, "    %zu  %s", i, rs[i].describe(mem->decodesExtended()).c_str());
                 out << buf << "\n";
             }
         }
@@ -3679,7 +3679,7 @@ bool Monitor::exec(const std::string& line, std::ostream& out) {
         }
         if (auto* mem = dynamic_cast<MemoryBoard*>(b)) {
             size_t u = mem->regions().size() - 1;
-            out << b->id << ":" << u << ": " << mem->regions()[u].describe() << "\n";
+            out << b->id << ":" << u << ": " << mem->regions()[u].describe(mem->decodesExtended()) << "\n";
         }
         return true;
     }

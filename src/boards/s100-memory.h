@@ -79,7 +79,9 @@ struct Region {
     // A `Bin` mount always honors `at`, so this key does nothing for one. See #468.
     bool relocate = false;
 
-    std::string describe() const;
+    // `ext`: the board decodes A0-A23 (MemoryBoard `ext`), so every address prints in six
+    // digits, as the board's `pages` line does. Without it, six only past FFFF.
+    std::string describe(bool ext = false) const;
 };
 
 class MemoryBoard : public Board {

@@ -15,14 +15,17 @@ namespace altair {
 // (src/boards/bankmem.h), because the real cards do not share one encoding
 // (docs/devguide/banked-ram.md). What is left is plain RAM/ROM.
 
-std::string Region::describe() const {
+std::string Region::describe(bool ext) const {
     char buf[128];
-    // Six digits once a region reaches past FFFF, so a 24-bit block reads as one.
-    const bool wide = at + (size ? size : 1) - 1 > 0xFFFF;
+    // Six digits on an `ext` board (as its `pages` line), or once a region reaches past FFFF,
+    // so a 24-bit block reads as one. Until 2026-11-17 only the reach decided, so a region at
+    // 0000-FFFF on an `ext` board printed four digits next to `pages 000000-00FFFF`.
+    const bool wide = ext || at + (size ? size : 1) - 1 > 0xFFFF;
     if (kind == RegionKind::Rom && size == 0)
-        std::snprintf(buf, sizeof buf, "rom  %04X       (empty socket)", (unsigned)at);
+        std::snprintf(buf, sizeof buf, wide ? "rom  %06X         (empty socket)" : "rom  %04X       (empty socket)",
+                      (unsigned)at);
     else if (kind == RegionKind::Rom)
-        std::snprintf(buf, sizeof buf, "rom  %04X-%04X  %s", (unsigned)at,
+        std::snprintf(buf, sizeof buf, wide ? "rom  %06X-%06X  %s" : "rom  %04X-%04X  %s", (unsigned)at,
                       (unsigned)(at + size - 1), mount.c_str());
     else if (size >= 1024 && size % 1024 == 0)
         std::snprintf(buf, sizeof buf, wide ? "ram  %06X-%06X  %uK" : "ram  %04X-%04X  %uK",

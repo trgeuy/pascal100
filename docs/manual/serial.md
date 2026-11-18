@@ -247,6 +247,12 @@ This is how you run a multi-user system, such as MP/M, with one window for each 
 A key typed in a window that is not a terminal, such as the window of a VDM-1, goes to the
 console, as before.
 
+**Closing one window.** While the guest runs, the close box of one window closes only that
+window, and the guest keeps running: closing one user's terminal does not stop the others. That
+line stays connected to nothing until you load the machine again. The close box of the last open
+window stops the guest, as `Ctrl-E` does, and the window stays open for `RUN`. A window that you
+close at the `pascal100>` prompt stays closed until you type `RUN`.
+
 ### Copy from a terminal window
 
 **Drag with the left mouse button to select text, then press Cmd-C on a Mac, or Ctrl-Shift-C on

@@ -111,7 +111,14 @@ void test_cpu8588() {
         g.m.bus.ioWrite(0x00FD, 0x1F);            // the monitor's OUT FD,1F
         g.load(0x1F0000, {0xDB, 0xFD, 0x76});     // the 8085, in segment 1F: IN FD  HLT
         load8088(g, 0x1FFFF0);                    // A20 = 1 from the latch's high nibble
-        g.run(3);                                 // the IN, then the 8088's two MOVs
+        g.load(0x0FFFF0, {0x90});                 // a NOP where a missing A20 would look
+        // The debugger's view (CpuCard::peekCodeByte) adds the same latch bits as the fetch.
+        CHECK(g.card->peekCodeByte(g.card->activeCore(), g.m.bus, 0x0000) == 0xDB,
+              "debugger peek, 8085: 0000 reads 1F0000 (the whole latch is A16-A23)");
+        g.run(1);                                 // the IN: the 8088 comes on line
+        CHECK(g.card->peekCodeByte(g.card->activeCore(), g.m.bus, 0xFFFF0) == 0xB0,
+              "debugger peek, 8088: FFFF0 reads 1FFFF0 (A20 from the latch), not 0FFFF0");
+        g.run(2);                                 // the 8088's two MOVs
         CHECK(g.card->on8088(), "the 8088 is on line");
         CHECK(g.peek(0x100100) == 0x55, "its store went to 100100: A20 from the latch");
         CHECK(g.peek(0x1F0100) == 0x00, "not to 1F0100: the latch's low nibble is not used");

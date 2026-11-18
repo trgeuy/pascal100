@@ -71,6 +71,13 @@ which is what `RCR` does. With all 1 MB present the paragraph total is FFFFh, an
 low bit into bit 15 (FFFFh, then 7FFh = 2047). Less memory gives an even total and the right
 number: with a gap at 512K the banner shows 512K.
 
+`TOD` with no date prints a blank line (NUL characters) after a boot, and a time that you set with
+`TOD MM/DD/YY HH:MM:SS` does not advance. That is also how CP/M 8-16 1.1R works, not a fault in the
+sim. `TOD` keeps its date as text in system memory, and only `TOD` writes it. The BIOS does not read
+the System Support 1 clock and has no clock tick: `ACTIVE.EQU` sets `INTRACT EQU FALSE`, and the
+timer vectors in `TMXINTIO.INI` all go to `ITRAP`. `TOD` also refuses a year such as `26`; `86`
+works. For the real time, use `CLOCK`.
+
 ## The files
 
 | File | What it is |

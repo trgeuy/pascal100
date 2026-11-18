@@ -287,11 +287,21 @@ build() {  # build <docdir> <output-name> <title> [notoc]
 # (verified -- the READMEs have neither), no images, and NO --toc (a 40-line note does not get
 # a contents page). The output lands beside the source at examples/<dir>/README.pdf, not in
 # $out; .gitignore allowlists examples/**/README.pdf and CI (docs.yml) commits them.
+#
+# BUT ONLY FOR THE DEFAULT RUN. Given another output directory (build-package.sh passes a
+# temporary one), the READMEs go under it too, at the same relative path. Before 2026-11-17
+# they always went beside the source, so every package build rewrote the tracked README.pdf
+# files -- the same trap build-package.sh documents for the manual.
 # ---------------------------------------------------------------------------
 build_readme() {  # build_readme <src.md relative to root>
   rel=$1
   src=$root/$rel
-  dst=$root/${rel%.md}.pdf
+  if [ "$out" = "$root/docs" ]; then
+    dst=$root/${rel%.md}.pdf
+  else
+    dst=$out/${rel%.md}.pdf
+    mkdir -p "$(dirname "$dst")"
+  fi
   [ -f "$src" ] || { echo "build-docs: $rel does not exist." >&2; exit 1; }
 
   # The H1 IS the title. Promote it out of the body so it renders once -- as the title block,

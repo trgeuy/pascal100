@@ -240,7 +240,7 @@ addresses and their bytes; then a total. It changes nothing and runs no cycle.
 
 ```
 COMPARE 0-FF 200        ; page 0 against page 2
-COMPARE FF00-FFFF E000  ; the boot PROM against a copy up at E000
+COMPARE 0-FF E000       ; the Disk 1 boot ROM against a copy up at E000
 ```
 
 
@@ -291,7 +291,7 @@ however you first landed. WIDTH is a count, so it is decimal.
 D 100        ; 0100-01FF, a whole page
 D 0001       ; 0001-00FF: stops on the boundary, last line full
 D            ; the next page
-D FF00-FF0F  ; an explicit range means exactly what it says
+D 0-F        ; an explicit range means exactly what it says
 D 100/20     ; 0100-011F (LEN is part of the address expression: hex)
 D 0 WIDTH=8  ; eight bytes per line
 ```
@@ -488,7 +488,7 @@ a Z80. BREAK ... IF reads the very same names.
 ```
 REGS
 SET REG A=3F
-SET REG PC=FF00
+SET REG PC=0100
 SET REG IX=8000  ; Z80 only
 ```
 
@@ -631,11 +631,11 @@ A bare number is an offset in CS, a range stays in one segment (SEG:LO-HI), and
 DI with no address starts at CS:IP.
 
 ```
-DI FF00          ; sixteen instructions of the boot PROM
-DI FF00 40       ; forty of them instead
+DI 0             ; sixteen instructions of the Disk 1 boot ROM
+DI 0 40          ; forty of them instead
 DI               ; carry on from there
 DI 0-2F          ; exactly that range
-DI FF00 CPU=z80  ; decode as Z80 when nothing in the machine can say
+DI 0 CPU=z80     ; decode as Z80 when nothing in the machine can say
 DI 1759:019F     ; the 8088: sixteen instructions at segment 1759, offset 019F
 ```
 
@@ -755,7 +755,7 @@ Who WOULD answer -- it looks without running a cycle, so nothing is consumed
 and no board is poked. Reports contention, and reports PHANTOM*.
 
 ```
-WHO FF00
+WHO 0       ; the Disk 1 boot ROM over the RAM, until the boot turns it off
 WHO IO 10
 ```
 

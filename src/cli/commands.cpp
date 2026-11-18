@@ -39,7 +39,7 @@ static const std::vector<CommandDef> kCommands = {
      "  D 100        ; 0100-01FF, a whole page\n"
      "  D 0001       ; 0001-00FF: stops on the boundary, last line full\n"
      "  D            ; the next page\n"
-     "  D FF00-FF0F  ; an explicit range means exactly what it says\n"
+     "  D 0-F        ; an explicit range means exactly what it says\n"
      "  D 100/20     ; 0100-011F (LEN is part of the address expression: hex)\n"
      "  D 0 WIDTH=8  ; eight bytes per line"},
     {"STEP", true, nullptr, "STEP [n]",
@@ -546,7 +546,7 @@ static const std::vector<CommandDef> kCommands = {
      "addresses and their bytes; then a total. It changes nothing and runs no cycle.\n"
      "\n"
      "  COMPARE 0-FF 200        ; page 0 against page 2\n"
-     "  COMPARE FF00-FFFF E000  ; the boot PROM against a copy up at E000"},
+     "  COMPARE 0-FF E000       ; the Disk 1 boot ROM against a copy up at E000"},
     {"MOVE", true, nullptr, "MOVE <range> <dest> [ROM]",  // MOV
      "Copy a range of memory to <dest>. It reads the WHOLE range before it writes, so\n"
      "source and dest may overlap either way without a block eating its own tail. The\n"
@@ -558,7 +558,7 @@ static const std::vector<CommandDef> kCommands = {
      "Who WOULD answer -- it looks without running a cycle, so nothing is consumed\n"
      "and no board is poked. Reports contention, and reports PHANTOM*.\n"
      "\n"
-     "  WHO FF00\n"
+     "  WHO 0       ; the Disk 1 boot ROM over the RAM, until the boot turns it off\n"
      "  WHO IO 10"},
     // The name is PLURAL, so both spellings work and neither is an alias: BOARD is
     // a prefix of BOARDS, and a prefix is what this table resolves. `BO` too.
@@ -587,7 +587,7 @@ static const std::vector<CommandDef> kCommands = {
      "\n"
      "  REGS\n"
      "  SET REG A=3F\n"
-     "  SET REG PC=FF00\n"
+     "  SET REG PC=0100\n"
      "  SET REG IX=8000  ; Z80 only"},
     {"REGION", true, nullptr, "REGION ADD <id> type=ram|rom at=<addr> [size=|mount=]",  // REGI
      "A region is a POPULATED part of a board. What is not covered by one is an\n"
@@ -610,11 +610,11 @@ static const std::vector<CommandDef> kCommands = {
      "A bare number is an offset in CS, a range stays in one segment (SEG:LO-HI), and\n"
      "DI with no address starts at CS:IP.\n"
      "\n"
-     "  DI FF00          ; sixteen instructions of the boot PROM\n"
-     "  DI FF00 40       ; forty of them instead\n"
+     "  DI 0             ; sixteen instructions of the Disk 1 boot ROM\n"
+     "  DI 0 40          ; forty of them instead\n"
      "  DI               ; carry on from there\n"
      "  DI 0-2F          ; exactly that range\n"
-     "  DI FF00 CPU=z80  ; decode as Z80 when nothing in the machine can say\n"
+     "  DI 0 CPU=z80     ; decode as Z80 when nothing in the machine can say\n"
      "  DI 1759:019F     ; the 8088: sixteen instructions at segment 1759, offset 019F"},
     // SYMBOLS is not LOAD. LOAD is memory all the way down (every format it takes
     // becomes bytes in the address space); a symbol table has no address space to land

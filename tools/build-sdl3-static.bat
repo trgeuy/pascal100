@@ -55,7 +55,11 @@ if exist "%stamp%" (
 
 where cmake >nul 2>&1 || (echo build-sdl3-static: needs cmake on PATH >&2 & exit /b 1)
 where curl  >nul 2>&1 || (echo build-sdl3-static: needs curl.exe ^(Windows 10 1803+^) >&2 & exit /b 1)
-where tar   >nul 2>&1 || (echo build-sdl3-static: needs tar.exe ^(Windows 10 1803+^) >&2 & exit /b 1)
+rem WINDOWS' OWN TAR, BY ITS FULL PATH. Run from Git Bash (an ssh session into a build PC, say),
+rem PATH finds Git's GNU tar first, and GNU tar reads "C:\..." as host:path ("Cannot connect to
+rem C: resolve failed"). bsdtar in System32 takes a drive letter as a drive.
+set "TAR=%SystemRoot%\System32\tar.exe"
+if not exist "%TAR%" (echo build-sdl3-static: needs %TAR% ^(Windows 10 1803+^) >&2 & exit /b 1)
 
 set "work=%TEMP%\pascal100-sdl3-%RANDOM%"
 mkdir "%work%" || (echo build-sdl3-static: cannot create %work% >&2 & exit /b 1)
@@ -65,7 +69,7 @@ set "url=https://github.com/libsdl-org/SDL/releases/download/release-%SDL3_VERSI
 
 echo build-sdl3-static: fetching SDL3 %SDL3_VERSION%
 curl -fsSL -o "%work%\%tarball%" "%url%" || (echo build-sdl3-static: download failed >&2 & goto :fail)
-tar xzf "%work%\%tarball%" -C "%work%" || (echo build-sdl3-static: unpack failed >&2 & goto :fail)
+"%TAR%" xzf "%work%\%tarball%" -C "%work%" || (echo build-sdl3-static: unpack failed >&2 & goto :fail)
 
 echo build-sdl3-static: building ^(this takes a few minutes^)
 

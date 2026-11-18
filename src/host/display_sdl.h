@@ -57,9 +57,10 @@ public:
     void     setClipboardText(const std::string& text) override;
 
     // The close box, remembered by pollEvents() and handed to the run loop
-    // (host/display.h). Consuming: while the guest RUNS a window stays open and responsive --
-    // closing it stops the GUEST and hands you the monitor, and the machine is still there, so
-    // RUN resumes into the same windows. The STOPPED-prompt consumer (the monitor's idle hook)
+    // (host/display.h). Consuming: while the guest RUNS, closing the LAST open window stops the
+    // GUEST and hands you the monitor, and the machine is still there, so RUN resumes into the
+    // same window. Closing one of several closes only that one and the guest keeps running
+    // (Window::shutByOperator). The STOPPED-prompt consumer (the monitor's idle hook)
     // instead calls closeWindow() below, and only the window whose close box was clicked goes.
     bool takeQuitRequest() override {
         bool q = quitRequested_;
@@ -118,6 +119,17 @@ private:
         // The operator clicked this window's close box while the machine was STOPPED, so the
         // monitor's idle hook should tear it down. closeWindow() acts on the flagged windows.
         bool pendingClose = false;
+
+        // The operator closed this window ALONE while the guest ran (another window stayed
+        // open): an MP/M user terminal, say. Its board keeps running and drawing, but acquire()
+        // refuses it a window until the machine is replaced (closeAllWindows), so it does not
+        // pop back up at the terminal's next character.
+        bool shutByOperator = false;
+
+        // The operator closed this window at the STOPPED prompt (closeWindow). It stays shut
+        // while the machine is stopped -- a terminal repaints at the prompt, and without this
+        // it popped straight back up -- and RUN opens it again (setRunning(true)).
+        bool closedWhileStopped = false;
     };
 
     bool ensureWindow(Window& win, int w, int h, int targetWidthPx);  // lazy: no SDL until 1st frame
