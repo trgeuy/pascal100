@@ -62,7 +62,6 @@ in the machine file. The examples in the package do this. This is a complete mac
 ```toml
 [machine]
 name    = "mine"
-bus     = "ieee696"
 startup = ["RUN 0"]
 
 [[board]]

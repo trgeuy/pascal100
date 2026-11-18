@@ -47,7 +47,6 @@ bottom and you see every board. The examples in the package are written this way
 ```toml
 [machine]
 name    = "cpm22-buffered"
-bus     = "ieee696"
 startup = ["RUN 0"]
 
 [[board]]
@@ -163,7 +162,6 @@ Each key must be below a table. A key above the first table is an error.
 ```toml
 [machine]
 name    = "cpm22"
-bus     = "ieee696"
 startup = ["RUN 0"]
 ```
 

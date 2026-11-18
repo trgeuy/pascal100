@@ -23,7 +23,7 @@
 
 [machine]
 name    = "mpm816"
-bus     = "ieee696"          # IEEE 696 (S-100): A0-A23, TMA arbitration for the Disk 2
+# The bus is IEEE 696 (S-100): A0-A23, TMA arbitration for the Disk 2.
 startup = ["RUN 0"]
 
 [display]

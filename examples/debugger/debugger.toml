@@ -21,7 +21,6 @@
 
 [machine]
 name = "debugger-demo"
-bus  = "ieee696"
 
 # The processor. `clock_hz = 0` is flat out (the default); the demo is 46 bytes and a
 # short loop, so it finishes the instant you RUN it either way.

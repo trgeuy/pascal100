@@ -18,7 +18,7 @@
 
 [machine]
 name    = "cpm86"
-bus     = "ieee696"          # IEEE 696 (S-100): the 8088 uses A0-A19, the Disk 1 DMA A0-A23
+# The bus is IEEE 696 (S-100): the 8088 uses A0-A19, the Disk 1 DMA A0-A23.
 startup = ["RUN 0"]
 
 [display]

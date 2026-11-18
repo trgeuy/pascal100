@@ -13,7 +13,7 @@
 
 [machine]
 name    = "pascal-console"
-bus     = "ieee696"          # IEEE 696 (S-100); the Pascal-100 Map drives A16
+# The bus is IEEE 696 (S-100): the Pascal-100 Map drives A16.
 startup = ["RUN 0"]
 
 # THE PASCAL-100 card: a Z80 and the WD MicroEngine (docs/boards/digicomp-pascal100.md).

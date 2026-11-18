@@ -16,7 +16,6 @@
 
 [machine]
 name    = "cpm22-buffered"
-bus     = "ieee696"          # IEEE 696 (S-100), the only bus pascal100 has
 startup = ["RUN 0"]
 
 # THE CPU: a generic Z80 card, flat out (clock_hz = 0). SET cpu0 clock_hz=4000000 gives a 4 MHz

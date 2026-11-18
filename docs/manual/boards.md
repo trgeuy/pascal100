@@ -1204,7 +1204,6 @@ this machine has an `io4` as its console, RAM below the window of the `pb1`, and
 ```toml
 [machine]
 name = "pb1"
-bus  = "ieee696"
 
 [[board]]
 type = "z80"

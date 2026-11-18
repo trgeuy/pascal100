@@ -119,7 +119,6 @@ spelled out. It loads and boots ALTMON.
 ```toml
 [machine]
 name    = "altmon"
-bus     = "ieee696"        # the only bus; accepted so altairsim files load unchanged
 startup = ["RUN F800"]     # anything you can type, a config can do
 
 # The CPU is a board like any other (DESIGN.md §3) -- and THE CRYSTAL IS ON IT,
@@ -235,7 +234,6 @@ This is the `default` machine, as `CONFIG SAVE` writes it, with a disk and a `st
 ```toml
 [machine]
 name    = "cpm-dev"
-bus     = "ieee696"
 
 startup = [                # monitor commands, run in order once the boards exist.
   "RUN 0",                 #   start the Disk 1 boot EPROM. There is no BOOT command

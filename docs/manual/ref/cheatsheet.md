@@ -187,8 +187,7 @@ Type the part before the bracket.
 
 ```toml
 [machine]
-name    = "mine"
-bus     = "ieee696"        # then every board, written out (base = "x.toml" starts from a file)
+name    = "mine"           # then every board, written out (base = "x.toml" starts from a file)
 startup = ["RUN 0"]        # the operator's own keystrokes. There is no BOOT verb.
 
 [[board]]                  # type + a NEW id      -> ADD the card

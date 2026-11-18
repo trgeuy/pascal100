@@ -32,7 +32,6 @@
 
 [machine]
 name = "default"
-bus  = "ieee696"
 
 [[board]]
 type     = "z80"

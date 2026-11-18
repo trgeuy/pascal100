@@ -12,7 +12,6 @@
 
 [machine]
 name    = "cpm-ai"
-bus     = "ieee696"          # IEEE 696 (S-100), the only bus pascal100 has
 startup = ["RUN 0"]
 
 # THE CPU: a generic Z80 card, flat out (clock_hz = 0).

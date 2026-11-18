@@ -20,7 +20,6 @@
 
 [machine]
 name    = "cpm22-terminal"
-bus     = "ieee696"          # IEEE 696 (S-100), the only bus pascal100 has
 # Boot the disk as cpm22-buffered.toml does. The keyboard follows the guest on RUN, so once
 # CP/M is up you type into the VT100 window; ^E returns you here.
 startup = ["RUN 0"]

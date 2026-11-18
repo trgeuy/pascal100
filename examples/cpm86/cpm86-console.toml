@@ -14,7 +14,7 @@
 
 [machine]
 name    = "cpm86-console"
-bus     = "ieee696"          # IEEE 696 (S-100): the 8088 uses A0-A19, the Disk 1 DMA A0-A23
+# The bus is IEEE 696 (S-100): the 8088 uses A0-A19, the Disk 1 DMA A0-A23.
 startup = ["RUN 0"]
 
 # THE CPU 8085/88: an 8085 and an 8088 on one card; the 8085 starts (docs/boards/compupro-cpu8588.md).
