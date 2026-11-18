@@ -52,6 +52,9 @@ Both disks hold the V1.1PD file set: the DRI programs, CompuPro's `SW!`, `DISK3`
 are the 8086 host bridge tools ([Moving files in and out](../../docs/manual/file-transfer.md)).
 The BIOS sources (`.A86`) and the other `CPMxxx.SYS` systems are not on the disks.
 
+**The disks are not under the MIT license.** CP/M-86 is Digital Research's, and the CompuPro files
+are CompuPro's. Only `R.CMD`, `W.CMD` and `HDIR.CMD` are pascal100's, under the MIT license.
+
 We made the disks in pascal100 with CompuPro's own programs:
 
 1. `DISK3 FORMAT Q540` formatted a new, empty `q540.dsk`. It wrote the CompuPro label, the

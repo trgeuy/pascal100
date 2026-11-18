@@ -94,7 +94,8 @@ disks/**
 
 # examples/ IS THE SHIPPED SET, and it is an allowlist for the same reason disks/ is.
 #
-# These are the examples that ship -- cpm22, cpm86, cpm8-16, mpm8-16, pascal, debugger and ai-mcp --
+# These are the examples that ship -- cpm22, cpm86, cpm8-16, cpm8-16-disk3, mpm8-16, pascal, debugger
+# and ai-mcp --
 # and they are what goes in
 # the package. They are tested only as examples (acceptance-examples); the simulator's own
 # tests take their media from tests/media/ (above). The rules above would hide most of it:
@@ -128,6 +129,8 @@ examples/**
 !examples/cpm8-16/cpm816-11r.dsk
 !examples/mpm8-16/mpm816-boot.dsk
 !examples/mpm8-16/m20.dsk
+!examples/cpm8-16-disk3/cpm816pd-boot.dsk
+!examples/cpm8-16-disk3/q540.dsk
 
 # Scanned manuals and datasheets. Same reasoning as the disk images, and then
 # some: they are enormous (the 88-DCDD manual alone is 52 MB) and they are not
