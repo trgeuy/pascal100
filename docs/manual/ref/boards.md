@@ -39,6 +39,7 @@ and within a group the boards are in **alphabetical order**.
 | [`disk1`](#disk1) | CompuPro Disk 1: uPD765A floppy controller with DMA |
 | [`disk1a`](#disk1a) | CompuPro Disk 1A: uPD765A floppy controller with DMA |
 | [`disk2`](#disk2) | CompuPro Disk 2: hard disk controller (Fujitsu 2300), DMA |
+| [`disk3`](#disk3) | CompuPro Disk 3: intelligent ST506 hard disk controller, DMA |
 | [`jadedd`](#jadedd) | Jade Double D: double-density controller, own Z80 |
 | [`selch`](#selch) | CompuPro Selector Channel: the Disk 2's DMA cycles |
 | [`tarbell`](#tarbell) | Tarbell #1011: single-density floppy controller |
@@ -297,6 +298,35 @@ CompuPro Disk 2 (board 177): a hard disk controller for up to four Fujitsu M2301
 | `dma_priority` | int | `10` | `0` .. `15` | DMA priority (SW1-2..5): the TMA bus-arbitration priority, 0-15; the higher one gets the bus first. Default 10, CompuPro's. The Selector Channel's MODE byte must name it. Two bus masters must not share a priority |
 | `sector_size` | enum | `1024` | `128` \| `256` \| `512` \| `1024` \| `2048` | Sector size in bytes (SW1-6..10, one switch on). Default 1024, CompuPro's. The disk images are laid out by it, so change it with no disk mounted |
 | `interrupt` | enum | `none` | `none` \| `int` \| `vi0` \| `vi1` \| `vi2` \| `vi3` \| `vi4` \| `vi5` \| `vi6` \| `vi7` | Where ATTN (command done) goes: J7-J14 = vi0-vi7, J15 = int, or none (default). CompuPro's MP/M 8-16 uses vi1 (J8) *(interrupt strap)* |
+
+
+### `disk3`
+
+CompuPro Disk 3 (board 194): an ST506 Winchester controller with its own 8085, up to four drives (default shape Quantum Q540: 512 cylinders, 8 heads, 9 sectors of 1024 bytes). One write-only attention port pair (default 90): 00 = attention, the J10 bit = reset. The host builds 16-byte IOPBs in memory, linked from 0:50h; the board fetches them, moves the data and writes STATUS back by its own DMA at dma_priority (default 9). Commands NOOP, VERSION, GLOBAL, SPECIFY, SET-MAP, HOME, SEEK, READ-HEADER, R/W, FORMAT, FORMAT-BAD. Completion interrupt to a VI line or pINT
+
+**Units:** `drive0` (disk, MOUNT), `drive1` (disk, MOUNT), `drive2` (disk, MOUNT), `drive3` (disk, MOUNT)
+
+#### `[[board.drive]]` — a list you may add
+
+| Key | Kind | Legal | Meaning |
+|---|---|---|---|
+| `unit` | int | `0` .. `3` | Which drive (0..3): the J1-J4 cable, the IOPB DRIVE byte |
+| `mount` | string | text | The disk image to put in it. Relative to THIS FILE. |
+| `readonly` | bool | `on` \| `off` | Write-protect the disk. A write gives STATUS 05 (write fault) *(also `writeprotect`)* |
+| `cylinders` | int | `1` .. `4096` | Cylinders on the drive. Default 512 (Quantum Q540) |
+| `heads` | int | `1` .. `16` | Heads on the drive. Default 8 (Quantum Q540) |
+| `sectors` | int | `1` .. `64` | Sectors per track as formatted. Default 9 (CompuPro: 9 x 1024 on ST506) |
+| `sector_size` | int | `128` .. `2048` | Bytes per sector as formatted. Default 1024 |
+| `create` | bool | `on` \| `off` | Make the disk file if it is not there: a new disk, filled with E5 |
+
+#### Board properties
+
+| Key | Kind | Default | Legal | Meaning |
+|---|---|---|---|---|
+| `port` | int | `0x90` | `0x0` .. `0xFE` | Attention port (S1-1..7 = A7..A1): a write-only pair, BASE and BASE+1. Default 90, CompuPro's |
+| `dma_priority` | int | `9` | `0` .. `15` | DMA priority (J11 P0-P3): the TMA bus-arbitration priority, 0-15; the higher one gets the bus first. Default 9, the manual's. Two bus masters must not share a priority |
+| `reset_bit` | int | `0` | `0` .. `7` | The data bit that resets this board (J10), 0-7. Default 0: CompuPro's BIOS writes 01 to reset the first board, the manual FF for all |
+| `interrupt` | enum | `none` | `none` \| `int` \| `vi0` \| `vi1` \| `vi2` \| `vi3` \| `vi4` \| `vi5` \| `vi6` \| `vi7` | Where the completion interrupt goes (J9): vi0-vi7, int, or none (default). The manual says vi1 in a CompuPro multi-user system *(interrupt strap)* |
 
 
 ### `jadedd`

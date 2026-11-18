@@ -102,6 +102,7 @@ void test_cpu8088();
 void test_disk1();
 void test_disk1a();
 void test_disk2();
+void test_disk3();
 void test_spindle();
 void test_c700();
 void test_pb1();

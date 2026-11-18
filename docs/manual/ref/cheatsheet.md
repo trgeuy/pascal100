@@ -141,6 +141,7 @@ Type the part before the bracket.
 | `disk1` | CompuPro Disk 1: uPD765A floppy controller with DMA |
 | `disk1a` | CompuPro Disk 1A: uPD765A floppy controller with DMA |
 | `disk2` | CompuPro Disk 2: hard disk controller (Fujitsu 2300), DMA |
+| `disk3` | CompuPro Disk 3: intelligent ST506 hard disk controller, DMA |
 | `jadedd` | Jade Double D: double-density controller, own Z80 |
 | `selch` | CompuPro Selector Channel: the Disk 2's DMA cycles |
 | `tarbell` | Tarbell #1011: single-density floppy controller |

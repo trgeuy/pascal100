@@ -287,6 +287,23 @@ foreach(gone "C86      CMD" "MINCE    COM")
   endif()
 endforeach()
 
+# CP/M 8-16 1.1PD from the Q540: the Disk 3 BIOS finds the board, and A: is the hard disk.
+example_816(cpm8-16-disk3 cpm816-disk3-console.toml cpm816-disk3.toml "disk3")
+mcp_session("${dist}/cpm816d3.jsonl"
+  [=[{"name":"run","arguments":{"from":0,"until":"A>","timeout_ms":60000}}]=]
+  [=[{"name":"run","arguments":{"input":"DIR\r","until":"A>","timeout_ms":20000}}]=]
+  [=[{"name":"run","arguments":{"input":"STAT A:\r","until":"A>","timeout_ms":20000}}]=])
+execute_process(
+  COMMAND           "${SIM}" cpm816-disk3-console.toml --mcp
+  WORKING_DIRECTORY "${dist}/examples/cpm8-16-disk3"
+  INPUT_FILE        "${dist}/cpm816d3.jsonl"
+  OUTPUT_VARIABLE   out
+  ERROR_VARIABLE    out
+  TIMEOUT           120
+)
+expect_contains("${out}" "the cpm8-16-disk3 example did not boot CP/M 8-16 from the Disk 3 as its README says"
+                "CompuPro CP/M 8-16 1.1PD" "A: DISK2    CMD : DISK240  CMD : DISK3    CMD" "A: RW, Free Space:     4,816k")
+
 # MP/M from the M20: the boot floppy's hard-disk loader, MPM.SYS, then DIR of A: on the hard disk.
 example_816(mpm8-16 mpm816-console.toml mpm816.toml "disk2")
 mcp_session("${dist}/mpm816.jsonl"

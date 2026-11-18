@@ -20,7 +20,7 @@ bus in pascal100.
 | Group | Boards |
 |---|---|
 | Processors | `pascal100` (Z80 and MicroEngine), `cpu8588` (CompuPro CPU 8085/88: 8085 and 8088), `z80`, `8085` |
-| Disk controllers | `disk1` (CompuPro Disk 1), `disk1a` (CompuPro Disk 1A), `disk2` (CompuPro Disk 2 hard disk) with `selch` (Selector Channel), `tarbell`, `tarbelldd`, `jadedd` |
+| Disk controllers | `disk1` (CompuPro Disk 1), `disk1a` (CompuPro Disk 1A), `disk2` (CompuPro Disk 2 hard disk) with `selch` (Selector Channel), `disk3` (CompuPro Disk 3 hard disk), `tarbell`, `tarbelldd`, `jadedd` |
 | Serial and parallel | `interfacer1`, `interfacer3`, `interfacer4` (CompuPro Interfacers), `2sio`, `gsio`, `io4`, `c700` (Centronics printer) |
 | System support and clock | `ss1` (CompuPro System Support 1: interrupts, timer, clock, serial), `rtc100` (clock) |
 | Memory | `memory`, `bankmem` |
@@ -44,6 +44,7 @@ make your own.
 | `examples/cpm22/cpm22-terminal.toml` | The same machine, with the console in a VT100 window. |
 | `examples/cpm86/cpm86.toml` | CompuPro CP/M-86 1.1 on the CPU 8085/88, in a window. |
 | `examples/cpm8-16/cpm816.toml` | CompuPro CP/M 8-16 1.1R: 8086 programs on the 8088, 8080 programs on the 8085. |
+| `examples/cpm8-16-disk3/cpm816-disk3.toml` | CompuPro CP/M 8-16 1.1PD from a Quantum Q540 hard disk on a Disk 3. |
 | `examples/mpm8-16/mpm816.toml` | CompuPro MP/M 8-16 2.1F from a Fujitsu M20 hard disk: three users in three windows. |
 | `examples/pascal/pascal.toml` | The Pascal-100 system: the Pascal-100 card, Disk 1, Interfacer 1, 128K, in a VT52 window. |
 | `examples/debugger/debugger.toml` | A small program and its symbols, to learn the monitor's debugger. |

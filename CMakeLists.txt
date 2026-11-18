@@ -475,6 +475,7 @@ add_library(altair_core STATIC
   src/boards/compupro-disk1.cpp
   src/boards/compupro-disk1a.cpp
   src/boards/compupro-disk2.cpp
+  src/boards/compupro-disk3.cpp
   src/boards/compupro-selch.cpp
   src/boards/compupro-interfacer1.cpp
   src/boards/compupro-interfacer3.cpp
@@ -759,6 +760,7 @@ add_executable(altair_tests
   tests/test_disk1.cpp
   tests/test_disk1a.cpp
   tests/test_disk2.cpp
+  tests/test_disk3.cpp
   tests/test_spindle.cpp
   tests/test_rtc100.cpp
   tests/test_ss1.cpp
