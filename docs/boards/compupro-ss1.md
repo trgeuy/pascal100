@@ -3,7 +3,7 @@
 **Status:** feature-complete for issue #392 — the OKI MSM5832 real-time clock, the 2651 UART
 serial channel, the 8253 interval timer, and the dual 8259A interrupt controllers are all
 implemented. The math socket (issue #393) takes an AMD 9511A or an AMD 9512, and is empty by
-default. The optional 4K RAM/EPROM block is not modeled: parked until a machine needs it.
+default. The 4K RAM block is modelled as two HM6116 RAMs, off unless `memory = true`.
 
 ## The real hardware
 
@@ -11,8 +11,10 @@ The **System Support 1** ("SS-1") is a Godbout/CompuPro multifunction S-100 boar
 #11620, Board No. 162, 1981). In one 16-port I/O block it packs a **2651 UART** serial channel,
 an **Intel 8253** interval timer (three 16-bit counters), two cascaded **Intel 8259A** interrupt
 controllers (15 sources), an **OKI MSM5832** battery-backed real-time clock/calendar, and a
-socket for an **AMD 9511A/9512** math coprocessor. An optional 4K RAM/EPROM block uses IEEE-696
-extended addressing. The bus can carry it now; it is parked until a machine needs it.
+socket for an **AMD 9511A/9512** math coprocessor. A 4K RAM/EPROM block (two 2K sockets) sits
+on any 4K boundary in the 16M IEEE-696 address space. CompuPro's CP/M-86 and MP/M 8-16 put it at
+0FF000H, under the 8088's restart address FFFF0H, so a CPU 8085/88 system without RAM there can
+still start its 8088.
 
 The block sits on any 16-port boundary; CompuPro's documented standard base is **50H**, and all
 CompuPro software assumes it, so that is this board's default. The MSM5832 is crystal-timed
@@ -83,9 +85,35 @@ The two controllers are the machine's VI priority encoder, and the master's INT 
 VI7* and the on-board sources reach the CPU through the slave and the cascade. With the socket
 empty, IR4 and IR5 are inactive.
 
+## The 4K RAM block
+
+The SS-1 manual (pp.1-2, 5, 8-10, 87-89) gives every switch:
+
+| Switch | Signal | Property |
+|---|---|---|
+| S1-5 RDI | ON = the block is off | `memory` (false = RDI ON, the default) |
+| S3-1..4 | A15-A12, ON = 0 | `memory_at`, bits 15-12 |
+| S2-1..8 | A23-A16 (position 1 = A23), ON = 0 | `memory_at`, bits 23-16 |
+| S1-6 XA | ON = global: A16-A23 ignored | `memory_global` |
+| S1-7 PHD, S1-8 PHE | PHANTOM* disables (PHD), enables (PHE) or is ignored (both OFF); never both ON | `memory_phantom` = `disable` (default), `enable`, `ignore` |
+
+- **Two sockets.** U17 is the lower 2K and U16 the upper 2K. The board ships with an HM6116
+  RAM in each (p.10), and both are modelled as RAM.
+- **U17 is battery-backed** through Q3 and D3 (pp.10, 89). A power-on keeps its bytes; U16 is
+  cleared to 00. A bus reset touches neither.
+- **Never on an I/O cycle** (U33, p.88), and never during an interrupt acknowledge (PHANT*,
+  p.89). Our IntAck cycles are not memory cycles, so only the I/O rule is visible.
+- **Wait states.** The S1-1..4 wait states cover memory accesses too (p.11).
+- **The default is off,** so a machine file that does not ask for the block is not changed.
+  `memory_at` defaults to 0FF000, CompuPro's CP/M-86 and MP/M 8-16 setting
+  (`Reference/compupro/cpm86.md` p.1: U16 "addressed at location 0FF000H").
+- **Checked in the guest.** CP/M 8-16 1.1R (`examples/cpm8-16`) with its RAM cut to 256K hangs
+  at boot with no output: the 8088 starts at FFFF0 and finds nothing. With `memory = true` on
+  the SS-1 it boots, prints "System Memory: 256K", and DIR works.
+
 ## How it is simulated
 
-- **Decodes** the 8259A ports `base+0..+3`, the timer ports `base+4..+7` (control at +7
+- **Decodes** a memory cycle in the 4K block when `memory` is true (see above), and the 8259A ports `base+0..+3`, the timer ports `base+4..+7` (control at +7
   write-only), the clock ports `base+10` (write-only) and `base+11`, and the UART ports
   `base+12..+15` (status at +13 read-only) as I/O cycles — and the **IntAck** cycle when the master
   would interrupt (or a CALL fetch is in progress). The math ports `base+8/+9` are decoded only
@@ -188,7 +216,8 @@ empty, IR4 and IR5 are inactive.
   S-100 VI line by the `serial` unit's `interrupt` jumper (default `none`) for a machine that does
   not program the on-board controllers. Leave it `none` when using the 8259As. **DMA:** none.
 - **`properties()`:** `base` (the 16-port block base, default 50H), `math` (`none`, `9511a` or
-  `9512`, default `none`), and read-only `clock`, `timer`, `pic` and `mathchip` strings. `pic`
+  `9512`, default `none`), `memory`, `memory_at`, `memory_global` and `memory_phantom` (the 4K
+  block), and read-only `clock`, `timer`, `pic` and `mathchip` strings. `pic`
   shows each controller's IRR/ISR/IMR and the master's INT pin. `mathchip` shows busy or idle,
   the stack pointer, the status and the top of the stack, and END, SVREQ and ERR when they are
   up. The
@@ -200,6 +229,7 @@ empty, IR4 and IR5 are inactive.
   8259As into their power-on state (the 8259As come up **all-masked**, so an unprogrammed board
   drives no interrupt). `offset_` is **preserved** — the MSM5832 is battery-backed, so a fresh set
   survives a power cycle just as it survives RESET.
+- The 4K block: a power-on clears U16 (upper 2K) and keeps U17 (lower 2K, on the battery).
 - `Reset::Bus` (RESET*, warm): clears the command latches, keeps the time. The 8259As have no
   bus-reset pin (as the 8253 does not), so they keep their programming across a front-panel RESET.
 - The math chip's RESET is the board's CLEAR, so both resets reset it: status 0, the stack
@@ -216,6 +246,8 @@ empty, IR4 and IR5 are inactive.
 | Hours-10 digit in bits 1:0, 24-hour flag in bit3, PM in bit2 | Software masking `& 0x03` for the tens digit reads garbage if the digit is placed elsewhere; the 20-hour range (20-23) decodes wrong |
 | Days-10 leap-year flag in bit2 | Feb 29 handling and any software that reads the leap bit misbehaves |
 | Battery-backed: the set time survives RESET and power-on | A clock that reverted to host time on RESET would lose a guest-set time that real hardware keeps |
+| 4K block: U17 (lower 2K) keeps its bytes at power-on, U16 (upper 2K) does not | A program that keeps data in the battery-backed 6116 loses it, or finds stale data in U16 |
+| 4K block: S2 position 1 is A23, position 8 is A16 | The block lands in the wrong 64K page, and a CPU 8085/88's 8088 finds nothing at FFFF0 |
 | 2651 status TxRDY=D0/RxRDY=D1 active-high; DCD/DSR (D6/D7) and DTR/RTS command bits **inverting** | A polled driver reads the ready flags in the wrong bit; a modem-control test sees the RS-232 sense backwards |
 | 2651 baud comes from Mode Register 2, not a strap | A guest that sets 300 baud via MR2 still runs at the wrong rate if the model ignores MR2 |
 | 2651 MR1 must be written before MR2 (shared address, one-bit pointer) | The frame and the baud land in each other's register |
@@ -265,7 +297,9 @@ empty, IR4 and IR5 are inactive.
 - **Do not put an SS-1 (with its 8259As programmed) and an 88-VI in the same machine.** Both watch
   the VI lines and both claim the IntAck cycle, which is genuine bus contention — the contention
   detector reports it. A machine picks one interrupt controller.
-- The optional 4K RAM/EPROM block is not modelled.
+- **The 4K block is RAM only.** The sockets also take 2716 EPROMs (the "GO 86" EPROM for a
+  CPU 86/87 or CPU 286), but no image of one is known, so there is no EPROM option. The
+  diode D3 (remove it for an EPROM in U17) is not modelled.
 - ⚠ **9512 overflow and underflow results are not documented.** The model keeps the rounded
   mantissa, wraps the exponent field (by 256 or 2048) and sets V or U. That is what the 9511A
   data sheet says its own float operations do. No real 9512 was available to compare against.
@@ -318,6 +352,13 @@ SVREQ, ERR and a snapshot. On the bus, `tests/test_ss1.cpp` checks the empty soc
 SS-1 manual's 9512 test (1.0 + 1.0 = 2.0). `acceptance-ss1-math` boots CP/M 2.2N on the Disk 1
 machine, types in the SS-1 manual's 9511A test program, assembles it with ASM and LOAD, and runs
 it: it prints `OK` with a 9511A and `ERROR` with the empty socket.
+
+The 4K block (`tests/test_ss1.cpp`, under `Bus::setVerify(true)`): off by default; at 0FF000
+with RDI off, both chips and FFFF0 included; S2 and S3 decode (another 64K page and the 4K below
+miss); `memory_at` moves the block and refuses a non-4K boundary; global answers in every page
+and to a 16-bit address; no answer on an I/O cycle; PHD, PHE and ignore against a card that pulls
+PHANTOM*; a bus reset keeps both chips; a power-on keeps U17 and clears U16; a snapshot
+round-trip.
 
 ## References
 

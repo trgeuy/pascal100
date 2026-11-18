@@ -64,6 +64,7 @@ Ss1Board::~Ss1Board() {
 // in-service bit that drops the master's INT. Pure -- intaByte_ is read, not moved.
 bool Ss1Board::decodes(const BusCycle& c) const {
     if (!enabled_) return false;
+    if (c.type == Cycle::MemRead || c.type == Cycle::MemWrite) return memHit(c);
     if ((c.type == Cycle::IoWrite || c.type == Cycle::IoRead) && mathFitted() &&
         (c.port() == mathDataPort() || c.port() == mathCmdPort()))
         return true;
@@ -89,6 +90,40 @@ bool Ss1Board::decodes(const BusCycle& c) const {
     if (c.type == Cycle::IntAck)
         return intaByte_ != 0 || (clock_ && master_.intOut(masterLive()));
     return false;
+}
+
+// ---------------------------------------------------------------------------
+// THE 4K RAM/EPROM BLOCK (manual pp.8-10, 87-88). Three decoders feed U33: U36 compares
+// A12-A15 with S3-1..4, U32 compares A16-A23 with S2 (forced true by XA), and the
+// PHANTOM* input is passed (PHD), inverted (PHE) or pulled up (neither). U33 also
+// takes the I/O-cycle line, which is why only memory cycles get here. RDI holds U36's
+// outputs low, so the block never answers.
+bool Ss1Board::memMatch(uint32_t phys) const {
+    if (!memOn_) return false;
+    if ((phys & 0xF000) != (memAt_ & 0xF000)) return false;
+    return memGlobal_ || ((phys >> 16) & 0xFF) == ((memAt_ >> 16) & 0xFF);
+}
+
+bool Ss1Board::memHit(const BusCycle& c) const {
+    if (memPhantom_ == Phantom::Disable && c.phantom) return false;
+    if (memPhantom_ == Phantom::Enable && !c.phantom) return false;
+    return memMatch(c.phys());
+}
+
+bool Ss1Board::peekX(uint32_t phys, uint8_t& out) const {
+    if (!memMatch(phys)) return false;
+    out = mem_[phys & 0xFFF];
+    return true;
+}
+
+std::vector<MapEntry> Ss1Board::memMap() const {
+    if (!memOn_) return {};
+    const uint32_t lo = memGlobal_ ? (memAt_ & 0xF000) : (memAt_ & 0xFFF000);
+    const std::string where = memGlobal_ ? "global, every 64K page; " : "";
+    const std::string ph = memPhantom_ == Phantom::Disable ? "phantom:disable"
+                         : memPhantom_ == Phantom::Enable  ? "phantom:enable" : "phantom:ignore";
+    return {{lo, lo + 0x7FF, "ram", where + "U17 6116, battery-backed; " + ph},
+            {lo + 0x800, lo + 0xFFF, "ram", where + "U16 6116; " + ph}};
 }
 
 // ---------------------------------------------------------------------------
@@ -172,6 +207,10 @@ uint8_t Ss1Board::read(const BusCycle& c) {
         holdReady(waitStates(true));
         return intAckByte();
     }
+    if (c.type == Cycle::MemRead) {
+        holdReady(waitStates(false));  // S1-1..4 wait states cover memory too (p.11)
+        return mem_[c.addr & 0xFFF];
+    }
     if (c.type != Cycle::IoRead) return 0xFF;
     uint8_t p = c.port();
     holdReady(waitStates(isMathPort(p)));  // a math read adds PAUSE in mathAccess()
@@ -212,6 +251,11 @@ uint8_t Ss1Board::read(const BusCycle& c) {
 }
 
 void Ss1Board::write(const BusCycle& c) {
+    if (c.type == Cycle::MemWrite) {
+        holdReady(waitStates(false));
+        mem_[c.addr & 0xFFF] = c.data;  // a 6116: MWRITE is its write strobe (p.89)
+        return;
+    }
     if (c.type != Cycle::IoWrite) return;
     uint8_t p = c.port();
     holdReady(waitStates(isMathPort(p)));  // a math write adds PAUSE in mathAccess()
@@ -371,6 +415,9 @@ Board::ViVector Ss1Board::viVector(int line) const {
 // chip out of reset); a bus reset just re-polls and re-arms, power-on puts it in its
 // known-good state. (Same stance, same reasoning, as SbcBoard::reset.)
 void Ss1Board::reset(Reset r) {
+    // Power off: U16 loses its contents (zero here, as a fill), and U17 keeps them on
+    // the clock battery (p.10). A bus reset touches neither.
+    if (r == Reset::PowerOn) std::fill(mem_.begin() + 0x800, mem_.end(), 0x00);
     rtc_.reset();
     chip().reset();  // the chip's RESET is the board's CLEAR: pRESET*, POC* or SLAVE CLR*
     if (!clock_) return;
@@ -465,6 +512,7 @@ void Ss1Board::serialize(StateWriter& w) const {
     master_.serialize(w);
     slave_.serialize(w);
     chip().serialize(w, pin49());
+    w.blob(std::vector<uint8_t>(mem_.begin(), mem_.end()));  // the 4K block, last
     // intaByte_/intaAddr_ do not travel: a snapshot lands at an instruction boundary,
     // where no acknowledge is mid-flight, so intaByte_ is always 0.
 }
@@ -477,6 +525,10 @@ void Ss1Board::deserialize(StateReader& r) {
     master_.deserialize(r);
     slave_.deserialize(r);
     chip().deserialize(r, pin49());
+    if (r.remaining()) {  // a snapshot from before the 4K block has no RAM to restore
+        const std::vector<uint8_t> b = r.blob();
+        std::copy_n(b.begin(), std::min(b.size(), mem_.size()), mem_.begin());
+    }
     intaByte_ = 0;
     refresh();  // re-drive the interrupt wire and re-arm the deadline from restored state
 }
@@ -538,6 +590,69 @@ std::vector<Property> Ss1Board::properties() {
             math_ = v.s() == "9511a" ? Math::Am9511a
                   : v.s() == "9512"  ? Math::Am9512 : Math::None;
             chip().reset();
+            return true;
+        };
+        p.push_back(std::move(x));
+    }
+    {
+        // S1-5 RDI. The block is off unless a machine file asks for it, so a machine that
+        // has RAM at the default address is not changed by this board.
+        Property x;
+        x.name = "memory";
+        x.help = "S1-5 RDI: the 4K RAM block (U17 lower 2K, battery-backed; U16 upper 2K; "
+                 "both HM6116). false (default) = RDI ON, no memory";
+        x.kind = Kind::Bool;
+        x.get  = [this] { return Value::ofBool(memOn_); };
+        x.set  = [this](const Value& v, std::string&) { memOn_ = v.b(); return true; };
+        p.push_back(std::move(x));
+    }
+    {
+        // S2-1..8 = A23-A16 and S3-1..4 = A15-A12 (ON = 0). CompuPro's CP/M-86 and MP/M
+        // 8-16 settings put it at 0FF000, under the 8088's restart address FFFF0.
+        Property x;
+        x.name  = "memory_at";
+        x.help  = "S2 (A23-A16) and S3-1..4 (A15-A12): the 24-bit address of the 4K block, "
+                  "on a 4K boundary. Default 0FF000 (CompuPro's CP/M-86 setting)";
+        x.kind  = Kind::Int;
+        x.radix = 16;  // ON THE WIRE -> HEX
+        x.min   = 0;
+        x.max   = 0xFFF000;
+        x.get   = [this] { return Value::ofInt(memAt_); };
+        x.set   = [this](const Value& v, std::string& err) {
+            if (v.i() & 0xFFF) {
+                err = "memory_at must be on a 4K boundary (the low three hex digits 000)";
+                return false;
+            }
+            memAt_ = (uint32_t)v.i();
+            return true;
+        };
+        p.push_back(std::move(x));
+    }
+    {
+        Property x;
+        x.name = "memory_global";
+        x.help = "S1-6 XA: true = the 4K block ignores A16-A23 and answers in every 64K "
+                 "page; false (default) = it answers only at memory_at's A16-A23";
+        x.kind = Kind::Bool;
+        x.get  = [this] { return Value::ofBool(memGlobal_); };
+        x.set  = [this](const Value& v, std::string&) { memGlobal_ = v.b(); return true; };
+        p.push_back(std::move(x));
+    }
+    {
+        Property x;
+        x.name    = "memory_phantom";
+        x.help    = "S1-7 PHD / S1-8 PHE: what PHANTOM* does to the 4K block. disable "
+                    "(default, PHD ON), enable (PHE ON: on only while PHANTOM* is asserted) "
+                    "or ignore (both OFF)";
+        x.kind    = Kind::Enum;
+        x.choices = {"disable", "enable", "ignore"};
+        x.get     = [this] {
+            return Value::ofStr(memPhantom_ == Phantom::Enable   ? "enable"
+                                : memPhantom_ == Phantom::Ignore ? "ignore" : "disable");
+        };
+        x.set     = [this](const Value& v, std::string&) {
+            memPhantom_ = v.s() == "enable" ? Phantom::Enable
+                        : v.s() == "ignore" ? Phantom::Ignore : Phantom::Disable;
             return true;
         };
         p.push_back(std::move(x));

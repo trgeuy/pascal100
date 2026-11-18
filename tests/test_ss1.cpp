@@ -193,6 +193,17 @@ Ss1Board* buildIntMachine(Machine& m, const char* cpu = "8085") {
     return ss1;
 }
 
+// A card that pulls PHANTOM* on every memory cycle while `on` -- enough to show what the
+// SS-1's PHD/PHE straps do with the signal.
+struct PhantomPuller : Board {
+    bool on = false;
+    std::string type() const override { return "phantom-puller"; }
+    std::vector<Property> properties() override { return {}; }
+    bool assertsPhantom(const BusCycle& c) const override {
+        return on && (c.type == Cycle::MemRead || c.type == Cycle::MemWrite);
+    }
+};
+
 }  // namespace
 
 void test_ss1() {
@@ -1584,5 +1595,117 @@ void test_ss1() {
 
         CHECK(setProperty(*ss1, "math", "9511a", err), "swap in a 9511A");
         CHECK(m.bus.ioRead(0x59) == 0x00, "the new chip starts from reset");
+    }
+
+    // =====================================================================
+    // The 4K RAM/EPROM block (manual pp.8-10, 87-89).
+    // =====================================================================
+    SECTION("SS-1 4K block -- off by default, then at memory_at with A16-A23");
+    {
+        Machine m;
+        m.bus.setVerify(true);  // the decode cache must follow every strap change
+        auto* ss1 = new Ss1Board();
+        ss1->id = "ss1";
+        m.bus.attach(ss1);
+        std::string err;
+
+        m.bus.memWriteX(0x0FF000, 0x5A);
+        CHECK(m.bus.memReadX(0x0FF000) == 0xFF, "RDI ON (the default): the block does not answer");
+        CHECK(ss1->memMap().empty(), "...and the memory map shows nothing");
+
+        CHECK(setProperty(*ss1, "memory", "true", err), "RDI OFF");
+        ss1->configChanged();
+        m.bus.memWriteX(0x0FF000, 0x11);  // U17, the lower 2K
+        m.bus.memWriteX(0x0FF7FF, 0x22);
+        m.bus.memWriteX(0x0FF800, 0x33);  // U16, the upper 2K
+        m.bus.memWriteX(0x0FFFF0, 0xEA);  // the 8088's restart address
+        CHECK(m.bus.memReadX(0x0FF000) == 0x11 && m.bus.memReadX(0x0FF7FF) == 0x22 &&
+              m.bus.memReadX(0x0FF800) == 0x33 && m.bus.memReadX(0x0FFFF0) == 0xEA,
+              "the default 0FF000 holds 4K of RAM, FFFF0 included");
+        CHECK(m.bus.memReadX(0x00F000) == 0xFF && m.bus.memReadX(0x1FF000) == 0xFF,
+              "S2 decodes A16-A23: the same 4K in another 64K page is not the block");
+        CHECK(m.bus.memReadX(0x0FE000) == 0xFF, "S3 decodes A12-A15: the 4K below is not the block");
+        CHECK(m.bus.peekX(0x0FF800) == 0x33, "the debugger reads the block");
+        CHECK(ss1->memMap().size() == 2 && ss1->memMap()[0].lo == 0x0FF000 &&
+              ss1->memMap()[1].hi == 0x0FFFFF, "the memory map shows U17 and U16");
+        CHECK(m.bus.ioRead(0x00) == 0xFF, "an I/O cycle never reaches the memory (U33)");
+
+        CHECK(!setProperty(*ss1, "memory_at", "0FF800", err), "memory_at refuses a non-4K boundary");
+        CHECK(setProperty(*ss1, "memory_at", "02E000", err), "move the block to 02E000");
+        ss1->configChanged();
+        CHECK(m.bus.memReadX(0x02E000) == 0x11 && m.bus.memReadX(0x0FF000) == 0xFF,
+              "the block moves with S2/S3 and keeps its bytes");
+
+        CHECK(setProperty(*ss1, "memory_global", "true", err), "XA ON");
+        ss1->configChanged();
+        CHECK(m.bus.memReadX(0x00E000) == 0x11 && m.bus.memReadX(0x7FE800) == 0x33,
+              "global: the block answers at E000 in every 64K page");
+        CHECK(m.bus.memRead(0xE000) == 0x11, "...including to a CPU that drives only A0-A15");
+    }
+
+    SECTION("SS-1 4K block -- PHANTOM* (S1-7 PHD, S1-8 PHE)");
+    {
+        Machine m;
+        m.bus.setVerify(true);
+        auto* ss1 = new Ss1Board();
+        ss1->id = "ss1";
+        m.bus.attach(ss1);
+        auto* ph = new PhantomPuller();
+        ph->id = "ph";
+        m.bus.attach(ph);
+        std::string err;
+        setProperty(*ss1, "memory", "true", err);
+        ss1->configChanged();
+        m.bus.memWriteX(0x0FF100, 0x77);
+
+        ph->on = true;
+        ph->decodeChanged();
+        CHECK(m.bus.memReadX(0x0FF100) == 0xFF, "PHD (the default): PHANTOM* takes the block off");
+        CHECK(setProperty(*ss1, "memory_phantom", "enable", err), "PHE");
+        ss1->configChanged();
+        CHECK(m.bus.memReadX(0x0FF100) == 0x77, "PHE: the block answers while PHANTOM* is asserted");
+        ph->on = false;
+        ph->decodeChanged();
+        CHECK(m.bus.memReadX(0x0FF100) == 0xFF, "PHE: ...and only then");
+        CHECK(setProperty(*ss1, "memory_phantom", "ignore", err), "neither switch");
+        ss1->configChanged();
+        CHECK(m.bus.memReadX(0x0FF100) == 0x77, "ignore: answers with PHANTOM* off");
+        ph->on = true;
+        ph->decodeChanged();
+        CHECK(m.bus.memReadX(0x0FF100) == 0x77, "ignore: ...and with it on");
+    }
+
+    SECTION("SS-1 4K block -- U17 keeps its bytes on the battery, U16 does not; snapshot");
+    {
+        Machine m;
+        auto* ss1 = new Ss1Board();
+        ss1->id = "ss1";
+        m.bus.attach(ss1);
+        std::string err;
+        setProperty(*ss1, "memory", "true", err);
+        ss1->configChanged();
+        m.bus.memWriteX(0x0FF010, 0xA1);
+        m.bus.memWriteX(0x0FF810, 0xB2);
+        ss1->reset(Reset::Bus);
+        CHECK(m.bus.memReadX(0x0FF010) == 0xA1 && m.bus.memReadX(0x0FF810) == 0xB2,
+              "a bus reset touches neither chip");
+
+        StateWriter w;
+        ss1->serialize(w);
+        Machine m2;
+        auto* b2 = new Ss1Board();
+        b2->id = "ss1";
+        m2.bus.attach(b2);
+        setProperty(*b2, "memory", "true", err);
+        b2->configChanged();
+        StateReader r(w.data());
+        b2->deserialize(r);
+        CHECK(r.ok() && r.remaining() == 0, "the snapshot reads back exactly");
+        CHECK(m2.bus.memReadX(0x0FF010) == 0xA1 && m2.bus.memReadX(0x0FF810) == 0xB2,
+              "the restored board holds both chips' bytes");
+
+        ss1->power();
+        CHECK(m.bus.memReadX(0x0FF010) == 0xA1, "power off: U17 (lower 2K) keeps its byte on the battery");
+        CHECK(m.bus.memReadX(0x0FF810) == 0x00, "power off: U16 (upper 2K) loses it");
     }
 }

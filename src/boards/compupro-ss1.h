@@ -21,6 +21,15 @@
 //
 // Ports +8/+9 are decoded only with a chip in the socket.
 //
+//   * THE 4K RAM/EPROM BLOCK (manual pp.8-10, 87-89). Two 2K sockets: U17 is the lower
+//     2K (battery-backed through Q3/D3), U16 the upper 2K. The board ships with an HM6116
+//     RAM in each, and both are modelled as RAM. S3-1..4 = A15-A12 and S2-1..8 = A23-A16
+//     (ON = 0); S1-5 RDI turns the block off, S1-6 XA makes it global (A16-A23 ignored),
+//     S1-7 PHD / S1-8 PHE make PHANTOM* disable or enable it. U33 keeps it off during
+//     I/O cycles, and PHANT* during an interrupt acknowledge; our IntAck cycles are not
+//     memory cycles, so only the I/O rule shows. Default: off (RDI ON), so a machine file
+//     that does not ask for the block gets no memory from this board.
+//
 // ---------------------------------------------------------------------------
 // THE MATH SOCKET (reference sec. 7.3, schematic p.98). The chip's CLK is pin 49 (the
 // stock J5 strap), so its cycle counts are pin-49 ticks. Its RESET is the board's CLEAR
@@ -80,6 +89,7 @@
 #include "core/board.h"
 #include "core/clock.h"
 
+#include <array>
 #include <cstdint>
 #include <memory>
 #include <string>
@@ -95,6 +105,11 @@ public:
     std::string type() const override { return "ss1"; }
 
     bool decodes(const BusCycle& c) const override;
+    // The 4K block reads A16-A23 unless it is global (S1-6 XA).
+    bool decodesExtended() const override { return memOn_ && !memGlobal_; }
+    bool peek(uint16_t addr, uint8_t& out) const override { return peekX(addr, out); }
+    bool peekX(uint32_t phys, uint8_t& out) const override;
+    std::vector<MapEntry> memMap() const override;
     uint8_t read(const BusCycle& c) override;
     void write(const BusCycle& c) override;
 
@@ -222,6 +237,16 @@ private:
     uint32_t waitStates(bool forced) const;
     bool isMathPort(uint8_t p) const { return p == mathDataPort() || p == mathCmdPort(); }
     Math      math_ = Math::None;
+
+    // The 4K RAM/EPROM block (see the top of this file).
+    enum class Phantom { Ignore, Disable, Enable };  // S1-7 PHD, S1-8 PHE
+    bool     memOn_ = false;                 // S1-5 RDI OFF = on. Default RDI ON: off
+    uint32_t memAt_ = 0x0FF000;              // S2 = A23-A16, S3-1..4 = A15-A12
+    bool     memGlobal_ = false;             // S1-6 XA ON: answer in every 64K page
+    Phantom  memPhantom_ = Phantom::Disable; // PHD ON, PHE OFF: "the most often desired"
+    std::array<uint8_t, 4096> mem_{};        // 000-7FF = U17, 800-FFF = U16
+    bool memHit(const BusCycle& c) const;
+    bool memMatch(uint32_t phys) const;
     Am9511a   apu_{"math"};
     Am9512    fpu_{"math"};
     Msm5832   rtc_;

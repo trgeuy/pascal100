@@ -32,8 +32,9 @@ matters to software.
 
 The board occupies one **16-port I/O block**, addressable on any 16-port boundary (DIP switch
 3, positions 5–8), and optionally a **4K memory block** on any 4K boundary in any of the 256
-64K "pages" (extended addressing) — the memory is unrelated to the I/O map and is not covered
-further here. The table below gives the **relative port offsets**, fixed regardless of base,
+64K "pages" (extended addressing). The memory is unrelated to the I/O map; its switches
+(S2 = A23-A16, S3-1..4 = A15-A12, S1-5..8 RDI/XA/PHD/PHE, manual pp.8-10) and its model are in
+`docs/boards/compupro-ss1.md`, "The 4K RAM block". The table below gives the **relative port offsets**, fixed regardless of base,
 and the actual address when strapped to CompuPro's documented standard base, **50H** (p.19):
 
 | Offset | Function | Address at base 50H |

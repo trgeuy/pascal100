@@ -898,6 +898,10 @@ CompuPro System Support 1: multifunction S-100 board. Dual 8259A interrupt contr
 | `base` | int | `0x50` | `0x0` .. `0xF0` | Base port of the 16-port I/O block. CompuPro standard is 50H |
 | `waits` | enum | `0` | `0` \| `1` \| `2` \| `4` \| `8` | S1-1..4 wait states on every access to the board: 0 (shipped), 1 (W1, for a 4 MHz or faster CPU), 2 (W1+W2), 4 (+W4) or 8 (+W8). Math-chip and INTA cycles always get at least 2 |
 | `math` | enum | `none` | `none` \| `9511a` \| `9512` | The chip in the math socket (U13): none (the stock empty socket), 9511a (AMD Am9511A, Intel 8231A) or 9512 (AMD Am9512, Intel 8232) |
+| `memory` | bool | `false` | `on` \| `off` | S1-5 RDI: the 4K RAM block (U17 lower 2K, battery-backed; U16 upper 2K; both HM6116). false (default) = RDI ON, no memory |
+| `memory_at` | int | `0xFF000` | `0x0` .. `0xFFF000` | S2 (A23-A16) and S3-1..4 (A15-A12): the 24-bit address of the 4K block, on a 4K boundary. Default 0FF000 (CompuPro's CP/M-86 setting) |
+| `memory_global` | bool | `false` | `on` \| `off` | S1-6 XA: true = the 4K block ignores A16-A23 and answers in every 64K page; false (default) = it answers only at memory_at's A16-A23 |
+| `memory_phantom` | enum | `disable` | `disable` \| `enable` \| `ignore` | S1-7 PHD / S1-8 PHE: what PHANTOM* does to the 4K block. disable (default, PHD ON), enable (PHE ON: on only while PHANTOM* is asserted) or ignore (both OFF) |
 | `clock` | string | — | — | LIVE: the date/time the MSM5832 is showing, and its offset from host time **(read-only — not a key you may set)** |
 | `timer` | string | — | — | LIVE: the three 8253 counters -- mode, current count and OUT level **(read-only — not a key you may set)** |
 | `pic` | string | — | — | LIVE: the master/slave 8259A -- IRR/ISR/IMR and the master's INT pin **(read-only — not a key you may set)** |
