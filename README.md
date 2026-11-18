@@ -134,6 +134,25 @@ altairsim and its Altair machines, and say so at the top. These files apply to p
   distribution disks.
 - `DESIGN.md`: the design of the simulator, with a heritage note at the top.
 
+## Why the name pascal100
+
+I built my first S-100 system in 1981. A friend had the Digicomp Pascal-100 board set in his
+S-100 system, and he suggested that I use one too. I bought the board set and built out the system
+over the next few years. I still own it. I recently moved it into a new S-100 enclosure with modern
+switching power supplies.
+
+Digicomp appears to have built only a small number of these board sets. I could not find a
+production count. I found little about the Pascal-100 online. The Wikipedia page on the
+[Pascal MicroEngine](https://en.wikipedia.org/wiki/Pascal_MicroEngine) mentions it, but I could not
+find the manual or the installation disks. I scanned my copies and put them on the
+[Internet Archive](https://archive.org/details/cpm-files). Then I started this simulator, a copy of
+my computer, so that other people can use this system too.
+
+The simulator takes its name from the board set that started it. All the other boards in my system
+are CompuPro IEEE 696 boards, so pascal100 became an IEEE 696 version of altairsim, which simulates
+the Altair bus. We removed many of the older Altair boards and added more CompuPro boards. With these
+boards, pascal100 can also simulate other IEEE 696 systems.
+
 ## Origin and license
 
 pascal100 started on 2026-11-02 as a copy of **[altairsim](https://github.com/deltecent/altairsim)**
