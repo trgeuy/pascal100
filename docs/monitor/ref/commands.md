@@ -149,7 +149,7 @@ nothing can end. It continues a HLT that waits for an interrupt (EI, then HLT),
 and the interrupt ends the halt.
 
 ```
-RUN F800  ; boot the monitor PROM
+RUN 0     ; boot: the Disk 1 boot ROM answers at 0000
 RUN       ; carry on from wherever the PC is
 ```
 
@@ -173,20 +173,22 @@ S     ; one instruction
 S 10  ; ten of them
 ```
 
+On an 8085 with RAM at 0000 (examples/debugger):
+
 ```
 pascal100> DEPOSIT 0 3E 05 06 0A 80 76  ; MVI A,5 / MVI B,0A / ADD B / HLT
 pascal100> EX 0
 pascal100> S 3
-C0Z0M0E0I0 A=05 BC=0000 DE=0000 HL=0000 SP=0000 IE=0 PC=0002  MVI B,0A
-C0Z0M0E0I0 A=05 BC=0A00 DE=0000 HL=0000 SP=0000 IE=0 PC=0004  ADD B
-C0Z0M0E1I0 A=0F BC=0A00 DE=0000 HL=0000 SP=0000 IE=0 PC=0005  HLT
+C0Z0M0E0I0V0K0 A=05 BC=0000 DE=0000 HL=0000 SP=0000 IE=0 PC=0002  MVI B,0A
+C0Z0M0E0I0V0K0 A=05 BC=0A00 DE=0000 HL=0000 SP=0000 IE=0 PC=0004  ADD B
+C0Z0M0E1I0V0K0 A=0F BC=0A00 DE=0000 HL=0000 SP=0000 IE=0 PC=0005  HLT
 ```
 
 Three instructions ran, three lines. Each shows the result: A=05 lands on the
 line for the MVI that loaded it, and the last line is the HLT waiting, not yet
-run. The flags are the 8080's own five, in the Altair's lettering -- Carry,
-Zero, Minus, Even parity, Interdigit carry -- and E goes to 1 on the ADD
-because 0F has an even number of bits set.
+run. The flags are the 8080's own five -- Carry, Zero, Minus, Even parity,
+Interdigit carry -- then V and K, two the 8085 has that Intel never
+documented. E goes to 1 on the ADD because 0F has an even number of bits set.
 
 
 ### TYPE — `TY[PE]`
@@ -272,7 +274,7 @@ FILL or LOAD. While the processor is halted, DEPOSIT does nothing. RESET ends
 the halt.
 
 ```
-DE 100 C3 00 F8  ; JMP F800 at 0100. The PC is now 0102
+DE 100 C3 00 2C  ; JMP 2C00 at 0100. The PC is now 0102
 DE NEXT 00       ; 00 at 0103
 DE 76            ; HLT at the PC (0103)
 ```
@@ -319,9 +321,9 @@ Look at four bytes, patch two instructions in, and read them back:
 
 ```
 pascal100> EDIT 100
-0100 C3 IN 10       ; assembles DB 10, on to 0102
-0102 00 LXI H,FF13  ; assembles 21 13 FF, on to 0105
-0105 76 .           ; '.' returns to the monitor
+000100 C3 IN 10       ; assembles DB 10, on to 0102
+000102 00 LXI H,FF13  ; assembles 21 13 FF, on to 0105
+000105 76 .           ; '.' returns to the monitor
 pascal100> DISASM 100 2
 0100  DB 10     IN 10
 0102  21 13 FF  LXI H,FF13
@@ -515,7 +517,7 @@ LOAD does not read either back: BIN and HEX round-trip, OCTAL and PRN do not.
 
 ```
 SAVE out.hex 0-FFF             ; Intel HEX, by its name
-SAVE out.bin F800-FFFF         ; a flat binary, by its name
+SAVE out.bin 0-FF              ; a flat binary, by its name
 SAVE out.oct 100-1FF           ; an octal listing, by its name
 SAVE out.prn 100-1FF           ; a disassembly listing, by its name
 SAVE out.dat 0-FFF FORMAT=HEX  ; hex, though it is not called .hex
@@ -864,7 +866,7 @@ pty         a pseudo-terminal (macOS and Linux only), for a terminal program.
             where you say. Carrier is up while a program has the name open.
 in:         PATH -- a host file as a READER (a paper-tape reader): its bytes
             feed the line. ?cps=N (or ?baud=N) paces it -- in:tape.tap?cps=300
-            is the 88-HSR; no option means full speed.
+            is a 300-character-per-second reader; no option means full speed.
 out:        PATH -- a host file as a PUNCH: the line's bytes land on disk,
             8-bit clean, from position 0 and never truncating. Combine them
             for a bidirectional line: in:TAPE.TAP,out:TAPE.PUN
@@ -905,21 +907,21 @@ Exactly ONE unit may hold the console; connecting a second STEALS it and says
 who from. Two boards reading one keyboard would each get half the characters.
 
 ```
-CONN sio0:a console
-CONN sio0:b null
-CONN sio0:b loopback
-CONN sio0:b socket:2323                         ; `telnet localhost 2323` now reaches the guest
-CONN sio0:b telnet:2323                         ; ...the same, but no double echo for a human
-CONN sio0:b socket:bbs.example:23               ; the guest dials OUT, to somebody else's port
-CONN sio0:b serial:/dev/tty.usbserial-AL009KFH  ; a real cable, real hardware
-CONN sio0:b serial:COM3                         ; ...the same, on Windows
-CONN sio0:b pty                                 ; `screen /tmp/pascal1000` now reaches the guest
+CONN if1:a console
+CONN if1:b null
+CONN if1:b loopback
+CONN if1:b socket:2323                          ; `telnet localhost 2323` now reaches the guest
+CONN if1:b telnet:2323                          ; ...the same, but no double echo for a human
+CONN if1:b socket:bbs.example:23                ; the guest dials OUT, to somebody else's port
+CONN if1:b serial:/dev/tty.usbserial-AL009KFH   ; a real cable, real hardware
+CONN if1:b serial:COM3                          ; ...the same, on Windows
+CONN if1:b pty                                  ; `screen /tmp/pascal1000` now reaches the guest
 CONN lpt0:prn out:printout.txt                  ; capture a printer to a file
-CONN sio0:b in:TAPE.TAP?cps=300                 ; a paper-tape reader on a serial line
-CONN sio0:b out:TAPE.PUN                        ; a paper-tape punch
-CONN sio0:a terminal?emulation=adm3a            ; a windowed ADM-3A of its own
+CONN if1:b in:TAPE.TAP?cps=300                  ; a paper-tape reader on a serial line
+CONN if1:b out:TAPE.PUN                         ; a paper-tape punch
+CONN if1:a terminal?emulation=adm3a             ; a windowed ADM-3A of its own
 CONN lpt0:prn printer:linewriter                ; print to a real host queue
-CONN sio0:b socket:2323|bbs.hex?fmt=cols        ; telnet in, and TAP it to a log
+CONN if1:b socket:2323|bbs.hex?fmt=cols         ; telnet in, and TAP it to a log
 ```
 
 DISCONNECT takes the cable out again; SHOW CONSOLE says which unit holds it.
@@ -987,12 +989,12 @@ DISCONNECT <id>:<u>
 ```
 A shortcut for CONNECT <id>:<u> null.
 
-The line then goes nowhere. NOT an error: an unconnected 6850 sits there with
-TDRE set forever, and a program that writes to it works fine and talks to
-nobody -- which is exactly what the card does with no cable in it.
+The line then goes nowhere. NOT an error: an unconnected UART (a 2SIO's 6850,
+say) sits with TDRE set forever, and a program that writes to it works fine
+and talks to nobody -- which is exactly what the card does with no cable in it.
 
 ```
-DISC sio0:b
+DISC if1:b
 ```
 
 

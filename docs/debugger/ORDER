@@ -4,7 +4,7 @@
 # tools/build-docs.sh into pascal100-debugger.pdf and shipped beside the manual in the
 # package. It was a manual chapter once (docs/manual/debugging.md); it moved out with the
 # monitor because looking at the machine -- breakpoints, stepping, disassembly, the bus
-# itself -- is most of why altairsim exists, and it reads better as its own document than as
+# itself -- is most of what the monitor is for, and it reads better as its own document than as
 # the longest chapter in a book about the emulated hardware.
 #
 # One chapter, so the sequence is trivial; ORDER still declares it, because build-docs.sh

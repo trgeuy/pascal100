@@ -1,36 +1,37 @@
 # The debugger
 
-> **Being rewritten for pascal100.** pascal100 comes from `altairsim`, a simulator of the MITS
-> Altair 8800. Parts of this document still describe altairsim and its Altair machines and
-> boards, which pascal100 does not have. When this document and the program do not agree,
-> `HELP` at the `pascal100>` prompt is correct.
-
 This document tells you what to do in the monitor when a guest does not work correctly. It is
 the companion to *The Monitor*. *The Monitor* describes the `pascal100>` prompt, where you
 start, stop and change the machine. If the `pascal100>` prompt is new to you, read *The
 Monitor* first.
 
 Both documents are companions to the *User Manual*, which describes the simulated hardware.
-`altairsim` simulates the MITS Altair 8800 and its S-100 bus.
+pascal100 simulates the Digicomp Pascal-100 and the IEEE 696 (S-100) boards around it.
 
 A simulator must run old software. It must also show you what the machine does: which board
 answered, what went out on the bus, and why an interrupt did not arrive. The commands in this
-document show you these things. They are the main reason that `altairsim` exists. Use them
-when something goes wrong.
+document show you these things. Use them when something goes wrong.
+
+Most examples in this document use two machines that come with pascal100:
+
+- `examples/debugger`: an 8085, 32K of RAM and a 2SIO serial board, with a small program,
+  `HELLO`, and its symbols. Its `README` is a step-by-step lesson.
+- the built-in `default` machine: a Z80, an Interfacer 1, a Disk 1 and 64K of RAM.
 
 ## Where the processor is: `REGS`
 
-`REGS` shows all of the processor on one line. The flags come first: carry, zero, minus, even
-parity and interdigit carry. Next come the register pairs, the stack pointer, the
-interrupt-enable flip-flop and the program counter. The last column is **the next instruction
-that the processor will execute**, in disassembled form.
+`REGS` shows all of the processor on one line. On the 8085, the flags come first: carry, zero,
+minus, even parity and interdigit carry, then `V` and `K`, two flags that Intel did not
+document. Next come the register pairs, the stack pointer, the interrupt-enable flip-flop and
+the program counter. The last column is **the next instruction that the processor will
+execute**, in disassembled form.
 
 Each time the machine stops, the monitor shows this line. For this reason, you seldom need to
 type `REGS`.
 
 ```
-pascal100> REGS
-C0Z1M0E1I0 A=00 BC=007F DE=CA01 HL=BC0E SP=BC37 IE=1 PC=CA9C  CALL CA78
+pascal100> REGS            (examples/debugger, stopped at PUTC)
+C0Z0M0E1I0V0K0 A=48 BC=0000 DE=0000 HL=011F SP=013C IE=0 PC=0113  PUSH PSW
 ```
 
 Each register has the name that you use with `SET REG`: the pairs `BC`, `DE` and `HL`, the
@@ -38,7 +39,7 @@ stack pointer `SP` and the program counter `PC`. The name that you read is the n
 type.
 
 The line shows the registers of the processor in the machine. A Z80 has more registers than an
-8080, so on a Z80 the line wraps to two lines. The Z80 adds:
+8080 or an 8085, so on a Z80 the line wraps to two lines. The Z80 adds:
 
 - the flags `S`, `P`, `H` and `N`, beside the `C` and `Z` that both processors have
 - the alternate register bank, with its own flags
@@ -55,8 +56,19 @@ come `IX`, `IY`, the interrupt vector `I`, the mode `IM`, and `IFF2`. `IFF2` is 
 `IFF1`.
 
 ```
-pascal100> REGS            (on a Z80 machine)
-C0Z0S0P0H0N0 A=00 BC=0000 DE=0000 HL=0000 SP=0000 IFF1=0 PC=0000  CALL PE,9A78
+pascal100> REGS            (CP/M 2.2 on examples/cpm22, at the A> prompt)
+C0Z1S0P1H1N0 A=00 BC=007F DE=DD06 HL=E80E SP=E837 IFF1=0 PC=F4BD  IN A,(01)
+C0Z0S0P0H0N0 A'00 BC'0000 DE'0000 HL'0000 IX=0000 IY=0000 I=00 IM=00 IFF2=0
+```
+
+**A board with two processors names the active one.** The Pascal-100 card (`cpu0` on the
+Pascal machine) has a Z80 and a MicroEngine, and the guest switches between them. `REGS`
+starts with the name of the processor that is active, in brackets. At the UCSD Pascal
+`Command:` prompt, the Z80 does the console I/O:
+
+```
+pascal100> REGS            (examples/pascal, at the Command: prompt)
+[z80] C0Z1S0P1H1N0 A=00 BC=005D DE=135A HL=09EC SP=0363 IFF1=0 PC=04BC  IN A,(01)
 C0Z0S0P0H0N0 A'00 BC'0000 DE'0000 HL'0000 IX=0000 IY=0000 I=00 IM=00 IFF2=0
 ```
 
@@ -117,13 +129,12 @@ N           the same (N is NEXT, because you type it often)
 
 ## Breakpoints: `BREAK`, `NOBREAK`
 
-There are three types of breakpoint:
+There are two types of breakpoint:
 
 - An **address breakpoint** (`BREAK <addr>`) watches the processor. It stops the machine when
   `PC` gets to the address.
 - A **cycle breakpoint** (`BREAK MEM` or `BREAK IO`) watches the bus cycles, not the
   instructions.
-- A **tape breakpoint** (`BREAK TAPE STOP`) watches a cassette deck.
 
 **Use a cycle breakpoint when you can.** A memory cycle breakpoint also finds a DMA transfer,
 which no instruction does. It works in the same way on each processor, because it watches the
@@ -138,22 +149,21 @@ For this reason, `RUN` or `STEP` then runs the instruction from its start.
 There is one exception. A cycle from a *DMA* board has no instruction to stop before. The
 machine stops at the end of the instruction during which the transfer occurred.
 
-**A tape breakpoint watches a device, not the program.** It stops the machine when a cassette
-deck stops the tape by itself at the end of a load. At that time, you usually want to look at
-the data that the load wrote to memory. You do not need to know the end address of the loader.
-Set the breakpoint and run the machine. The machine stops inside the loader when the tape
-stops.
-
 ```
 BREAK FF13            stop when PC gets to FF13
 BREAK 2C00-2CFF       ...or to any address in a range
 BREAK MEM W 100       stop when ANYTHING writes to 0100
 BREAK IO  R 10        stop on an IN from port 10
-BREAK TAPE STOP       stop when a cassette deck stops the tape after a load
+BREAK cpu0:me 0346    stop only when the MicroEngine of cpu0 gets to 0346
 BREAK                 list the breakpoints
 NOBREAK 2             remove breakpoint 2 (the id is decimal, not a bus address)
 NOBREAK               remove all breakpoints
 ```
+
+**On a board with two processors, an address breakpoint can name one of them** as
+`<board>:<unit>`. `SHOW <board>` lists the processors of a board. Without a name, the breakpoint
+stops on the processor that is active. A cycle breakpoint cannot name a processor, because a
+bus cycle belongs to the bus.
 
 The monitor gives breakpoints the ids 1, 2, 3 and so on, in order. When no breakpoints are
 left, the next id is 1 again. This is true if you removed them all with `NOBREAK`, and if you
@@ -164,13 +174,17 @@ For this reason, an id is not a count of the breakpoints that are set.
 state of the machine.** An address breakpoint stops with `PC` *on* the instruction at the
 address. That instruction has not run yet.
 
+This example is `examples/debugger`, with `HELLO.HEX` loaded. `PUTC` (`0113`) is the routine
+that sends one character:
+
 ```
-pascal100> BREAK 2C00
-breakpoint 1: pc     2C00
-pascal100> RUN FF00
-breakpoint 1 (pc     2C00) -- stopped at 2C00
-1414 instructions, 9202 T-states.
-C0Z1M0E1I1 A=C9 BC=0000 DE=2CEB HL=FFFE SP=0000 IE=0 PC=2C00  DI
+pascal100> BREAK 113
+breakpoint 1: pc     0113
+pascal100> RUN 100
+
+breakpoint 1 (pc     0113) -- stopped at 0113
+6 instructions, 58 T-states.
+C0Z0M0E1I0V0K0 A=48 BC=0000 DE=0000 HL=011F SP=013C IE=0 PC=0113  PUSH PSW
 ```
 
 The first line of the report names the breakpoint and the address where the machine stopped.
@@ -179,16 +193,17 @@ line that `REGS` shows.
 
 A cycle breakpoint gives the same report, with one difference. For a cycle breakpoint, *stopped
 at* is the address of the instruction that made the access, not the watched address. The report gives you
-the instruction that made the access. In this example, the breakpoint finds a write to `2C00`.
-`PC` is on the `STAX D` that writes the byte:
+the instruction that made the access. In this example, the breakpoint finds a write to `013D`,
+in the stack. `PC` is on the `CALL` that pushes its return address there:
 
 ```
-pascal100> BREAK MEM W 2C00
-breakpoint 1: mem w  2C00
-pascal100> RUN FF00
-breakpoint 1 (mem w  2C00) -- stopped at FF09
-4 instructions, 34 T-states.
-C0Z0M0E0I0 A=F3 BC=00EB DE=2C00 HL=FF13 SP=0000 IE=0 PC=FF09  STAX D
+pascal100> BREAK MEM W 13D
+breakpoint 1: mem w  00013D
+pascal100> RUN 100
+
+breakpoint 1 (mem w  00013D) -- stopped at 010B
+5 instructions, 41 T-states.
+C0Z0M0E1I0V0K0 A=48 BC=0000 DE=0000 HL=011F SP=013E IE=0 PC=010B  CALL 0113
 ```
 
 ### Conditions: `IF`
@@ -220,6 +235,12 @@ can also stop on the read of a status port when a given unit is selected.
 
 For a cycle breakpoint, `IF` tests the registers as they were when the instruction started.
 These are the same registers that `BREAK <addr> IF` at that instruction tests.
+
+**A cycle breakpoint with `IF` stops *after* the instruction, not before it.** The monitor can
+test the condition only at the end of the instruction, so the access has occurred. In
+`examples/debugger`, `BREAK MEM W 13D` stops at `010B`, on the `CALL` that writes the byte.
+`BREAK MEM W 13D IF A==48` stops at `0113`, after the `CALL` ran. The report still names the
+breakpoint and its condition.
 
 ```
 BREAK MEM W 100 IF B==0      the write to 0100 when B is zero
@@ -257,25 +278,26 @@ always start at a page boundary, and the columns stay in the same place.
 ```
 DUMP 100          0100-01FF: a full page
 DUMP              the next page
-DUMP FF00-FF0F    the range FF00 to FF0F
+DUMP 0-F          the range 0000 to 000F
 DUMP 100/20       0100-011F (a length is part of the address, so it is hex)
 DUMP 0 WIDTH=8    eight bytes on each line (a count, so it is decimal)
 ```
 
 Each row shows the address, then the bytes in hex, then the same bytes as text. A byte that is
-not a printable character shows as `.`. This is the DBL boot PROM of the default machine, at
-`FF00`:
+not a printable character shows as `.`. This is the boot EPROM of the Disk 1 on the `default`
+machine, at `0000`:
 
 ```
-pascal100> DUMP FF00-FF3F
-FF00  21 13 FF 11 00 2C 0E EB  7E 12 23 13 0D C2 08 FF  !....,..~.#.....
-FF10  C3 00 2C F3 AF D3 22 2F  D3 23 3E 2C D3 22 3E 03  ..,..."/.#>,.">.
-FF20  D3 10 DB FF E6 10 0F 0F  C6 10 D3 10 31 79 2D AF  ............1y-.
-FF30  D3 08 DB 08 E6 08 C2 1C  2C 3E 04 D3 09 C3 38 2C  ........,>....8,
+pascal100> DUMP 0-3F
+000000  00 00 00 00 00 00 00 C3  0A 00 01 14 00 21 13 00  .............!..
+000010  C3 B5 00 11 C4 00 06 03  1A D3 C2 13 05 C2 18 00  ................
+000020  06 03 DB C0 B7 F2 22 00  1A D3 C1 13 05 C2 22 00  ......".......".
+000030  06 02 DB C0 B7 C3 3B 00  C3 00 00 F2 32 00 1A D3  ......;.....2...
 ```
 
-This memory holds code, so the text column shows mostly `.`. The text column is useful for a
-buffer of strings. You can read the message in the right-hand column.
+A `DUMP` address is a 24-bit bus address, so it has six digits. This memory holds code, so the
+text column shows mostly `.`. The text column is useful for a buffer of strings. You can read
+the message in the right-hand column.
 
 ## One byte at a time: `EXAMINE`, `DEPOSIT`, `EDIT`
 
@@ -320,7 +342,7 @@ DEPOSIT NEXT 76       HLT at 0103; the PC is now 0103
 A processor that runs a `HLT` stops fetching instructions. Only an interrupt that the processor
 accepts, or a reset, ends the halt. On a real front panel, RUN, EXAMINE, EXAMINE NEXT, DEPOSIT
 and DEPOSIT NEXT do nothing while the processor is halted. The monitor does the same, and it
-tells you why:
+tells you why. Here, the processor ran a `HLT` at `0100`:
 
 ```
 pascal100> RUN 200
@@ -349,9 +371,9 @@ type at it, at the prompt or through a pipe. Where nobody types (for example, in
 list), use `DEPOSIT`.
 
 ```
-EDIT 100          0100 C3 3E     type 3E and Enter: EDIT writes 3E and goes to 0101
-                  0101 00        Enter only: the byte stays 00, and EDIT goes to 0102
-                  0102 2C .      '.' stops EDIT and returns to the monitor
+EDIT 100          000100 C3 3E   type 3E and Enter: EDIT writes 3E and goes to 0101
+                  000101 00      Enter only: the byte stays 00, and EDIT goes to 0102
+                  000102 2C .    '.' stops EDIT and returns to the monitor
 ```
 
 ### Assembling one instruction with `EDIT`
@@ -380,9 +402,9 @@ bytes directly, or use a `JP` to go to the same address. For a processor that `E
 assemble for, `EDIT` accepts only bytes.
 
 ```
-EDIT 100          0100 C3 IN 10        assembles DB 10, goes to 0102
-                  0102 00 LXI H,FF13   assembles 21 13 FF, goes to 0105
-                  0105 76 .            '.' returns to the monitor
+EDIT 100          000100 3E IN 10        assembles DB 10, goes to 0102
+                  000102 2C LXI H,FF13   assembles 21 13 FF, goes to 0105
+                  000105 00 .            '.' returns to the monitor
 ```
 
 ## Disassembling: `DISASM`
@@ -393,49 +415,49 @@ while you looked at memory, you could not trust the debugger. The commands that 
 memory do not change it.
 
 ```
-DISASM FF00       sixteen instructions
+DISASM 0          sixteen instructions
 DISASM            continue from the last one
 DISASM 0-2F       the range 0000 to 002F
 ```
 
-This example is the reset entry of ALTMON at `F800`, the first code that the ROM runs:
+This example is part of the Disk 1 boot EPROM on the `default` machine. It gives the Disk 1 the
+memory address for its DMA transfer:
 
 ```
-pascal100> DISASM F800-F811
-F800  3E 03     MVI A,03
-F802  D3 10     OUT 10
-F804  D3 12     OUT 12
-F806  3E 11     MVI A,11
-F808  D3 10     OUT 10
-F80A  D3 12     OUT 12
-F80C  31 00 C0  LXI SP,C000
-F80F  CD A5 FB  CALL FBA5
+pascal100> DISASM 13-1F
+0013  11 C4 00  LD DE,00C4
+0016  06 03     LD B,03
+0018  1A        LD A,(DE)
+0019  D3 C2     OUT (C2),A
+001B  13        INC DE
+001C  05        DEC B
+001D  C2 18 00  JP NZ,0018
 ```
 
-The code resets the 6850s of both 2SIO channels (`OUT 10` and `OUT 12`). It selects 8N2 (`MVI
-A,11`), sets the stack at `C000`, and calls the sign-on routine at `FBA5`. The range stops at
-`F811` because the bytes after it are the sign-on text. `DISASM` would decode that ASCII as
-instructions, because memory does not show which bytes are code.
+The code points `DE` at three bytes at `00C4`, and sends them one at a time to port `C2`.
+`SHOW BUS` tells you that an `OUT` to `C2` is the DMA address of the Disk 1, three bytes with
+the most significant byte first. The machine is a Z80, so `DISASM` shows Zilog mnemonics.
 
 **Start `DISASM` on the first byte of an instruction.** `DISASM` cannot find where an
 instruction starts. If you start it in the *middle* of an instruction, it decodes the operand
-bytes as opcodes, and the listing is wrong. For example, start the same reset code one byte
-late, at `F801`. The `03` that was the *operand* of `MVI A,03` becomes an instruction:
+bytes as opcodes, and the listing is wrong. For example, start the same code one byte late, at
+`0014`. The operand bytes of `LD DE,00C4` and `LD B,03` become two instructions that are not
+in this ROM:
 
 ```
-pascal100> DISASM F801-F812
-F801  03        INX B
-F802  D3 10     OUT 10
-F804  D3 12     OUT 12
+pascal100> DISASM 14-1F
+0014  C4 00 06  CALL NZ,0600
+0017  03        INC BC
+0018  1A        LD A,(DE)
+0019  D3 C2     OUT (C2),A
 ...
 ```
 
-`INX B` is not an instruction in this ROM. A disassembler usually gets back to the real code
-after one or two bytes. In this example, `F802` is correct again, because `03` is a one-byte
-instruction. For this reason, a listing can be correct after a few lines while its first
-instruction is wrong. If a `DISASM` listing looks wrong, make sure that you started at the start
-of an instruction. To find one, use `STEP` to get to the address, or start the range at a label
-that you know is correct.
+A disassembler usually gets back to the real code after one or two instructions. In this
+example, `0018` is correct again. For this reason, a listing can be correct after a few lines
+while its first instructions are wrong. If a `DISASM` listing looks wrong, make sure that you
+started at the start of an instruction. To find one, use `STEP` to get to the address, or start
+the range at a label that you know is correct.
 
 **`DISASM` decodes for the processor in the machine.** The same bytes are different
 instructions on different processors. `DISASM` decodes them for the processor in the machine,
@@ -444,7 +466,7 @@ undefined on an 8080 are real instructions. `DISASM` shows them in Zilog mnemoni
 the 8080's `MVI` and `MOV`):
 
 ```
-pascal100> DISASM 100-10A            (on a Z80 machine)
+pascal100> DISASM 100-10A            (on the default machine, a Z80)
 0100  ED B0     LDIR
 0102  CB 27     SLA A
 0104  18 FE     JR 0104
@@ -452,21 +474,25 @@ pascal100> DISASM 100-10A            (on a Z80 machine)
 0108  DD 7E 05  LD A,(IX+05)
 ```
 
-The 8080 has no `ED`, `CB` or `DD` prefix. On an 8080, `DISASM` marks each undefined byte
-(`??=`), and decodes the other bytes as 8080 instructions that have no relation to the Z80
-code:
+The 8085 has no `ED`, `CB` or `DD` prefix. On the 8085, these bytes are instructions that Intel
+did not document. `DISASM` marks each one (`??=`), and shows what the 8085 does with it. It
+decodes the other bytes as 8085 instructions that have no relation to the Z80 code:
 
 ```
-pascal100> DISASM 100-10A            (the same bytes, on an 8080 machine)
-0100  ED        ??= ED  *CALL
+pascal100> DISASM 100-10A            (the same bytes, on examples/debugger, an 8085)
+0100  ED        ??= ED  *LHLX
 0101  B0        ORA B
-0102  CB        ??= CB  *JMP
+0102  CB        ??= CB  *RSTV
 0103  27        DAA
-0104  18        ??= 18  *NOP
+0104  18        ??= 18  *RDEL
 0105  FE 10     CPI 10
 0107  FC DD 7E  CM 7EDD
 010A  05        DCR B
 ```
+
+**On the Pascal-100 card, `DISASM` follows the active processor.** It decodes Z80 code while
+the Z80 is active, and MicroEngine P-code while the MicroEngine is active. `CPU=pcode` decodes
+P-code when the MicroEngine is not active. `HELP DISASM` lists the instruction sets.
 
 ### The 8088: `SEG:OFF`
 
@@ -524,7 +550,7 @@ IF` condition.
 
 ```
 SYMBOLS LOAD prog.SYM              a symbol table
-SYMBOLS LOAD ALTMON.PRN            ...or an assembler listing
+SYMBOLS LOAD HELLO.PRN             ...or an assembler listing
 BREAK START
 DUMP MSG/20
 BREAK 200 IF HL==STACK
@@ -533,48 +559,53 @@ SHOW SYMBOLS SIO*                  the symbols that match a pattern
 SYMBOLS CLEAR                      remove all symbols
 ```
 
-This is the same disassembly as before, with `ALTMON.PRN` loaded. The range starts at a symbol,
-and the listing shows names where it can. `DISASM` is the only command that shows symbols in
-its *output*. `DUMP` still shows hex and ASCII, because a block of data does not show which
-bytes are addresses.
+This example is `examples/debugger`, with `HELLO.PRN` and `HELLO.HEX` loaded. The range starts
+and ends at a symbol, and the listing shows names where it can. `DISASM` is the only command
+that shows symbols in its *output*. `DUMP` still shows hex and ASCII, because a block of data
+does not show which bytes are addresses.
 
 ```
-pascal100> SYMBOLS LOAD ALTMON.PRN
-96 symbol(s) from ALTMON.PRN
-pascal100> DISASM MONIT-F811
-MONIT:
-F800  3E 03     MVI A,03
-F802  D3 10     OUT 10
-F804  D3 12     OUT 12
-F806  3E 11     MVI A,11
-F808  D3 10     OUT 10
-F80A  D3 12     OUT 12
-F80C  31 00 C0  LXI SP,SPTR
-F80F  CD A5 FB  CALL DSPMSG
+pascal100> SYMBOLS LOAD HELLO.PRN
+12 symbol(s) from HELLO.PRN
+pascal100> LOAD HELLO.HEX
+loaded 46 bytes (1 page) from HELLO.HEX (000100-00012D)
+pascal100> DISASM START-DONE
+START:
+0100  31 3E 01  LXI SP,STACK
+0103  21 1F 01  LXI H,MSG
+LOOP:
+0106  7E        MOV A,M
+0107  B7        ORA A
+0108  CA 12 01  JZ DONE
+010B  CD 13 01  CALL PUTC
+010E  23        INX H
+010F  C3 06 01  JMP LOOP
+DONE:
+0112  76        HLT
 ```
 
-`MONIT` is `F800`, so the range starts at `F800`. A name works as an address in each command.
+`START` is `0100`, so the range starts at `0100`. A name works as an address in each command.
 The listing also changes in two ways:
 
 - **A program label** is on its own line above its address, as in an assembler listing.
-  `MONIT:` is above `F800`. For this reason, you can see where a jump goes to.
-- **A 16-bit operand** shows as a name. `CALL FBA5` becomes `CALL DSPMSG`, and `LXI SP,C000`
-  becomes `LXI SP,SPTR`.
+  `START:` is above `0100`. For this reason, you can see where a jump goes to.
+- **A 16-bit operand** shows as a name. `CALL 0113` becomes `CALL PUTC`, and `LXI SP,013E`
+  becomes `LXI SP,STACK`.
 
 These two changes use different symbols, for a reason:
 
-- **The label line uses program labels only.** `SPTR` is an **`EQU`** (the listing marks it
+- **The label line uses program labels only.** `STACK` is an **`EQU`** (the listing marks it
   with `=`), so it never shows as a label line. A constant that has the same value as a code
   address is not a code address. The same rule stops `0005` from showing a false `BDOS:` label.
 - **An operand can use an `EQU`.** An operand is a value that the instruction *points at*. An
   `EQU` that holds an address is the name that you want to read there. For this reason, `LXI
-  SP,SPTR` shows its target, although `SPTR` is an `EQU`. For the same reason, `CALL 0005`
+  SP,STACK` shows its target, although `STACK` is an `EQU`. For the same reason, `CALL 0005`
   shows as `CALL BDOS`.
 - **A program label is used before an `EQU`** when the two have the same value.
 
-Only a 16-bit operand shows as an address. A byte value stays a number. `MVI A,03` does not
-become a symbol, even if an `EQU` has the value three, because a two-digit value is a count and
-not an address.
+Only a 16-bit operand shows as an address. A byte value stays a number. In `PUTC`, `IN 10` and
+`ANI 02` do not become `TTYS` and `TXRDY`, although `HELLO.ASM` has an `EQU` for each value. A
+one-byte value is a port or a count, not an address.
 
 > **Try it.** `examples/debugger/` is a 46-byte program for these rules. It has a `.PRN` for
 > `SYMBOLS LOAD`, a `.HEX` for `LOAD`, and a `README`. The `README` starts with a `DISASM` that
@@ -634,28 +665,35 @@ COMPARE 100-1FF 2000        ...or compare with a file
 ## Running real bus cycles by hand: `IN`, `OUT`
 
 `IN` and `OUT` run real bus cycles. **`IN` runs an input cycle on the bus, with each effect
-that a real cycle has.** For example, it removes a character from the receiver of a UART, and
-it moves the sector counter of a disk controller forward. Use `IN` and `OUT` to operate a board
-as the guest does, without writing a guest program.
+that a real cycle has.** For example, an `IN` from the data port of a UART removes a character
+from its receiver. Use `IN` and `OUT` to operate a board as the guest does, without writing a
+guest program.
 
 ```
-IN  10            run a real IN cycle on port 10
-OUT FF 55         run a real OUT cycle
+IN  01            run a real IN cycle on port 01
+OUT 20 55         run a real OUT cycle: the byte 55 to port 20
+```
+
+On the `default` machine, port `01` is the status port of channel A of the Interfacer 1:
+
+```
+pascal100> IN 01
+port 01 -> 01
 ```
 
 ## Asking without touching: `WHO`
 
 `WHO` tells you which **board** *would* answer an address or a port. It gives the board's id.
-**`WHO` runs no cycle, and it changes nothing.** Use it when `IN 10` gives `FF`, and you do not
+**`WHO` runs no cycle, and it changes nothing.** Use it when `IN 20` gives `FF`, and you do not
 know if `FF` is data or if no board answered.
 
-The console 2SIO decodes port 10, so `WHO` names it. A read and a write can go to different
+The Interfacer 1 decodes port `01`, so `WHO` names it. A read and a write can go to different
 boards, so `WHO` shows each one:
 
 ```
-pascal100> WHO IO 10
-port 10 IN:  sio0
-port 10 OUT: sio0
+pascal100> WHO IO 1
+port 01 IN:  if1
+port 01 OUT: if1
 ```
 
 For a port that no board decodes, `WHO` shows `nobody`. This tells you that the `FF` was a
@@ -668,14 +706,15 @@ port 20 OUT: nobody (an OUT here goes nowhere)
 ```
 
 `WHO` also shows contention and `PHANTOM*`. Use it to find two boards that decode the same
-address, or a board that disables another board. On the default machine, the DBL boot ROM is
-part of `mem0` at `FF00`. It asserts `PHANTOM*` to disable the RAM below it. For this reason, a
-read at `FF00` comes from the ROM, and no board takes a write. `WHO` shows both:
+address, or a board that disables another board. On the `default` machine, the boot EPROM of
+the Disk 1 answers reads at `0000`-`00FF`. It asserts `PHANTOM*` to disable the RAM below it,
+but only for reads. For this reason, a read at `0000` comes from the EPROM, and a write goes to
+the RAM. `WHO` shows both:
 
 ```
-pascal100> WHO FF00
-FF00 read  mem0   [PHANTOM* asserted]
-FF00 write nobody -- floats to FF (a write here is simply gone)  [PHANTOM* asserted]
+pascal100> WHO 0
+000000 read  fd0   [PHANTOM* asserted]
+000000 write mem0   [PHANTOM* asserted]
 ```
 
 `WHO <addr>` asks about a memory address. `WHO IO <port>` asks about a port.
@@ -693,26 +732,36 @@ Use `SHOW BUS CONTENTION` when a machine that you built does not operate correct
 not know why. Two boards that decode the same port are a real hardware fault. The simulator
 does not choose one of the two boards for you.
 
-`SHOW BUS` with no view prints three sections: `MEMORY`, `I/O` and `INTERRUPTS`. The
-`INTERRUPTS` section is the short form of `SHOW BUS IRQ`. Run it first on a machine that you
-built:
+`SHOW BUS` with no view prints the sections `MEMORY`, `I/O` and `INTERRUPTS`, and `DMA` when
+the machine has a DMA board. The `INTERRUPTS` section is the short form of `SHOW BUS IRQ`. Run
+it first on a machine that you built. This is the `default` machine:
 
 ```
 pascal100> SHOW BUS
 MEMORY
-  0000-0FFF  mem0     ram
-  unmapped: 1000-FFFF  (floats to FF)
+  000000-0000FF  fd0      boot ROM one 256-byte routine of the EPROM, over PHANTOM* until OUT BASE+3 with D0 = 0  all segments
+  000000-00FFFF  mem0     ram  ext  16-bit
+  other segments: only the boards marked "all segments" answer
 I/O
-  FF         fp0      IN  --     SENSE switches SA8..SA15 -> D0..D7
-  00         sio0     IN  OUT    COM2502 -- status / interrupt enables
-  01         sio0     IN  OUT    COM2502 -- data
-  06         acr0     IN  OUT    88-SIO B UART -- status / interrupt enables
-  07         acr0     IN  OUT    88-SIO B UART -- data, via the modem, to the cassette
+  00             if1      IN  OUT    Channel A -- receive (R) / transmit (W)
+  01             if1      IN  OUT    Channel A -- status (R) / control latch (W)
+  02             if1      IN  OUT    Channel B -- receive (R) / transmit (W)
+  03             if1      IN  OUT    Channel B -- status (R) / control latch (W)
+  C0             fd0      IN  --     765 main status
+  C1             fd0      IN  OUT    765 data
+  C2             fd0      IN  OUT    board status, D7 = INT (in) / DMA address, 3 bytes MSB first (out)
+  C3             fd0      IN  OUT    D7 = serial in (in) / serial out (out), 1 = SPACING; D0 = 0 switches the boot ROM off
+  B0             hb0      IN  OUT    Host Bridge: command / status
+  B1             hb0      IN  OUT    Host Bridge: data -- file names, file bytes, directory names
 INTERRUPTS
   CPU     INTE off         interrupts are DISABLED; nothing will be acknowledged
   pINT    idle             pin 73
-  88-VI   (none)           nothing watches VI0-VI7; an acknowledged interrupt
-                           floats to FF, which the 8080 executes as RST 7
+  VI      (none)           nothing watches VI0-VI7; an acknowledged interrupt
+                           floats to FF, which the processor executes as RST 7
+
+DMA
+  pHOLD   idle             pin 74
+  TMA 15  fd0      disk1    set by dma_priority
 ```
 
 To see one section, or more detail, add a view:
@@ -722,12 +771,13 @@ SHOW BUS              memory, ports and interrupts, all at one time
 SHOW BUS MAP          which board decodes each memory address, and which addresses float
 SHOW BUS IO           which board decodes each port
 SHOW BUS IRQ          the eight interrupt lines: which board is set to each, and which assert
+SHOW BUS DMA          each DMA board and its TMA priority, and who pulls pHOLD
 SHOW BUS CONTENTION   the addresses that two boards answer
 ```
 
-`SHOW BUS MAP` lists only the memory that answers now. A boot PROM that the guest has switched
-out is not in the list, and `WHO` gives the same answer for an address in it. `SHOW MACHINE`
-shows how each board is built, and it lists the PROM always.
+`SHOW BUS MAP` lists only the memory that answers now. A boot ROM that the guest has switched
+off, such as the Disk 1 EPROM after `OUT C3` with `D0` = 0, is not in the list, and `WHO` gives the same answer for an address in it. `SHOW MACHINE`
+shows how each board is built, and it always lists the ROM.
 
 ## The machine over time: `TRACE`, `HISTORY`
 
@@ -758,7 +808,8 @@ answered it**:
   `--` when no board decoded it and the read floated to `FF`.
 
 For example, a guest that reads a port that no board decodes shows `cpu -> --`. A DMA
-controller that fills a frame buffer shows `dazzler -> mem0`. `HISTORY CPU` is the same as
+controller that fills memory shows its own id. When the Disk 1 reads a sector into memory, each
+byte shows as `fd0 -> mem0`. `HISTORY CPU` is the same as
 `HISTORY`.
 
 ```
@@ -805,7 +856,7 @@ machine continues. Use two tracepoints to trace a region:
 ```
 pascal100> BREAK 2C00 TRACE ON     start the trace when PC gets to 2C00
 pascal100> BREAK 2C40 TRACE OFF    ...and stop it at 2C40
-pascal100> RUN FF00
+pascal100> RUN 0
 ```
 
 A `TRACE ON` tracepoint traces the instruction *at* its address. A `TRACE OFF` tracepoint does
@@ -836,7 +887,7 @@ pascal100> TRACE ON run.log MASK=DMA    set the file and the mask (this starts t
 pascal100> TRACE OFF                    stop, but keep the file and the mask
 pascal100> BREAK 2C00 TRACE ON          set the region
 pascal100> BREAK 2C40 TRACE OFF
-pascal100> RUN FF00                     run.log gets only the DMA cycles from 2C00 to 2C40
+pascal100> RUN 0                        run.log gets only the DMA cycles from 2C00 to 2C40
 ```
 
 The `BREAK` list shows the tracepoints with the breakpoints. Their `hits` column counts how
@@ -864,37 +915,39 @@ debug  (runtime diagnostics -- the sink and flags do not survive CONFIG SAVE)
   -------  --------------------------------------
   socket   connect
   6850     serial
-  dsk0     SECTOR seek
 
   SET <channel> DEBUG=<flag>[,<flag>]  enables;  NODEBUG=<flag> disables;
   DEBUG=all / DEBUG=none turn every flag on / off.
 ```
+
+pascal100 has two diagnostic channels now: `6850`, the serial chip of the 2SIO, and `socket`,
+the layer that connects a serial unit to a network socket. A board can also have a diagnostic
+channel of its own, with the board's id as its name. No board in pascal100 has one yet.
 
 A debug flag in capital letters is on. `DEBUG=` turns flags on, and `NODEBUG=` turns them off.
 Each one changes only the flags that you name. Each one accepts a list with commas, and the
 words `all` and `none`:
 
 ```
-SET dsk0 DEBUG=sector,seek     report the sector reads and the head moves
-SET dsk0 NODEBUG=seek          stop the head-move reports, keep the sector reads
-SET dsk0 DEBUG=all             all the reports of this board
-SET dsk0 NODEBUG=all           no reports from this board
+SET 6850 DEBUG=serial          report each byte that a 6850 sends (tx) or receives (rx)
+SET 6850 NODEBUG=serial        stop the reports
+SET socket DEBUG=all           all the reports of the socket layer
+SET socket NODEBUG=all         no reports from the socket layer
 ```
 
-The name before `DEBUG` is the diagnostic channel. Usually it is the id of a board, such as
-`dsk0` above. A shared chip and the socket layer also have diagnostic channels (`6850` and
-`socket`). For this reason, the same command reaches parts of the machine that are not
-boards. If one flag in
-the list is not known, the monitor refuses the command and changes *nothing*. For this reason,
-a typing error in a list does not leave half of the list set.
+The name before `DEBUG` is the diagnostic channel. If one flag in the list is not known, the
+monitor refuses the command and changes *nothing*. For this reason, a typing error in a list
+does not leave half of the list set.
 
-Each report line starts with **the address of the instruction that operated the board**, and
-then the name of the diagnostic channel. For this reason, a report line shows you the code that
-operates the board:
+Each report line starts with **the address of the instruction that operated the chip or the
+board**, and then the name of the diagnostic channel. For this reason, a report line shows you
+the code that operates it. In `examples/debugger`, `HELLO` sends each character with the
+`OUT 11` at `011C`:
 
 ```
-2C38  dsk0: sector drive=0 track=0 sector=1
-007F  dsk0: seek drive=0 track=0 -> 1
+011C  6850: a tx 48
+011C  6850: a tx 45
+011C  6850: a tx 4C
 ```
 
 At the monitor prompt, the machine is stopped and no instruction operates the board. The
@@ -909,7 +962,7 @@ SET CONSOLE DEBUG=stdout
 SET CONSOLE DEBUG=trace.log    add to the end of a file
 ```
 
-altairsim writes each line to the file when the line is made. To see the lines while the
+pascal100 writes each line to the file when the line is made. To see the lines while the
 machine runs, type `tail -f trace.log` in a second window.
 
 `Tab` completes each part of these commands:
@@ -942,86 +995,85 @@ turn the log on for each run after it.
 
 ## A debugging session
 
-This short session uses the commands above on the `altmon` machine. ALTMON prints its `ALTMON
-1.3` banner at reset. It prints the banner without a pointer to the text, and the session finds
-out how. Set a breakpoint at the sign-on routine `FBA5`, and run from the reset entry:
+This short session uses the commands above on `examples/debugger`. `HELLO` prints `HELLO, WORLD`
+one character at a time, with the routine `PUTC`. The session follows one character through
+`PUTC`. Load the symbols and the program, set a breakpoint at `PUTC`, and run from `START`:
 
 ```
-pascal100> BREAK FBA5
-breakpoint 1: pc     FBA5
-pascal100> RUN F800
+pascal100> SYMBOLS LOAD HELLO.PRN
+12 symbol(s) from HELLO.PRN
+pascal100> LOAD HELLO.HEX
+loaded 46 bytes (1 page) from HELLO.HEX (000100-00012D)
+pascal100> BREAK PUTC
+breakpoint 1: pc     0113
+pascal100> RUN START
 
-breakpoint 1 (pc     FBA5) -- stopped at FBA5
-8 instructions, 81 T-states.
-C0Z0M0E0I1 A=11 BC=0000 DE=0000 HL=F81F SP=BFFE IE=0 PC=FBA5  POP H
+breakpoint 1 (pc     0113) -- stopped at 0113
+6 instructions, 58 T-states.
+C0Z0M0E1I0V0K0 A=48 BC=0000 DE=0000 HL=011F SP=013C IE=0 PC=0113  PUSH PSW
 ```
 
-The breakpoint shows the registers, so you do not need `REGS`. `PC` is on `POP H`, the first
-instruction of the routine. Disassemble the routine:
+The breakpoint shows the registers, so you do not need `REGS`. `PC` is on `PUSH PSW`, the first
+instruction of the routine. `A` holds `48`, the `H`. Disassemble the routine:
 
 ```
 pascal100> DISASM
-FBA5  E1        POP H
-FBA6  7E        MOV A,M
-FBA7  CD 48 FB  CALL FB48
-FBAA  B6        ORA M
-FBAB  23        INX H
-FBAC  F2 A6 FB  JP FBA6
-FBAF  CD 46 FB  CALL FB46
-FBB2  E9        PCHL
-FBB3  CD BC FB  CALL FBBC
-FBB6  FE 1B     CPI 1B
-FBB8  C8        RZ
-FBB9  C3 48 FB  JMP FB48
-FBBC  DB 10     IN 10
-FBBE  0F        RRC
-FBBF  D2 BC FB  JNC FBBC
-FBC2  DB 11     IN 11
+PUTC:
+0113  F5        PUSH PSW
+PWAIT:
+0114  DB 10     IN 10
+0116  E6 02     ANI 02
+0118  CA 14 01  JZ PWAIT
+011B  F1        POP PSW
+011C  D3 11     OUT 11
+011E  C9        RET
+MSG:
+011F  48        MOV C,B
+0120  45        MOV B,L
+0121  4C        MOV C,H
+0122  4C        MOV C,H
+0123  4F        MOV C,A
+0124  2C        INR L
+0125  20        RIM
+0126  57        MOV D,A
+0127  4F        MOV C,A
 ```
 
-This is how the routine works. `POP H` puts the routine's *own return address* in `HL`. The
-text is in memory directly after the `CALL FBA5`, so `HL` now points at the text. The loop is:
+This is how the routine works:
 
-1. `MOV A,M` gets a character.
-2. `CALL FB48` prints it.
-3. `ORA M` tests the byte.
-4. `INX H` moves to the next byte.
-5. `JP FBA6` goes back to the start of the loop.
+1. `PUSH PSW` saves the character.
+2. `IN 10` reads the status port of the 2SIO.
+3. `ANI 02` tests the transmitter-ready bit. `JZ PWAIT` goes back until the bit is 1.
+4. `POP PSW` gets the character back.
+5. `OUT 11` sends the character, and `RET` returns.
 
-Step into the routine, and see the banner come out one character at a time:
+The listing continues past `RET` into `MSG`, which is the text `HELLO, WORLD`. `DISASM` decodes
+the text as instructions, because memory does not show which bytes are code. `48`, the `H`,
+shows as `MOV C,B`. Stop reading a listing where the code stops.
+
+Step through the routine, and see the `H` go out and the `E` come in:
 
 ```
-pascal100> STEP 20
-C0Z0M0E0I1 A=11 BC=0000 DE=0000 HL=F812 SP=C000 IE=0 PC=FBA6  MOV A,M
-C0Z0M0E0I1 A=0D BC=0000 DE=0000 HL=F812 SP=C000 IE=0 PC=FBA7  CALL FB48
-C0Z0M0E0I1 A=0D BC=0000 DE=0000 HL=F812 SP=BFFE IE=0 PC=FB48  PUSH PSW
-C0Z0M0E0I1 A=0D BC=0000 DE=0000 HL=F812 SP=BFFC IE=0 PC=FB49  IN 10
-C0Z0M0E0I1 A=02 BC=0000 DE=0000 HL=F812 SP=BFFC IE=0 PC=FB4B  ANI 02
-C0Z0M0E0I0 A=02 BC=0000 DE=0000 HL=F812 SP=BFFC IE=0 PC=FB4D  JZ FB49
-C0Z0M0E0I0 A=02 BC=0000 DE=0000 HL=F812 SP=BFFC IE=0 PC=FB50  POP PSW
-C0Z0M0E0I1 A=0D BC=0000 DE=0000 HL=F812 SP=BFFE IE=0 PC=FB51  ANI 7F
-C0Z0M0E0I1 A=0D BC=0000 DE=0000 HL=F812 SP=BFFE IE=0 PC=FB53  OUT 11
-C0Z0M0E0I1 A=0D BC=0000 DE=0000 HL=F812 SP=BFFE IE=0 PC=FB55  RET
-C0Z0M0E0I1 A=0D BC=0000 DE=0000 HL=F812 SP=C000 IE=0 PC=FBAA  ORA M
-C0Z0M0E0I0 A=0D BC=0000 DE=0000 HL=F812 SP=C000 IE=0 PC=FBAB  INX H
-C0Z0M0E0I0 A=0D BC=0000 DE=0000 HL=F813 SP=C000 IE=0 PC=FBAC  JP FBA6
-C0Z0M0E0I0 A=0D BC=0000 DE=0000 HL=F813 SP=C000 IE=0 PC=FBA6  MOV A,M
-C0Z0M0E0I0 A=0A BC=0000 DE=0000 HL=F813 SP=C000 IE=0 PC=FBA7  CALL FB48
-C0Z0M0E0I0 A=0A BC=0000 DE=0000 HL=F813 SP=BFFE IE=0 PC=FB48  PUSH PSW
-C0Z0M0E0I0 A=0A BC=0000 DE=0000 HL=F813 SP=BFFC IE=0 PC=FB49  IN 10
-C0Z0M0E0I0 A=00 BC=0000 DE=0000 HL=F813 SP=BFFC IE=0 PC=FB4B  ANI 02
-C0Z1M0E1I0 A=00 BC=0000 DE=0000 HL=F813 SP=BFFC IE=0 PC=FB4D  JZ FB49
-C0Z1M0E1I0 A=00 BC=0000 DE=0000 HL=F813 SP=BFFC IE=0 PC=FB49  IN 10
+pascal100> STEP 12
+C0Z0M0E1I0V0K0 A=48 BC=0000 DE=0000 HL=011F SP=013A IE=0 PC=0114  IN 10
+C0Z0M0E1I0V0K0 A=02 BC=0000 DE=0000 HL=011F SP=013A IE=0 PC=0116  ANI 02
+C0Z0M0E0I1V0K0 A=02 BC=0000 DE=0000 HL=011F SP=013A IE=0 PC=0118  JZ PWAIT
+C0Z0M0E0I1V0K0 A=02 BC=0000 DE=0000 HL=011F SP=013A IE=0 PC=011B  POP PSW
+C0Z0M0E1I0V0K0 A=48 BC=0000 DE=0000 HL=011F SP=013C IE=0 PC=011C  OUT 11
+C0Z0M0E1I0V0K0 A=48 BC=0000 DE=0000 HL=011F SP=013C IE=0 PC=011E  RET
+C0Z0M0E1I0V0K0 A=48 BC=0000 DE=0000 HL=011F SP=013E IE=0 PC=010E  INX H
+C0Z0M0E1I0V0K0 A=48 BC=0000 DE=0000 HL=0120 SP=013E IE=0 PC=010F  JMP LOOP
+C0Z0M0E1I0V0K0 A=48 BC=0000 DE=0000 HL=0120 SP=013E IE=0 PC=0106  MOV A,M
+C0Z0M0E1I0V0K0 A=45 BC=0000 DE=0000 HL=0120 SP=013E IE=0 PC=0107  ORA A
+C0Z0M0E0I0V0K0 A=45 BC=0000 DE=0000 HL=0120 SP=013E IE=0 PC=0108  JZ DONE
+C0Z0M0E0I0V0K0 A=45 BC=0000 DE=0000 HL=0120 SP=013E IE=0 PC=010B  CALL PUTC
 ```
 
-`POP H` set `HL` to `F812`, the byte directly after the `CALL`. The first character is `0D`, a
-carriage return. `FB48` is the console output routine. It reads the 2SIO status (`IN 10` and
-`ANI 02`) until the transmitter is ready. Next, `OUT 11` sends the byte, and the routine
-returns.
-
-In the loop, `INX H` moves `HL` to `F813`. The next character, `0A` (line feed), goes
-through the same steps. The loop continues until a byte with its high bit set marks the end of
-the text. After twenty steps, the first two characters of the banner are on the console.
+`IN 10` read `02`: the transmitter was ready at once, so `JZ PWAIT` did not go back. `POP PSW`
+put the `H` (`48`) back in `A`, and `OUT 11` sent it. After `RET`, `INX H` moved `HL` to `0120`,
+and `MOV A,M` got the next character, `45`, the `E`. `ORA A` found that it is not the zero at
+the end of the text, so the program calls `PUTC` again. A bare `RUN` now stops at the
+breakpoint again, with `A=45`.
 
 ## Saving the state: `SNAPSHOT`, `RESTORE`
 
@@ -1032,19 +1084,20 @@ that moment later.
 
 To save the state, change memory, and get the state back:
 
-1. Type `SNAPSHOT before.snap` to save the state.
-2. Type `DEPOSIT 100 00 00 00 00` to change four bytes.
+1. Type `SNAPSHOT before.snap` to save the state. In this example, `0200`-`0203` hold
+   `DE AD BE EF`.
+2. Type `DEPOSIT 200 00 00 00 00` to change four bytes.
 3. Type `RESTORE before.snap` to get the state back.
-4. Type `DUMP 100-103`. The four bytes have their old values again.
+4. Type `DUMP 200-203`. The four bytes have their old values again.
 
 ```
 pascal100> SNAPSHOT before.snap
 snapshot written to before.snap
-pascal100> DEPOSIT 100 00 00 00 00      change four bytes
+pascal100> DEPOSIT 200 00 00 00 00      change four bytes
 pascal100> RESTORE before.snap
 restored from before.snap
-pascal100> DUMP 100-103                 the old bytes are back
-0100  DE AD BE EF                                       ....
+pascal100> DUMP 200-203                 the old bytes are back
+000200  DE AD BE EF                                       ....
 ```
 
 A snapshot holds the *state* of the machine, not its *configuration*. The file does not hold the
@@ -1080,7 +1133,7 @@ The example uses Claude Code. You do these steps one time.
 2. Register the server, so that the assistant can get to the machine:
 
    ```
-   $ claude mcp add altairsim -- altairsim <machine> --mcp
+   $ claude mcp add pascal100 -- pascal100 <machine> --mcp
    ```
 
 3. Make sure that the server is registered and that the assistant can get to it:
@@ -1104,7 +1157,7 @@ The example uses Claude Code. You do these steps one time.
 
    ```
    $ claude
-   > Read DRIVING-WITH-AI.md, then use the altairsim MCP tools for what follows.
+   > Read DRIVING-WITH-AI.md, then use the pascal100 MCP tools for what follows.
    ```
 
 After this, you talk to the assistant, not to the server.
@@ -1114,7 +1167,7 @@ After this, you talk to the assistant, not to the server.
 Give the assistant the full task in plain words. Name the tools, so that the assistant uses the
 simulator and does not guess:
 
-> *Use the altairsim MCP tools. Boot the machine and run `HELLO.COM`. It must print
+> *Use the pascal100 MCP tools. Boot the machine and run `HELLO.COM`. It must print
 > `HELLO, WORLD`, but it prints `ELLO, WORLD`. Find the bug and fix the source.*
 
 > *My loader stops before it gets to the prompt. Boot with the MCP tools, and set a breakpoint
@@ -1158,14 +1211,16 @@ gives `FF`, a board put `FF` there. `FF` is also what the bus gives when *no boa
 answers*. Learn to tell these two cases apart.
 
 **An `IN` from a port that no board decodes gives `FF`. A read from an address that no board
-answers also gives `FF`.** This is not an error code, and `altairsim` did not choose it. It is
+answers also gives `FF`.** This is not an error code, and pascal100 did not choose it. It is
 what a **floating bus** gives. No board drives the data lines, so they stay high, and the
-processor reads eight ones. A real Altair does the same.
+processor reads eight ones. A real S-100 machine does the same.
 
 This has an important result. Suppose that a machine has no interrupt-vector board, and a board
 asserts the interrupt line. During the acknowledge cycle, no board drives the data bus, so the
 processor reads `FF`. `FF` is `RST 7`. Nobody programmed this. It is what the hardware does, and
-it is the reason that the interrupt vector on an Altair with no vector board is `RST 7`.
+it is the reason that the interrupt vector on an 8080 or 8085 machine with no vector board is
+`RST 7`. A Z80 in interrupt mode 0 does the same. `SHOW BUS` tells you when nothing watches the
+vector lines: its `INTERRUPTS` section says that an acknowledged interrupt floats to `FF`.
 
 When a read gives an `FF` that you did not expect, use `WHO`. It tells you if a board answered
 with that byte, or if no board answered and the bus floated.

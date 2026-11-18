@@ -55,18 +55,20 @@ static const std::vector<CommandDef> kCommands = {
      "  S     ; one instruction\n"
      "  S 10  ; ten of them\n"
      "\n"
+     "On an 8085 with RAM at 0000 (examples/debugger):\n"
+     "\n"
      "  pascal100> DEPOSIT 0 3E 05 06 0A 80 76  ; MVI A,5 / MVI B,0A / ADD B / HLT\n"
      "  pascal100> EX 0\n"
      "  pascal100> S 3\n"
-     "  C0Z0M0E0I0 A=05 BC=0000 DE=0000 HL=0000 SP=0000 IE=0 PC=0002  MVI B,0A\n"
-     "  C0Z0M0E0I0 A=05 BC=0A00 DE=0000 HL=0000 SP=0000 IE=0 PC=0004  ADD B\n"
-     "  C0Z0M0E1I0 A=0F BC=0A00 DE=0000 HL=0000 SP=0000 IE=0 PC=0005  HLT\n"
+     "  C0Z0M0E0I0V0K0 A=05 BC=0000 DE=0000 HL=0000 SP=0000 IE=0 PC=0002  MVI B,0A\n"
+     "  C0Z0M0E0I0V0K0 A=05 BC=0A00 DE=0000 HL=0000 SP=0000 IE=0 PC=0004  ADD B\n"
+     "  C0Z0M0E1I0V0K0 A=0F BC=0A00 DE=0000 HL=0000 SP=0000 IE=0 PC=0005  HLT\n"
      "\n"
      "Three instructions ran, three lines. Each shows the result: A=05 lands on the\n"
      "line for the MVI that loaded it, and the last line is the HLT waiting, not yet\n"
-     "run. The flags are the 8080's own five, in the Altair's lettering -- Carry,\n"
-     "Zero, Minus, Even parity, Interdigit carry -- and E goes to 1 on the ADD\n"
-     "because 0F has an even number of bits set."},
+     "run. The flags are the 8080's own five -- Carry, Zero, Minus, Even parity,\n"
+     "Interdigit carry -- then V and K, two the 8085 has that Intel never\n"
+     "documented. E goes to 1 on the ADD because 0F has an even number of bits set."},
     // NEXT sits above NOBREAK so `N` -- the letter you reach for between two steps --
     // is NEXT, not NOBREAK. STEP took `S` and RUN took `R` for the same reason: the
     // command you type every few seconds wins the single letter. NOBREAK pays `NO`.
@@ -123,7 +125,7 @@ static const std::vector<CommandDef> kCommands = {
      "nothing can end. It continues a HLT that waits for an interrupt (EI, then HLT),\n"
      "and the interrupt ends the halt.\n"
      "\n"
-     "  RUN F800  ; boot the monitor PROM\n"
+     "  RUN 0     ; boot: the Disk 1 boot ROM answers at 0000\n"
      "  RUN       ; carry on from wherever the PC is"},
     {"HISTORY", true, nullptr, "HISTORY [BUS|CPU] [n]",
      "The last n INSTRUCTIONS the machine ran, oldest first -- a flight recorder that\n"
@@ -272,9 +274,9 @@ static const std::vector<CommandDef> kCommands = {
      "Look at four bytes, patch two instructions in, and read them back:\n"
      "\n"
      "  pascal100> EDIT 100\n"
-     "  0100 C3 IN 10       ; assembles DB 10, on to 0102\n"
-     "  0102 00 LXI H,FF13  ; assembles 21 13 FF, on to 0105\n"
-     "  0105 76 .           ; '.' returns to the monitor\n"
+     "  000100 C3 IN 10       ; assembles DB 10, on to 0102\n"
+     "  000102 00 LXI H,FF13  ; assembles 21 13 FF, on to 0105\n"
+     "  000105 76 .           ; '.' returns to the monitor\n"
      "  pascal100> DISASM 100 2\n"
      "  0100  DB 10     IN 10\n"
      "  0102  21 13 FF  LXI H,FF13\n"
@@ -427,7 +429,7 @@ static const std::vector<CommandDef> kCommands = {
      "FILL or LOAD. While the processor is halted, DEPOSIT does nothing. RESET ends\n"
      "the halt.\n"
      "\n"
-     "  DE 100 C3 00 F8  ; JMP F800 at 0100. The PC is now 0102\n"
+     "  DE 100 C3 00 2C  ; JMP 2C00 at 0100. The PC is now 0102\n"
      "  DE NEXT 00       ; 00 at 0103\n"
      "  DE 76            ; HLT at the PC (0103)"},
     // EXAMINE and DEPOSIT are the two switches on the front panel, and they belong
@@ -527,7 +529,7 @@ static const std::vector<CommandDef> kCommands = {
      "LOAD does not read either back: BIN and HEX round-trip, OCTAL and PRN do not.\n"
      "\n"
      "  SAVE out.hex 0-FFF             ; Intel HEX, by its name\n"
-     "  SAVE out.bin F800-FFFF         ; a flat binary, by its name\n"
+     "  SAVE out.bin 0-FF              ; a flat binary, by its name\n"
      "  SAVE out.oct 100-1FF           ; an octal listing, by its name\n"
      "  SAVE out.prn 100-1FF           ; a disassembly listing, by its name\n"
      "  SAVE out.dat 0-FFF FORMAT=HEX  ; hex, though it is not called .hex"},
@@ -673,11 +675,11 @@ static const std::vector<CommandDef> kCommands = {
     {"DISCONNECT", true, nullptr, "DISCONNECT <id>:<u>",  // DISC
      "A shortcut for CONNECT <id>:<u> null.\n"
      "\n"
-     "The line then goes nowhere. NOT an error: an unconnected 6850 sits there with\n"
-     "TDRE set forever, and a program that writes to it works fine and talks to\n"
-     "nobody -- which is exactly what the card does with no cable in it.\n"
+     "The line then goes nowhere. NOT an error: an unconnected UART (a 2SIO's 6850,\n"
+     "say) sits with TDRE set forever, and a program that writes to it works fine\n"
+     "and talks to nobody -- which is exactly what the card does with no cable in it.\n"
      "\n"
-     "  DISC sio0:b"},
+     "  DISC if1:b"},
     // CONSOLE CONFIGURES the console. It does not run the machine (Patrick,
     // 2026-07-12) -- RUN runs the machine, and a command that quietly started the
     // CPU because you asked to look at a setting is a trap.
@@ -733,7 +735,7 @@ static const std::vector<CommandDef> kCommands = {
      "              where you say. Carrier is up while a program has the name open.\n"
      "  in:         PATH -- a host file as a READER (a paper-tape reader): its bytes\n"
      "              feed the line. ?cps=N (or ?baud=N) paces it -- in:tape.tap?cps=300\n"
-     "              is the 88-HSR; no option means full speed.\n"
+     "              is a 300-character-per-second reader; no option means full speed.\n"
      "  out:        PATH -- a host file as a PUNCH: the line's bytes land on disk,\n"
      "              8-bit clean, from position 0 and never truncating. Combine them\n"
      "              for a bidirectional line: in:TAPE.TAP,out:TAPE.PUN\n"
@@ -772,21 +774,21 @@ static const std::vector<CommandDef> kCommands = {
      "Exactly ONE unit may hold the console; connecting a second STEALS it and says\n"
      "who from. Two boards reading one keyboard would each get half the characters.\n"
      "\n"
-     "  CONN sio0:a console\n"
-     "  CONN sio0:b null\n"
-     "  CONN sio0:b loopback\n"
-     "  CONN sio0:b socket:2323                         ; `telnet localhost 2323` now reaches the guest\n"
-     "  CONN sio0:b telnet:2323                         ; ...the same, but no double echo for a human\n"
-     "  CONN sio0:b socket:bbs.example:23               ; the guest dials OUT, to somebody else's port\n"
-     "  CONN sio0:b serial:/dev/tty.usbserial-AL009KFH  ; a real cable, real hardware\n"
-     "  CONN sio0:b serial:COM3                         ; ...the same, on Windows\n"
-     "  CONN sio0:b pty                                 ; `screen /tmp/pascal1000` now reaches the guest\n"
+     "  CONN if1:a console\n"
+     "  CONN if1:b null\n"
+     "  CONN if1:b loopback\n"
+     "  CONN if1:b socket:2323                          ; `telnet localhost 2323` now reaches the guest\n"
+     "  CONN if1:b telnet:2323                          ; ...the same, but no double echo for a human\n"
+     "  CONN if1:b socket:bbs.example:23                ; the guest dials OUT, to somebody else's port\n"
+     "  CONN if1:b serial:/dev/tty.usbserial-AL009KFH   ; a real cable, real hardware\n"
+     "  CONN if1:b serial:COM3                          ; ...the same, on Windows\n"
+     "  CONN if1:b pty                                  ; `screen /tmp/pascal1000` now reaches the guest\n"
      "  CONN lpt0:prn out:printout.txt                  ; capture a printer to a file\n"
-     "  CONN sio0:b in:TAPE.TAP?cps=300                 ; a paper-tape reader on a serial line\n"
-     "  CONN sio0:b out:TAPE.PUN                        ; a paper-tape punch\n"
-     "  CONN sio0:a terminal?emulation=adm3a            ; a windowed ADM-3A of its own\n"
+     "  CONN if1:b in:TAPE.TAP?cps=300                  ; a paper-tape reader on a serial line\n"
+     "  CONN if1:b out:TAPE.PUN                         ; a paper-tape punch\n"
+     "  CONN if1:a terminal?emulation=adm3a             ; a windowed ADM-3A of its own\n"
      "  CONN lpt0:prn printer:linewriter                ; print to a real host queue\n"
-     "  CONN sio0:b socket:2323|bbs.hex?fmt=cols        ; telnet in, and TAP it to a log\n"
+     "  CONN if1:b socket:2323|bbs.hex?fmt=cols         ; telnet in, and TAP it to a log\n"
      "\n"
      "DISCONNECT takes the cable out again; SHOW CONSOLE says which unit holds it."},
     // RESET sits with POWER, which is the other command that throws state away, and

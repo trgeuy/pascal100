@@ -123,8 +123,8 @@ You can also do it in System Settings:
 ## Documentation
 
 The documentation is being rewritten for pascal100. The quick start, the introduction, the
-package chapter, the worked examples and the changelog are up to date. Other chapters of the
-User Manual, *The Monitor*, *The Debugger* and the Developer Guide still describe parts of
+package chapter, the worked examples, the changelog, *The Monitor* and *The Debugger* are up to
+date. Other chapters of the User Manual and the Developer Guide still describe parts of
 altairsim and its Altair machines, and say so at the top. These files apply to pascal100:
 
 - `docs/QUICK-START.md`: boot CP/M with one command.
