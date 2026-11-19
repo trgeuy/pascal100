@@ -84,6 +84,9 @@ public:
     ByteStream* unitStream(const std::string& unit) override;
     void        pump() override;
     uint64_t    rxBytes() const override { return duart_.rxBytes(0) + duart_.rxBytes(1); }
+    // NO emptyPolls(). The idle judgement compares empty status reads with the MAIN
+    // processor's instructions (guestIsWaiting). This board's own Z80 polls its 2681 while
+    // the main processor computes, and those reads would pass for the main processor waiting.
 
     std::vector<std::string> drainLog() override;
 

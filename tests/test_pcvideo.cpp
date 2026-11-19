@@ -27,7 +27,7 @@ struct Feed : ByteStream {
         while (k < n && at < data.size()) buf[k++] = (uint8_t)data[at++];
         return k;
     }
-    size_t write(const uint8_t*, size_t n) override { return n; }
+    size_t doWrite(const uint8_t*, size_t n) override { return n; }
     bool readable() const override { return at < data.size(); }
     bool writable() const override { return true; }
 };

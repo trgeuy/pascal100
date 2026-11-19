@@ -1,6 +1,8 @@
 #include "test.h"
 
 #include "boards/mits-2sio.h"
+#include "boards/registry.h"
+#include "core/machine.h"
 #include "core/clock.h"
 #include "core/statefile.h"
 #include "host/endpoint.h"
@@ -8,6 +10,7 @@
 #include "host/tcp.h"
 #include "platform/socket.h"
 
+#include <algorithm>
 #include <chrono>
 #include <memory>
 #include <string>
@@ -34,7 +37,7 @@ public:
         in_.erase(0, k);
         return k;
     }
-    size_t write(const uint8_t* buf, size_t n) override {
+    size_t doWrite(const uint8_t* buf, size_t n) override {
         out_.append((const char*)buf, n);
         return n;
     }
@@ -159,6 +162,105 @@ void test_lines() {
         lb.setControl(c);
         CHECK(lb.status().carrier, "raise DTR and DCD comes back");
         CHECK(lb.status().dsr, "...and DSR, which is soldered to the same pin");
+    }
+
+    SECTION("Every line counts the bytes the guest sent (#948)");
+    {
+        // A byte sent is the guest working. Only the guest's write sends one, so the line
+        // can count it. (The guest WAITING is counted at the chip, on its status read --
+        // Board::emptyPolls -- because a chip also checks its line for its own reasons.)
+        ScriptedStream s;
+        CHECK(s.txBytes() == 0, "a new line has counted nothing");
+        const uint8_t out[3] = {'x', 'y', 'z'};
+        CHECK(s.write(out, 3) == 3, "the line takes three bytes");
+        s.writeByte('!');
+        CHECK(s.txBytes() == 4, "write() and writeByte() both count");
+
+        // A decorator forwards to the line it wraps, so both levels count. The run loop
+        // reads only the outermost one, the stream the unit holds, so nothing counts twice.
+        auto  inner = std::make_unique<ScriptedStream>();
+        auto* raw   = inner.get();
+        FilterStream f(std::move(inner));
+        f.write(out, 2);
+        CHECK(f.txBytes() == 2 && raw->txBytes() == 2, "both levels counted the bytes");
+
+        // NullStream: nothing plugged in. A guest that writes to it is working, even though
+        // nobody hears it.
+        NullStream n;
+        n.writeByte('q');
+        CHECK(n.txBytes() == 1, "a null line counts too");
+    }
+
+    SECTION("Interfacer 3 and 4: the RxRDY port counts as waiting only with no user ready");
+    {
+        for (const char* type : {"interfacer3", "interfacer4"}) {
+            Machine     m;
+            std::string err;
+            Board*      b = m.add(type, "x0", err);
+            CHECK(b != nullptr, type);
+            if (!b) continue;
+            m.power();
+            auto in = [&](uint8_t rel) {
+                BusCycle c;
+                c.type = Cycle::IoRead;
+                c.addr = (uint16_t)(0x10 + rel);
+                if (b->decodes(c)) (void)b->read(c);
+            };
+            const uint64_t e0 = m.emptyPolls();
+            in(4);
+            CHECK(m.emptyPolls() == e0, "the TxRDY port asks about sending: not a wait");
+            in(5);
+            CHECK(m.emptyPolls() > e0, "the RxRDY port with no user ready is a wait");
+        }
+    }
+
+    SECTION("SPUZ: its own Z80's status reads are not the main processor waiting");
+    {
+        Machine     m;
+        std::string err;
+        Board*      b = m.add("spuz", "x0", err);
+        CHECK(b != nullptr && b->emptyPolls() == 0, "a new SPUZ has counted nothing");
+        m.power();
+        BusCycle c;
+        c.type = Cycle::IoRead;
+        c.addr = 0xFC31;  // 2681 SRA
+        if (b && b->decodes(c)) (void)b->read(c);
+        CHECK(m.emptyPolls() == 0, "and a read of its 2681 adds nothing");
+    }
+
+    // EVERY BOARD WITH A SERIAL LINE REPORTS THE GUEST WAITING (#948). The run loop sums
+    // Board::emptyPolls over the backplane; a board that forgets to count makes a guest
+    // polling its line look busy, so the machine never naps. Read every I/O port the board
+    // decodes, with nothing on any line: at least one of those reads is a status read that
+    // finds no byte. This walks the registry, so a new board is checked without a new test.
+    SECTION("Every board with a serial line counts the guest's empty status reads (#948)");
+    {
+        // A board whose status reads do not show the main processor waiting for a byte. Each
+        // name here says why; a board is never added to make this test pass.
+        const std::vector<std::string> noReceive = {
+            "pcvideo",  // the keyboard flag shares port 10 with the raster bits, which a guest
+                        // polls to time the display (altairsim #976); the keys come by interrupt
+            "spuz",     // its own Z80 reads the 2681, so a read is not the main processor waiting
+        };
+        for (const BoardType& t : boardTypes()) {
+            if (std::find(noReceive.begin(), noReceive.end(), t.name) != noReceive.end()) continue;
+            Machine     m;
+            std::string err;
+            Board*      b = m.add(t.name, "x0", err);
+            if (!b) continue;
+            bool serial = false;
+            for (const auto& u : b->units()) serial = serial || u.kind == UnitKind::Serial;
+            if (!serial) continue;
+            m.power();
+            for (int port = 0; port < 256; ++port) {
+                BusCycle c;
+                c.type = Cycle::IoRead;
+                c.addr = (uint16_t)port;
+                if (b->decodes(c)) (void)b->read(c);
+            }
+            CHECK(m.lineActivity().emptyPolls > 0,
+                  (t.name + ": a status read with no byte counts as the guest waiting").c_str());
+        }
     }
 
     SECTION("The strap lives on the CARD (default: grounded)");

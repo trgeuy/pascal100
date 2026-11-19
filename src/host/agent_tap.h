@@ -59,7 +59,7 @@ public:
         return inner_->read(buf, n);
     }
 
-    size_t write(const uint8_t* buf, size_t n) override {
+    size_t doWrite(const uint8_t* buf, size_t n) override {
         const size_t took = inner_->write(buf, n);
         out_.append((const char*)buf, took);
         if (out_.size() > kKeep) {

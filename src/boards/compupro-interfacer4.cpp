@@ -176,7 +176,10 @@ uint8_t InterfacerFourBoard::read(const BusCycle& c) {
                 dav_ = false;
                 takeParallelInput();       // the next byte may latch now
                 break;
-            case 3: v = (uint8_t)((dav_ ? 1 : 0) | (dntkn_ ? 2 : 0)); break;  // CRD*
+            case 3:                        // CRD*
+                if (!dav_) ++emptyPolls_;  // no parallel byte: the guest is waiting
+                v = (uint8_t)((dav_ ? 1 : 0) | (dntkn_ ? 2 : 0));
+                break;
             }
         } else {
             Sig2651& u = serial_[(size_t)chip - 1]->uart;
@@ -189,7 +192,9 @@ uint8_t InterfacerFourBoard::read(const BusCycle& c) {
         }
     } else if (rel == 4 || rel == 5) {
         for (auto& s : serial_) s->uart.poll(clk);
-        v = (uint8_t)((rel == 4 ? txReadyBits() : rxReadyBits()) << shift());
+        const uint8_t bits = rel == 4 ? txReadyBits() : rxReadyBits();
+        if (rel == 5 && bits == 0) ++emptyPolls_;  // no user has a byte: the guest is waiting
+        v = (uint8_t)(bits << shift());
     }
     refresh();
     return v;
@@ -395,6 +400,12 @@ void InterfacerFourBoard::deserialize(StateReader& r) {
     }
     decodeChanged();
     refresh();
+}
+
+uint64_t InterfacerFourBoard::emptyPolls() const {
+    uint64_t n = emptyPolls_;
+    for (const auto& s : serial_) n += s->uart.emptyPolls();
+    return n;
 }
 
 uint64_t InterfacerFourBoard::rxBytes() const {
