@@ -42,7 +42,7 @@ public:
 
     explicit AgentTap(std::unique_ptr<ByteStream> inner) : inner_(std::move(inner)) {}
 
-    std::string describe() const override { return inner_->describe(); }
+    std::string doDescribe() const override { return inner_->describe(); }
 
     size_t read(uint8_t* buf, size_t n) override {
         if (!inject_.empty()) {

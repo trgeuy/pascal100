@@ -21,7 +21,7 @@ struct Feed : ByteStream {
     std::string data;
     size_t      at = 0;
     explicit Feed(std::string d) : data(std::move(d)) {}
-    std::string describe() const override { return "feed"; }
+    std::string doDescribe() const override { return "feed"; }
     size_t read(uint8_t* buf, size_t n) override {
         size_t k = 0;
         while (k < n && at < data.size()) buf[k++] = (uint8_t)data[at++];

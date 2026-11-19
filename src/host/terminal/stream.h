@@ -55,7 +55,7 @@ public:
                    std::unique_ptr<TerminalEmulator> emu);
     ~TerminalStream() override;
 
-    std::string describe() const override { return spec_; }
+    std::string doDescribe() const override { return spec_; }
 
     size_t read(uint8_t* buf, size_t n) override;   // guest <- reports + keystrokes
     size_t write(const uint8_t* buf, size_t n) override;  // guest -> screen

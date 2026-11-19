@@ -32,7 +32,7 @@ virtual size_t read(uint8_t* buf, size_t n) = 0;   // NON-BLOCKING
 virtual size_t write(const uint8_t* buf, size_t n) = 0;
 virtual bool readable() const = 0;  // -> drives RDRF / RxRDY
 virtual bool writable() const = 0;  // -> drives TDRE / TxRDY
-virtual std::string describe() const = 0;   // round-trips the operator's spec
+std::string describe() const;   // round-trips the operator's spec; a stream implements doDescribe()
 ```
 
 The discipline is one line and the whole subsystem stands on it:
@@ -115,12 +115,12 @@ meant, not a silent `NullStream` that leaves you wondering why the terminal is d
 
 Two helpers exist so a board can *use* the grammar without *reimplementing* it:
 
-- **`rebaseEndpointPaths` / `rebasingResolver`** rewrite only the PATH-bearing specs (`in:`/`out:`)
+- **`openEndpoint` / `rebasingResolver`** rewrite only the PATH-bearing specs (`in:`/`out:`)
   so a machine-file relative path is resolved against the machine file's directory, not the
   shell's cwd. The grammar of *which* specs carry a path stays in `endpoint.cpp`; the board only
-  supplies its config dir. Remember the path **as the operator wrote it** for `describe()`, and
-  rebase only the copy you hand the resolver — otherwise a relative path double-rebases on
-  `CONFIG SAVE` + reload.
+  supplies its config dir. They open the rebased copy and record the spec **as the operator wrote
+  it** (`showAs()`), so `describe()` gives back what was typed and a relative path is rebased only
+  once after `CONFIG SAVE` + reload (#953).
 - **`parsePort` / `parseHostPort`** let a board validate a `HOST:PORT` string (the PMMI's
   `dial`/`answer` settings do this) using the same split the resolver uses.
 

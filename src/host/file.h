@@ -27,9 +27,8 @@
 // PROVENANCE, like a mount: describe() returns the exact spec the operator gave,
 // so SHOW prints it and CONFIG SAVE round-trips it. A relative PATH is rebased
 // against the board's config dir BEFORE the resolver ever sees it (the board is
-// the only thing that knows its dir; see rebaseEndpointPaths in host/endpoint.*),
-// and the board remembers the ORIGINAL spec, so this stream only ever echoes what
-// it was handed.
+// the only thing that knows its dir), and openEndpoint() (host/endpoint.*) records
+// the ORIGINAL spec with showAs(), so describe() gives back what was typed.
 
 #include "host/stream.h"
 
@@ -57,7 +56,7 @@ public:
                std::fstream output, uint64_t nsPerByte = 0,
                std::function<uint64_t()> hostNs = {});
 
-    std::string describe() const override { return spec_; }
+    std::string doDescribe() const override { return spec_; }
 
     size_t read(uint8_t* buf, size_t n) override;
     size_t write(const uint8_t* buf, size_t n) override;
