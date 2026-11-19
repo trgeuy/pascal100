@@ -5,6 +5,7 @@
 // the whole scheme safe: an exact spelling always wins, and a command is never
 // silently reinterpreted because a newer command was added above it.
 
+#include "boards/compupro-spuz.h"
 #include "boards/mits-2sio.h"
 #include "boards/registry.h"
 #include "boards/s100-memory.h"
@@ -21,6 +22,7 @@
 #include "host/media.h"
 #include "host/stream.h"
 #include "host/terminal/stream.h"
+#include "platform/pty.h"
 #include "platform/socket.h"
 #include "test.h"
 
@@ -771,6 +773,99 @@ void test_cli() {
                   cx.str().find("needs quotes") != std::string::npos,
               "an unquoted endpoint with a space is refused, not cut at the space");
         monc.exec("CONNECT sio0:a loopback", sc);  // let go of the file before it is deleted
+        fs::remove_all(dir);
+    }
+
+    SECTION("a connected line reports the endpoint as typed, not the path it opened (#953)");
+    {
+        // A PATH in an endpoint opens against the machine's folder. The line was given the
+        // rebased spec, and SHOW and CONFIG SAVE printed it: `out:o.txt` came back as
+        // `out:<folder>/o.txt`, and a saved machine file was nailed to that folder.
+        namespace fs = std::filesystem;
+        const fs::path dir = fs::temp_directory_path() / "pascal100-953";
+        fs::remove_all(dir);
+        fs::create_directories(dir);
+        { std::ofstream(dir / "i.txt") << "x"; }
+        const std::string where = dir.generic_string();
+
+        Machine mp;
+        Monitor monp(mp);
+        mp.dir = where;  // as a machine loaded from a file in that folder has
+        std::ostringstream sp;
+        monp.exec("BOARDS ADD 2sio sio0", sp);  // the 6850 pair: Sio2Port opens the line
+        monp.exec("BOARDS ADD interfacer3 if3", sp);  // a 2651 board: the board opens it
+        auto state = [](Machine& mach, const std::string& id, const std::string& unit) {
+            if (Board* b = mach.find(id))
+                for (const auto& u : b->units())
+                    if (u.name == unit) return u.state;
+            return std::string("?");
+        };
+        monp.exec("CONNECT sio0:a out:o.txt", sp);
+        monp.exec("CONNECT sio0:b in:i.txt", sp);
+        monp.exec("CONNECT if3:user0 \"in:i.txt|cap.log\"", sp);
+        CHECK(fs::exists(dir / "o.txt"), "out:o.txt opens o.txt in the machine's folder");
+        CHECK(fs::exists(dir / "cap.log"), "and the tee's log goes there too");
+        CHECK(state(mp, "sio0", "a") == "out:o.txt", "the 2SIO's out: unit says out:o.txt");
+        CHECK(state(mp, "sio0", "b") == "in:i.txt", "the 2SIO's in: unit says in:i.txt");
+        CHECK(state(mp, "if3", "user0") == "in:i.txt|cap.log",
+              "the Interfacer 3's tee says in:i.txt|cap.log");
+
+        std::ostringstream show;
+        monp.exec("SHOW sio0", show);
+        CHECK(show.str().find("out:o.txt") != std::string::npos &&
+                  show.str().find(where) == std::string::npos,
+              "SHOW prints the path as typed, without the folder");
+
+        const std::string saved = saveTomlText(mp);
+        CHECK(saved.find("\"out:o.txt\"") != std::string::npos &&
+                  saved.find("\"in:i.txt\"") != std::string::npos &&
+                  saved.find("\"in:i.txt|cap.log\"") != std::string::npos,
+              "CONFIG SAVE writes each endpoint as typed");
+        CHECK(saved.find(where) == std::string::npos, "and never the machine's folder");
+
+        // The saved file loads from its own folder and opens the same files there.
+        monp.exec("CONNECT sio0:a null", sp);
+        monp.exec("CONNECT sio0:b null", sp);
+        monp.exec("CONNECT if3:user0 null", sp);
+        fs::remove(dir / "o.txt");
+        { std::ofstream(dir / "x.toml") << saved; }
+        Machine     ml;
+        std::string err;
+        CHECK(loadToml((dir / "x.toml").string(), ml, err), "the saved machine file loads");
+        CHECK(fs::exists(dir / "o.txt"), "and opens o.txt in its own folder again");
+        CHECK(state(ml, "sio0", "a") == "out:o.txt" && state(ml, "if3", "user0") == "in:i.txt|cap.log",
+              "and the loaded lines still say what was typed");
+        CHECK(saveTomlText(ml).find(where) == std::string::npos,
+              "and saving it again does not add the folder");
+
+        // pty:LINK names a path too: the link is made in the machine's folder.
+        if (platform::havePty()) {
+            std::ostringstream pr;
+            monp.exec("CONNECT sio0:a pty:con", pr);
+            CHECK(fs::is_symlink(dir / "con"), "pty:con makes the link in the machine's folder");
+            CHECK(state(mp, "sio0", "a") == "pty:con", "and the unit says pty:con");
+            monp.exec("CONNECT sio0:a null", sp);
+        }
+
+        // Every other board with a line opens it through openEndpoint() too.
+        const struct { const char* type; const char* unit; } others[] = {
+            {"interfacer1", "a"},       {"interfacer4", "user1"}, {"interfacer4", "centronics"},
+            {"interfacer4", "parallel"}, {"spuz", "a"},           {"pcvideo", "kbd"},
+            {"ss1", "serial"},          {"disk1", "serial"},
+            {"io4", "a"},               {"io4", "pa"},
+        };
+        SpuzBoard::setResolver(resolveEndpoint);  // tests/main.cpp does not install this one
+        for (const auto& o : others) {
+            Machine mb;
+            Monitor monb(mb);
+            mb.dir = where;
+            std::ostringstream sb;
+            monb.exec(std::string("BOARDS ADD ") + o.type + " x0", sb);
+            monb.exec(std::string("CONNECT x0:") + o.unit + " in:i.txt", sb);
+            CHECK(state(mb, "x0", o.unit) == "in:i.txt",
+                  (std::string(o.type) + ":" + o.unit + " says in:i.txt").c_str());
+        }
+        SpuzBoard::setResolver({});
         fs::remove_all(dir);
     }
 
