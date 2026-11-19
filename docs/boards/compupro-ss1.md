@@ -107,7 +107,7 @@ The SS-1 manual (pp.1-2, 5, 8-10, 87-89) gives every switch:
 - **The default is off,** so a machine file that does not ask for the block is not changed.
   `memory_at` defaults to 0FF000, CompuPro's CP/M-86 and MP/M 8-16 setting
   (`Reference/compupro/cpm86.md` p.1: U16 "addressed at location 0FF000H").
-- **Checked in the guest.** CP/M 8-16 1.1R (`examples/cpm8-16`) with its RAM cut to 256K hangs
+- **Checked in the guest.** CP/M 8-16 1.1R (`tests/media/compupro/CPM816.DSK`) with its RAM cut to 256K hangs
   at boot with no output: the 8088 starts at FFFF0 and finds nothing. With `memory = true` on
   the SS-1 it boots, prints "System Memory: 256K", and DIR works.
 

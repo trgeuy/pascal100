@@ -1,22 +1,20 @@
-# CompuPro CP/M 8-16 1.1R on the CPU 8085/88 (8080 and 8086 programs), on the terminal where you start the program.
+# CompuPro CP/M 8-16 1.1PD from a Quantum Q540 hard disk on a CompuPro Disk 3, on the terminal where you start the program.
 #
 #     cd examples/cpm8-16 && pascal100 cpm816-console.toml
 #     -> the CP/M 8-16 banner, then the A> prompt.
 #
-# THIS FILE IS THE WHOLE MACHINE. It is the same machine and the same disk as cpm816.toml. Only
-# the console is different: channel A of the Interfacer 1 stays on `console`, your stdio. Use
-# this file on a build with no window.
+# THIS FILE IS THE WHOLE MACHINE. It is the same machine and the same disks as
+# cpm816.toml. Only the console is different: channel A of the Interfacer 1 stays on
+# `console`, your stdio. Use this file on a build with no window.
 #
-# HOW IT BOOTS. The Disk 1 boot ROM (routine 4, console on the Interfacer 1) runs on the 8085
-# and reads the disk's boot sector. That code does IN FD: the CPU 8085/88 hands the bus to the
-# 8088, which starts at FFFF0, loads CPM.SYS and starts CP/M 8-16: CP/M-86 plus SW!, which runs an
-# 8080 .COM on the 8085 and an 8086 .CMD on the 8088. The disk is the CompuPro CP/M 8-16 1.1R
-# master with the Manx Aztec C files removed (C86, AS86 and their headers): DRI and CompuPro
-# files only.
-
+# HOW IT BOOTS. The Disk 1 boot ROM (routine 4) runs on the 8085 and reads the floppy's boot
+# sector. That code does IN FD: the CPU 8085/88 hands the bus to the 8088, which loads CPM.SYS
+# from the floppy. CPM.SYS is CompuPro's CPM340.SYS (V1.1PD, one Q540 on a Disk 3). Its BIOS
+# resets the Disk 3, reads the label and the SPECIFY block from the hard disk, and makes the
+# hard disk A: to E:. The floppy is F:.
 [machine]
 name    = "cpm816-console"
-# The bus is IEEE 696 (S-100): the 8088 uses A0-A19, the Disk 1 DMA A0-A23.
+# The bus is IEEE 696 (S-100): the 8088 uses A0-A19, the Disk 1 and Disk 3 DMA A0-A23.
 startup = ["RUN 0"]
 
 # THE CPU 8085/88: an 8085 and an 8088 on one card; the 8085 starts (docs/boards/compupro-cpu8588.md).
@@ -35,7 +33,7 @@ id   = "if1"
   rs232_inputs = "open"
   connect = "console"
 
-# THE DISK 1 at C0, boot routine 4 (console on the Interfacer 1).
+# THE DISK 1 at C0, boot routine 4 (console on the Interfacer 1). The boot floppy is drive F:.
 [[board]]
 type    = "disk1"
 id      = "fd0"
@@ -44,7 +42,19 @@ routine = 4
 
   [[board.drive]]
   unit  = 0
-  mount = "cpm816-11r.dsk"
+  mount = "cpm816pd-boot.dsk"
+
+# THE DISK 3 at 90 (docs/boards/compupro-disk3.md): CompuPro's port, DMA priority 9. The BIOS
+# polls STATUS, so no interrupt is needed.
+[[board]]
+type = "disk3"
+id   = "hd0"
+
+  # A Quantum Q540 (the board's default shape: 512 cylinders, 8 heads, 9 x 1024). Formatted by
+  # CompuPro's DISK3.CMD. A: to E: are its five partitions.
+  [[board.drive]]
+  unit  = 0
+  mount = "q540.dsk"
 
 # THE SYSTEM SUPPORT 1 at 50-5F, for its clock (CLOCK.CMD; the time is the host's own). Its
 # serial port is not connected: the console is on the Interfacer 1.
@@ -56,7 +66,7 @@ base = 50
   [board.unit.serial]
   connect = "null"
 
-# THE HOST BRIDGE at B0, for R, W and HDIR (R.CMD, W.CMD and HDIR.CMD on the disk). hostdir ""
+# THE HOST BRIDGE at B0, for R, W and HDIR (R.CMD, W.CMD and HDIR.CMD on both disks). hostdir ""
 # = the folder you started pascal100 in.
 [[board]]
 type    = "hostbridge"

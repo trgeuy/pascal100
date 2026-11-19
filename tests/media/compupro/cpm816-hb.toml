@@ -1,6 +1,6 @@
 # CompuPro CP/M 8-16 1.1R on the CPU 8085/88, with a host bridge: the machine of
-# acceptance-hostbridge86 (tests/acceptance/hostbridge86.cmake). CPM816.DSK is the image of
-# examples/cpm8-16/cpm816-11r.dsk before R.CMD, W.CMD and HDIR.CMD were added (DRI and CompuPro
+# acceptance-hostbridge86 (tests/acceptance/hostbridge86.cmake). CPM816.DSK is the CompuPro CP/M 8-16
+# 1.1R System Master with the third-party files removed and no R.CMD, W.CMD or HDIR.CMD (DRI and CompuPro
 # files only), so the test builds the utilities on a disk that has none; a test may not read examples/,
 # so it has its own copy. The test MOUNTs a scratch copy in drive 0 and starts it with RUN 0.
 
