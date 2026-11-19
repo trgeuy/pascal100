@@ -107,7 +107,7 @@ CompuPro sold three operating systems for the CPU 8085/88 card. This example is 
 
 | System | Example | Users | Runs |
 |---|---|---|---|
-| CP/M-86 | [`cpm86`](../cpm86/) | one | 8086 programs (`.CMD`) only |
+| CP/M-86 | [`cpm86`](../cpm86/) (on the CPU 86/87) | one | 8086 programs (`.CMD`) only |
 | CP/M 8-16 | [`cpm8-16`](../cpm8-16/) | one | 8086 programs (`.CMD`) and 8080 programs (`.COM`) |
 | **MP/M 8-16** | `mpm8-16` | several | 8086 and 8080 programs, each user at a terminal |
 

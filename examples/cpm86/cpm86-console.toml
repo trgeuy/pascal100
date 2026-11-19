@@ -1,4 +1,4 @@
-# CompuPro CP/M-86 1.1 on the CPU 8085/88, on the terminal where you start the program.
+# CompuPro CP/M-86 1.1 on the CPU 86/87, on the terminal where you start the program.
 #
 #     cd examples/cpm86 && pascal100 cpm86-console.toml
 #     -> "Total Memory: 1 MEGABYTE", then the A> prompt.
@@ -7,19 +7,19 @@
 # the console is different: channel A of the Interfacer 1 stays on `console`, your stdio. Use
 # this file on a build with no window.
 #
-# HOW IT BOOTS. The Disk 1 boot ROM (routine 4, console on the Interfacer 1) runs on the 8085
-# and reads the disk's boot sector. That code does IN FD: the CPU 8085/88 hands the bus to the
-# 8088, which starts at FFFF0, loads CPM.SYS and starts CP/M-86. Only DRI and CompuPro files
-# are on the disk (the CompuPro CP/M-86 1.1 master, disk 1 of 2).
+# HOW IT BOOTS. The 8086 starts at FFFF0. While the Disk 1 boots, its boot ROM answers every
+# memory read, so the 8086 runs the ROM's routine 0 (console on the Interfacer 1). The routine
+# reads the boot tracks, and the loader on them loads CPM.SYS and starts CP/M-86. The disk is
+# the CompuPro CP/M-86 1.1PAA master, disk 2 of 2, with R, W and HDIR added.
 
 [machine]
 name    = "cpm86-console"
-# The bus is IEEE 696 (S-100): the 8088 uses A0-A19, the Disk 1 DMA A0-A23.
-startup = ["RUN 0"]
+# The bus is IEEE 696 (S-100): the 8086 uses A0-A19, the Disk 1 DMA A0-A23.
+startup = ["RUN FFFF0"]   # the 8086 reset address; RUN 0 does not boot an 8086
 
-# THE CPU 8085/88: an 8085 and an 8088 on one card; the 8085 starts (docs/boards/compupro-cpu8588.md).
+# THE CPU 86/87: an 8086 on a 16-bit bus; no 8087 (docs/boards/compupro-cpu8687.md).
 [[board]]
-type = "cpu8588"
+type = "cpu8687"
 id   = "cpu"
 
 # THE CONSOLE: channel A of an Interfacer 1 at 00-01, on your stdio. Channel B is not connected.
@@ -30,12 +30,12 @@ id   = "if1"
   [board.unit.a]
   connect = "console"
 
-# THE DISK 1 at C0, boot routine 4 (console on the Interfacer 1).
+# THE DISK 1 at C0, boot routine 0: the 8086 routine with the console on the Interfacer 1.
 [[board]]
 type    = "disk1"
 id      = "fd0"
 port    = C0
-routine = 4
+routine = 0
 
   [[board.drive]]
   unit  = 0

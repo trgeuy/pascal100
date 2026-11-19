@@ -30,6 +30,7 @@ One `run` per guest command, matching the prompt each time:
 
 ```
 run {from: 0, until: "A>"}                      # boot CP/M: the Disk 1 boot EPROM answers at 0
+run {from: 1048560, until: "A>"}                # an 8086 (CPU 86/87) boots from FFFF0, not 0
 run {input: "DIR\r", until: "A>"}               # a command, and what it printed back
 run {input: "ASM FOO\r", until: "A>", timeout_ms: 120000}
 ```

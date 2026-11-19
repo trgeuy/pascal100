@@ -31,7 +31,8 @@ when there is no 8087).
 |---|---|---|
 | CompuPro *CPU 86/87 Technical Manual*, document #11866, 1/84, 38 pp. | `reference/CompuPro CPU 86-87.md` | Every switch, port and command word; the theory of operation; the 9-sheet logic diagram |
 | CompuPro *Disk 1 Technical Manual*, theory of operation | `reference/CompuPro Disk 1 & 1A Floppy Controllers.md` | The boot EPROM answers every memory read while it boots: how an 8086 finds it at FFFF0 |
-| CP/M-86 1.1PAA Disk #2, MP/M 8-16 2.1F Disk #1 + `MPMGEN B:MPMLDRFY.86` | not in the repository (`Pascal100-DSDD/` in the developer's files) | What CompuPro's systems do on this board |
+| CP/M-86 1.1PAA Disk #2 | `examples/cpm86/cpm86-11.dsk` (with R, W and HDIR added) | What CompuPro's CP/M-86 does on this board |
+| MP/M 8-16 2.1F Disk #1 + `MPMGEN B:MPMLDRFY.86` | not in the repository (`Pascal100-DSDD/` in the developer's files) | What CompuPro's systems do on this board |
 
 The power-on jump's offset byte and the odd 80130 ports are read from the drawing or not
 described; the reference marks them ⚠.
@@ -90,6 +91,11 @@ modes**: timer 0 mode 2 (SYSTICK), timer 1 mode 0 (DELAY), timer 2 mode 3 (BAUD)
 | `idle` | `true` | stand down while the guest polls an empty keyboard |
 
 ### Reset
+
+To boot: `RUN FFFF0` (MCP: `run {from: 1048560}`). `RUN <addr>` on the 8086 keeps CS when the
+address is within 64K above CS*16, and otherwise sets CS = addr/16 (`Cpu8088::setPc`). After
+power-on, CS = FFFF, so `RUN FFFF0` gives FFFF:0000, the real reset state. `RUN 0` runs the EPROM's 8080 code
+as 8086 instructions, and it does not boot.
 
 - `Reset::PowerOn` (POC*, cold): the 8086 is reset (CS:IP = FFFF:0000), the Memory Manager is
   cleared, and the 80130's mask is set to all masked (a model choice: see Limitations). With
@@ -151,6 +157,8 @@ modes**: timer 0 mode 2 (SYSTICK), timer 1 mode 0 (DELAY), timer 2 mode 3 (BAUD)
 - the power-on jump at power-on and at RESET (CS:IP exact);
 - RESET clearing the Memory Manager, the I/O wait state, and a snapshot;
 - the 8086 booting through the Disk 1's EPROM at FFFF0 (routine 0: `JMPF 0000:0006`).
+
+`examples/cpm86` boots CP/M-86 on this board, and the examples acceptance test runs `DIR` on it.
 
 `tests/test_cpu8088.cpp` checks the core's 16-bit bus: one cycle, byte-serial even first, odd
 words, writes, and the 4-clock difference.

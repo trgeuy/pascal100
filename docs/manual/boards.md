@@ -359,9 +359,19 @@ not. To make an MP/M 8-16 disk boot, put the CPU 86/87 loader on it from CP/M-86
 A>B:MPMGEN B:MPMLDRFY.86
 ```
 
+**To boot, run from `FFFF0`, not from 0:** `RUN FFFF0` at the monitor, or
+`startup = ["RUN FFFF0"]` in the machine file. Over MCP it is `run {from: 1048560, until: "A>"}`,
+because `from` takes a decimal number. `RUN 0` starts the 8086 in the boot EPROM's 8080 code, and
+it does not boot. A bare `RUN` also works after power-on, because the 8086 is still at its reset
+address. Like `RUN 0` on an 8080 machine, `RUN FFFF0` boots again only while the boot EPROM is
+on: after the guest turns it off, `RESET` first.
+
 A machine file:
 
 ```toml
+[machine]
+startup = ["RUN FFFF0"]
+
 [[board]]
 type = "cpu8687"
 id   = "cpu"
@@ -869,9 +879,10 @@ the boards, show the size, and format **drive M:**. Then you use M: as any other
 files back to a disk before you stop the simulator, because nothing saves M:.
 
 ```
-CompuPro CP/M 86 1.1PD
-
-512K M-DRIVE/H Active as Drive "M".
+CP/M 86 1.1PAA
+...
+512K M-DRIVE/H Active
+Total Memory: 1 MEGABYTE
 ...
 FORMATTING MEMORY DRIVE
 

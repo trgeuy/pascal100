@@ -221,9 +221,10 @@ else()
                   "terminal: this build has no window")
 endif()
 
-# ---- 1c. examples/cpm86, cpm8-16, mpm8-16 -- the CompuPro 8-16 systems on the CPU 8085/88. -------
+# ---- 1c. examples/cpm86, cpm8-16, mpm8-16 -- CompuPro CP/M-86 (CPU 86/87) and 8-16 (CPU 8085/88). --
 #
-# Each console twin boots from a COPY over MCP (MCP does not run the startup: `run from` 0) and
+# Each console twin boots from a COPY over MCP (MCP does not run the startup: `run from` 0, or
+# from FFFF0 = 1048560, the 8086's reset address, for cpm86) and
 # runs DIR. The strings are the ones each system printed when the example was made: a banner from
 # CPM.SYS or MPM.SYS proves the 8088 runs, and a directory entry proves the floppy (or the M20
 # through the Disk 2 and Selector Channel) reads. Each window file must load under SDL's dummy
@@ -250,9 +251,9 @@ function(example_816 dir console window want_win)
   endif()
 endfunction()
 
-example_816(cpm86 cpm86-console.toml cpm86.toml "cpu8588")
+example_816(cpm86 cpm86-console.toml cpm86.toml "cpu8687")
 mcp_session("${dist}/cpm86.jsonl"
-  [=[{"name":"run","arguments":{"from":0,"until":"A>","timeout_ms":60000}}]=]
+  [=[{"name":"run","arguments":{"from":1048560,"until":"A>","timeout_ms":60000}}]=]
   [=[{"name":"run","arguments":{"input":"DIR\r","until":"A>","timeout_ms":20000}}]=])
 execute_process(
   COMMAND           "${SIM}" cpm86-console.toml --mcp
@@ -263,7 +264,7 @@ execute_process(
   TIMEOUT           120
 )
 expect_contains("${out}" "the cpm86 example did not boot CP/M-86 as its README says"
-                "CompuPro CP/M 86 1.1PD" "Total Memory: 1 MEGABYTE" "DDT86    CMD")
+                "CP/M 86 1.1PAA" "Total Memory: 1 MEGABYTE" "DDT86    CMD")
 
 # CP/M 8-16 1.1PD from the Q540: the Disk 3 BIOS finds the board, and A: is the hard disk.
 example_816(cpm8-16 cpm816-console.toml cpm816.toml "disk3")

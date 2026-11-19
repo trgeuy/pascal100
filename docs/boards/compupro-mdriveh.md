@@ -31,7 +31,7 @@ address. "Markings on switch, not legend."
 |---|---|---|
 | CompuPro *M-Drive/H Technical Manual*, 3/83, 21 pp. | `reference/CompuPro M-Drive H.md` | Ports, S1, the schematic (counter wiring p. 17), the sample BIOS (pp. 11-16) |
 | CompuPro CP/M 2.2N BIOS source, text left in unused sectors | `tests/media/compupro/CPM22N.DSK` | The sizing routine (`HMDTEST`): read, write back, read |
-| CompuPro CP/M-86 1.1, MP/M 8-16 2.1F, CP/M 2.2N | `examples/cpm86`, `examples/mpm8-16`, `tests/media/compupro` | The shipped drivers: what they print and do with 0, 1 and 2 boards |
+| CompuPro CP/M-86 1.1PD and 1.1PAA, MP/M 8-16 2.1F, CP/M 2.2N | `examples/cpm86` (1.1PD until 2026-11-19, now 1.1PAA), `examples/mpm8-16`, `tests/media/compupro` | The shipped drivers: what they print and do with 0, 1 and 2 boards |
 
 The manual does not publish the equations of the port PAL (U6, 197P-1). Two behaviours below
 come from the design, not from a statement, and the reference marks them ⚠.
@@ -130,6 +130,7 @@ By hand, on 2026-11-19:
 | CP/M 2.2N | 1 | `1 M-Drive/H`; formats M:; `PIP M:=A:*.COM[V]` 35 files; `M:STAT M:DSK:` 508K, 8 sectors per track, 4 reserved tracks |
 | CP/M-86 1.1PD | 1 | `512K M-DRIVE/H Active as Drive "M".`; `PIP [V]` 13 files; `M:STAT`; `MFORM M` asks and formats |
 | CP/M-86 1.1PD | 2 | `1024K M-DRIVE/H Active`; `STAT M:DSK:` 1016K, 16 records per track |
+| CP/M-86 1.1PAA (CPU 86/87) | 1 | `512K M-DRIVE/H Active`, `FORMATTING MEMORY DRIVE`; `PIP M:=A:*.CMD[V]` 23 files; `STAT M:` 310k free |
 | MP/M 8-16 2.1F | 1 | `512K M-DRIVE/H Active`; formats M:; `PIP M:=A:*.*[V]` 14 files |
 
 ## References

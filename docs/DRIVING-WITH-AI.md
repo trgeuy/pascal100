@@ -337,6 +337,11 @@ run {input: "DIR\r", until: "A>"}                # a command, read the reply
 run {input: "ASM FOO\r", until: "A>", timeout_ms: 20000}
 ```
 
+**An 8086 machine (the CPU 86/87, `examples/cpm86`) boots from `FFFF0`, not from 0:**
+`run {from: 1048560, until: "A>"}`. `from` is a JSON number, so FFFF0 is 1048560. From 0, the
+8086 runs the boot EPROM's 8080 code and does not boot. To boot it again after CP/M is up, send
+`monitor {command: "RESET"}` first, because the guest has turned the EPROM off.
+
 **Match the prompt that the system prints.** CompuPro CP/M prints `A>`. Some CP/M systems
 print the user number too, as `A0>`, and `A0>` does not contain `A>`. On such a system, use
 `until: "A0>"`.

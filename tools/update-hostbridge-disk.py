@@ -6,13 +6,15 @@ usage: tools/update-hostbridge-disk.py <machine.toml> <COM|CMD> <prompt> [option
     --mpm            MP/M: SET [RW] first, then SET [SYS,RO] and SYNC, and let MP/M write its
                      cache before the simulator stops (SYNC prints its prompt first).
     --progs=R,W      only these programs (the default is R,W,HDIR).
+    --power-on       boot from the processor's own reset address (an 8086 at FFFF0, the
+                     CPU 86/87), not `run from 0`, which suits an 8080/8085/Z80 boot ROM.
 
 Run it in the folder of the machine file; the disks are the files that it mounts.
 
     cd examples/cpm22   && python3 -I ../../tools/update-hostbridge-disk.py \\
                               cpm22-console.toml COM "A>" cpm22k-64k.dsk
     cd examples/cpm86   && python3 -I ../../tools/update-hostbridge-disk.py \\
-                              cpm86-console.toml CMD "A>" cpm86-11.dsk
+                              cpm86-console.toml CMD "A>" --power-on cpm86-11.dsk
     cd examples/mpm8-16 && python3 -I ../../tools/update-hostbridge-disk.py \\
                               mpm816-console.toml CMD "0A>" --mpm mpm816-boot.dsk m20.dsk
 
@@ -46,6 +48,7 @@ if len(args) < 4 or args[1] not in ("COM", "CMD"):
     sys.exit(__doc__)
 toml, ext, prompt = args[0], args[1], args[2]
 mpm = "--mpm" in args
+power_on = "--power-on" in args
 progs = ["R", "W", "HDIR"]
 for a in args:
     if a.startswith("--progs="):
@@ -65,7 +68,8 @@ def session(stage, cmds, boot_ms):
                     "clientInfo": {"name": "update-hostbridge-disk", "version": "1"}}},
         {"jsonrpc": "2.0", "method": "notifications/initialized"},
         {"jsonrpc": "2.0", "id": 2, "method": "tools/call",
-         "params": {"name": "run", "arguments": {"from": 0, "until": prompt, "timeout_ms": boot_ms}}},
+         "params": {"name": "run", "arguments": dict({} if power_on else {"from": 0},
+                                                     until=prompt, timeout_ms=boot_ms)}},
     ]
     for i, c in enumerate(cmds):
         lines.append({"jsonrpc": "2.0", "id": 3 + i, "method": "tools/call",
