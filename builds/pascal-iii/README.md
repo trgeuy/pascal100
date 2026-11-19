@@ -45,7 +45,7 @@ each one.
 
 ## Testing
 
-The guide was tested on the simulator with pascal100 `0.1.0-11-g80dda969`, from a new copy of
+The guide was tested on the simulator with pascal100 0.2.0, from a new copy of
 the kit. The disks that Phases 2 to 4 make were also tested on a real Pascal-100.
 
 ## The files in this folder

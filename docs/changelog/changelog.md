@@ -10,7 +10,44 @@ register, the bit or the command that was wrong.
 
 ---
 
-## 0.1.0 (not released yet)
+## 0.2.0
+
+**Build the Pascal-100 system yourself.** The new `builds/` folder holds step-by-step builds
+from the period disks to a working system, each with a kit to download. The first,
+`builds/pascal-iii/`, takes the Pascal-100 from its three distribution disks to CP/M and UCSD
+Pascal III.0 work disks. `pascal-iii-buildkit.zip` holds the CP/M disk, the machine file, the
+BIOS and boot sources and the guide; the two Pascal-100 disks come from the Internet Archive,
+and the guide gives their names and checksums. The next build is MP/M 8-16 on the Disk 3.
+
+- **The CompuPro Disk 3.** The `disk3` board is CompuPro's ST506 hard disk controller. The BIOS
+  writes a command block in memory and sends one byte to port `90`; the board moves the data and
+  writes the status back by its own DMA. CompuPro's `DISK3.CMD` formats a drive on it, and
+  CP/M 8-16 1.1PD (`CPM340.SYS`) reads and writes all five of its drives.
+- **`examples/cpm8-16` boots CP/M 8-16 1.1PD from a Quantum Q540 hard disk on the Disk 3.** It
+  replaces the 1.1R floppy example. The machine files keep their names, `cpm816.toml` and
+  `cpm816-console.toml`. `SW!` still runs 8080 programs on the 8085.
+- **The System Support 1 has its 4K RAM block.** `memory = true` turns it on; `memory_at`
+  (default `0FF000`, CompuPro's CP/M-86 and MP/M 8-16 setting), `memory_global` and
+  `memory_phantom` set it up as the board's switches do. It is off by default. On a CPU 8085/88
+  the 8088 starts at `FFFF0`, so CP/M 8-16 on a machine with 256K of RAM needs this block to boot.
+- **8088 code in the debugger.** `DISASM`, `REGS`, `STEP`, `HISTORY`, `NEXT` and the MCP
+  `disasm` tool show 8088 instructions in DDT86's form, with `SEG:OFF` addresses.
+- **The `bus` key is gone.** IEEE 696 is the only bus, so a machine file with `bus` in
+  `[machine]` now stops with "pascal100 has one bus, IEEE 696, so there is nothing to choose.
+  Delete this line". Delete the line from your own machine files.
+- **MP/M 8-16 logs users on.** The example starts with the console only; `LOGOUT` starts the
+  terminals, and each user logs on with a name and password. The CP/M-86 and CP/M 8-16 machines
+  have the System Support 1 clock.
+- **Fixes.** `BOARDS ADD` with a bad `key=value` printed the error and then added the board with
+  its defaults; now it adds nothing and says `<id> not added`. A terminal window closed at the
+  `pascal100>` prompt came straight back, and closing the last one brought back all of them; now a
+  closed window stays closed until `RUN`. While the guest runs, closing one window closes only that
+  window, and the last open window stops the guest, as `Ctrl-E` does. With `--mcp --mirror`, a watcher that connected just before a
+  `run` could miss the guest's first output.
+- ***The Monitor* and *The Debugger* describe pascal100.** Every sample is pascal100 output;
+  the Altair boards and ROMs are gone from both.
+
+## 0.1.0 (2026-11-15)
 
 **pascal100 is now a program of its own.** It began on 2026-11-02 as a copy of `altairsim`,
 Patrick Linstruth's simulator of the MITS Altair 8800, and became a separate program on
