@@ -31,7 +31,8 @@ Pascal-100 manual: **<https://archive.org/details/cpm-files>**.
 | `UCSD_Pascal_III.dsk` | `PASCAL.DSK` | The UCSD Pascal III.0 system disk. It does not boot as supplied; the build guide makes the parts it needs. Single density. | `bca58369bc31ebecff4f9372fdb66713ff399230` |
 
 Download each file and rename it to the name in the guide. The guide is
-[`docs/howto/HOWTO-Build-the-System.md`](../docs/howto/HOWTO-Build-the-System.md).
+[`buildkit/HOWTO-Build-the-System.md`](../buildkit/HOWTO-Build-the-System.md), and
+[`buildkit/README.md`](../buildkit/README.md) has direct download links.
 
 ## Where other disks are
 

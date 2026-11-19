@@ -17,10 +17,9 @@ Linstruth's `altairsim` (see `NOTICE` and the heritage note in `DESIGN.md`). The
 4. **Docs change with the code**, in the same commit.
 5. **No commit and no push without the maintainer's approval.** Report what changed and the test
    results, then stop.
-6. **Work goes on the `standalone` branch**, and `master` is fast-forwarded to it after CI
-   passes. CI starts by hand only: `gh workflow run ci.yml --ref standalone`. The repository is
-   private, so CI uses paid minutes: Linux and Windows legs only. Do not run CI on a commit that
-   already passed, and do not run it for a docs-only change.
+6. **Work goes on a topic branch** (one per change, for example `disk3`), and reaches `master`
+   through a pull request. CI starts by hand only: `gh workflow run ci.yml --ref <branch>`. Do
+   not run CI on a commit that already passed, and do not run it for a docs-only change.
 7. **A fix from altairsim comes in by cherry-pick** (`git cherry-pick -x`). The C++ namespace
    `altair` and the internal `altair_*` targets keep their names so that cherry-picks apply.
 
@@ -50,7 +49,7 @@ Linstruth's `altairsim` (see `NOTICE` and the heritage note in `DESIGN.md`). The
 - **Third-party software stays out of new disk images.** Period DRI and CompuPro distribution
   files are fine; Microsoft, Sorcim (SuperCalc) and similar programs are not.
 - **Compatibility names stay:** the host bridge ident `ALTAIRSIM HOSTBRIDGE 1` (R, W and HDIR on
-  existing CP/M disks check it), the snapshot magic `ALTRSNP1`, and the TOML `bus` key.
+  existing CP/M disks check it) and the snapshot magic `ALTRSNP1`.
 - **`<!-- @claude ... -->` in a Markdown file is a review comment for you.** See
   `docs/devguide/doc-review-comments.md`.
 

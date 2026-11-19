@@ -1,0 +1,69 @@
+# Digicomp Pascal-100: a Z80 and the WD MicroEngine, a CompuPro Disk 1 and an Interfacer 1 console. You supply the disk.
+#
+#     pascal100 -f buildkit.toml
+#     MOUNT fd0:drive0 "CPM.DSK"
+#     RUN 0
+#
+# THIS FILE IS THE WHOLE MACHINE: the author's Pascal-100 system as it is today (2026-11). Each
+# [[board]] table is one board in the backplane. The build guide (HOWTO-Build-the-System.md)
+# makes a UCSD Pascal III.0 system disk for this hardware, as manual ch. V D describes. The
+# distribution disks need that build step before they boot.
+#
+# NO STARTUP COMMANDS. The guide mounts the disks and types RUN 0 itself in each step.
+
+[machine]
+name    = "pascal100"
+startup = []
+
+# THE PASCAL-100 board (a Z80 and the WD MicroEngine): the System Control Port at D0 and the Map
+# Output Port at D1. After a reset the Z80 has control and the Map is off, so the Z80 boots from
+# the Disk 1 EPROM exactly as CP/M does (manual ch. V B.1). clock_hz = 0 is full speed; the guide
+# shows how to set 3000000 for the speed of the real machine.
+[[board]]
+type     = "pascal100"
+id       = "cpu0"
+clock_hz = 0
+
+# THE CONSOLE: channel A of an Interfacer 1 at 00-01, in a VT52 window. The Pascal disks use
+# VT52 screen codes. `title` names the window. Channel B at 02-03 is not connected.
+[[board]]
+type = "interfacer1"
+id   = "if1"
+
+  [board.unit.a]
+  connect = "terminal?emulation=vt52&size=80x24"
+  title   = "Pascal-100 console"
+
+# The Backspace key sends DEL; the BIOS wants BS. This is for the monitor's terminal (stdio).
+[console]
+bsdel = "bs"
+
+# THE DISK 1 at C0, boot routine 4: the EPROM reads track 0 of drive 0 by DMA and falls into
+# it. From there the disk's own hard boot (FBOOT) reads SBQB and the Z80 BIOS to 280H.
+[[board]]
+type = "disk1"
+id   = "fd0"
+port = C0
+
+# THE MEMORY: 128K of static RAM on one board, 000000-01FFFF, as in the real machine (a CompuPro
+# RAM 23). The EPROM shadows 0000-00FF on reads only (honors_phantom).
+[[board]]
+type           = "memory"
+id             = "mem0"
+fill           = "random"
+honors_phantom = "read"
+ext            = true
+sixteen_bit    = true
+
+  [[board.region]]
+  type = "ram"
+  at   = 000000
+  size = "128K"
+
+# THE HOST BRIDGE at B0, for the R, W and HDIR utilities that move files between the work folder
+# and the CP/M disks. hostdir "" = the folder you start pascal100 in.
+[[board]]
+type    = "hostbridge"
+id      = "hb0"
+port    = B0
+hostdir = ""

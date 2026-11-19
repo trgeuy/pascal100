@@ -16,7 +16,7 @@ The emulated machine is a replica of the author's own vintage Pascal-100 system.
 
 Real Pascal-100 systems are extremely rare. We built the emulator so that others can learn how the system worked. You do not need any real hardware to complete this emulated build. All of these phases were tested on the simulator. The disks that Phases 2 through 4 make were also tested on the real Pascal-100.
 
-The three starting disks are `CPM.DSK`, `TOOLS.DSK` and `PASCAL.DSK`. They are in the `kit` folder. You make all the other disks from them.
+The three starting disks are `CPM.DSK`, `TOOLS.DSK` and `PASCAL.DSK`. `CPM.DSK` is in the build kit, and you download the other two in Step 1.2. You make all the other disks from them.
 
 The CP/M disk came with the author's CompuPro Disk 1, and the other two came with the Pascal-100. We imaged them from the original 8-inch floppy disks.
 
@@ -49,26 +49,26 @@ Each phase is made up of multiple steps. In each step you will see three parts:
 
 ## What you need
 
-- The `pascal100` program, the simulator that this guide uses. It comes as an archive for your computer, for example `pascal100-0.1.0-macos-arm64.tar.gz`, and Step 1.1 installs it.
+- The `pascal100` program, the simulator that this guide uses. It comes as an archive for your computer from the [pascal100 releases page](https://github.com/trgeuy/pascal100/releases), and Step 1.1 installs it. This guide needs a version later than 0.1.0.
 
 - A terminal window on your computer. The `cp` and `chmod` commands in this guide are for macOS and Linux.
 
-- The `kit` folder. It comes as the zip file `pascal100-kit-0.1.0.zip`, which unpacks to a folder named `kit`. It holds these files:
+- The build kit. Download [`buildkit.zip`](https://github.com/trgeuy/pascal100/raw/master/buildkit/buildkit.zip) from the [`buildkit` folder](https://github.com/trgeuy/pascal100/tree/master/buildkit) of the pascal100 repository. It unpacks to a folder named `buildkit`. When you finish Step 1.2, the folder holds these files:
 
-| File                                                | Contents                                              |
-| --------------------------------------------------- | ----------------------------------------------------- |
-| `pascal100-kit.toml`                                | The machine file                                      |
-| `CPM.DSK`                                           | CompuPro CP/M 2.2, DD, with `R.COM` and `W.COM` added |
-| `TOOLS.DSK`                                         | Pascal-100 files for CP/M, SD                         |
-| `PASCAL.DSK`                                        | UCSD Pascal III.0 system, SD                          |
-| `NEWBIOS.ASM`, `NEWBOOT.ASM`                        | The source files for the new CP/M BIOS and Boot       |
-| `PBIOS.ASM`, `PFBOOT.ASM`, `PSBQB.ASM`, `QGENC.ASM` | The source files for the new Pascal BIOS and Boot     |
-| `HOWTO-Build-the-System.md`                         | This guide                                            |
-| `README.txt`                                        | Where to get the four manuals. See the next section.  |
+| File                                                | Contents                                                            |
+| --------------------------------------------------- | ------------------------------------------------------------------- |
+| `buildkit.toml`                                     | The machine file                                                    |
+| `CPM.DSK`                                           | CompuPro CP/M 2.2, DD, with `R.COM` and `W.COM` added               |
+| `TOOLS.DSK`                                         | Pascal-100 files for CP/M, SD. Not in the zip: you download it in Step 1.2 |
+| `PASCAL.DSK`                                        | UCSD Pascal III.0 system, SD. Not in the zip: you download it in Step 1.2 |
+| `NEWBIOS.ASM`, `NEWBOOT.ASM`                        | The source files for the new CP/M BIOS and Boot                     |
+| `PBIOS.ASM`, `PFBOOT.ASM`, `PSBQB.ASM`, `QGENC.ASM` | The source files for the new Pascal BIOS and Boot                   |
+| `HOWTO-Build-the-System.md`                         | This guide                                                          |
+| `README.txt`                                        | Where to get the two Pascal-100 disks and the four manuals          |
 
 ## Which manual to read
 
-The manuals are not in the kit. `README.txt` in the kit tells you where to get each one.
+The manuals are not in the build kit. `README.txt` in the build kit tells you where to get each one.
 
 | Manual                                        | Read it for                                                           |
 | --------------------------------------------- | --------------------------------------------------------------------- |
@@ -130,7 +130,7 @@ In the default configuration, the machine runs as fast as possible, so the respo
 
 **How to do it:**
 
-1. Open `pascal100-kit.toml` in your work folder with a text editor.
+1. Open `buildkit.toml` in your work folder with a text editor.
 
 2. Find `clock_hz = 0` and change it to `clock_hz = 3000000`.
 
@@ -160,7 +160,7 @@ This means that you need to follow these steps. Make sure to use the disk image 
 
 
    ```
-   pascal100 -f pascal100-kit.toml
+   pascal100 -f buildkit.toml
    ```
 
 
@@ -216,7 +216,7 @@ We have found that while `RESET` followed by `RUN 0` restarts CP/M, it does not 
 
 The machine changes a disk file when it writes to the disk. You cannot undo a write. So you work from copies, at two levels:
 
-- **Always work from a copy of the original folder `kit`.** Never start the machine in the original folder. Keep that folder unchanged.
+- **Always work from a copy of the original folder `buildkit`.** Never start the machine in the original folder. Keep that folder unchanged.
 
 - **We will often make new disks from old disks.** For example, `cp PASCAL.DSK PASSD.DSK` makes a new disk file, and in Phase 3 we make changes only to the copy. The three starting disks are not changed at any point.
 
@@ -252,7 +252,9 @@ This is a simulator, so as long as you do not work on the original files a mista
 
 1. Open a terminal window.
 
-2. Go to the folder that holds the archive. If it is in your Downloads folder, type this command:
+2. Download the archive for your computer from the [pascal100 releases page](https://github.com/trgeuy/pascal100/releases). Use the newest release. On a Mac with Apple silicon, the name ends in `macos-arm64.tar.gz`. On Linux, it ends in `linux-x86_64.tar.gz`. The version number is in the middle of the name.
+
+3. Go to the folder that holds the archive. If it is in your Downloads folder, type this command:
 
 
    ```
@@ -260,18 +262,20 @@ This is a simulator, so as long as you do not work on the original files a mista
    ```
 
 
-3. Unpack the simulator for your computer and move it to your home folder. On a Mac, type these commands:
+   If you have an older version of the simulator in `~/pascal100`, remove it first with `rm -rf ~/pascal100`. Your work folder is not in it, so this does not change your work.
+
+4. Unpack the simulator for your computer and move it to your home folder. On a Mac, type these commands, with the version number of your archive in place of `VERSION`:
 
 
    ```
-   tar xzf pascal100-0.1.0-macos-arm64.tar.gz
-   mv pascal100-0.1.0-macos-arm64 ~/pascal100
+   tar xzf pascal100-VERSION-macos-arm64.tar.gz
+   mv pascal100-VERSION-macos-arm64 ~/pascal100
    ```
 
 
-   On Linux, use `pascal100-0.1.0-linux-x86_64` in place of `pascal100-0.1.0-macos-arm64` in both commands.
+   On Linux, use `pascal100-VERSION-linux-x86_64` in place of `pascal100-VERSION-macos-arm64` in both commands.
 
-4. On a Mac, remove the quarantine mark, because macOS blocks a downloaded program that is not notarized. Skip this step on Linux:
+5. On a Mac, remove the quarantine mark, because macOS blocks a downloaded program that is not notarized. Skip this step on Linux:
 
 
    ```
@@ -279,7 +283,7 @@ This is a simulator, so as long as you do not work on the original files a mista
    ```
 
 
-5. Make the `pascal100` command work from any folder. The `sudo` command asks for the password of your computer:
+6. Make the `pascal100` command work from any folder. The `sudo` command asks for the password of your computer:
 
 
    ```
@@ -288,7 +292,7 @@ This is a simulator, so as long as you do not work on the original files a mista
    ```
 
 
-6. Check that the command works:
+7. Check that the command works:
 
 
    ```
@@ -296,35 +300,73 @@ This is a simulator, so as long as you do not work on the original files a mista
    ```
 
 
-**Result:** The terminal window shows `pascal100 0.1.0` and a code in brackets, for example `pascal100 0.1.0 (b04dc02f)`. The `pascal100` folder in your home folder also holds the User Manual, `QUICK-START.pdf` and the examples.
+**Result:** The terminal window shows `pascal100`, the version number of your archive and a code in brackets. This guide needs a version later than 0.1.0. The `pascal100` folder in your home folder also holds the User Manual, `QUICK-START.pdf` and the examples.
 
 ### Step 1.2: Set up the work folder
 
-**Overview:** The `kit` folder holds the original files. We will make a copy of it, the work folder, and we will do all our work there.
+**Overview:** The `buildkit` folder holds the original files. First we will add the two Pascal-100 disks to it. Then we will make a copy of it, the work folder, and we will do all our work there.
 
 **How to do it:**
 
-1. Put the `kit` folder in a place that is easy to find, for example your Desktop.
+1. Unpack `buildkit.zip`, and put the `buildkit` folder in a place that is easy to find, for example your Desktop.
 
-2. Open a terminal window.
+2. Download the two Pascal-100 disks from the Internet Archive. They are on the page <https://archive.org/details/cpm-files>, with the Pascal-100 manual. These links download the two files:
 
-3. Go to the folder that holds `kit`. If that is your Desktop, type this command:
+   - [`CPM_FIles.dsk`](https://archive.org/download/cpm-files/CPM_FIles.dsk). The name has a capital I in `FIles`.
+   - [`UCSD_Pascal_III.dsk`](https://archive.org/download/cpm-files/UCSD_Pascal_III.dsk)
 
+3. Open a terminal window.
 
-   ```
-   cd ~/Desktop
-   ```
-
-
-4. Make the work folder. This command copies `kit` and all its files to a new folder named `work`:
+4. Go to the `buildkit` folder. If it is on your Desktop, type this command:
 
 
    ```
-   cp -R kit work
+   cd ~/Desktop/buildkit
    ```
 
 
-5. Go to the work folder:
+5. Move the two files into the `buildkit` folder, with the names that this guide uses. If they are in your Downloads folder, type these commands:
+
+
+   ```
+   mv ~/Downloads/CPM_FIles.dsk TOOLS.DSK
+   mv ~/Downloads/UCSD_Pascal_III.dsk PASCAL.DSK
+   ```
+
+
+6. Check the two files:
+
+
+   ```
+   shasum TOOLS.DSK PASCAL.DSK
+   ```
+
+
+   The command must show these values. If a value is different, download that file again.
+
+   | File | SHA-1 |
+   |---|---|
+   | `TOOLS.DSK` | `3fc3773d8fb5768fff03c4e3d039a18dc13030c8` |
+   | `PASCAL.DSK` | `bca58369bc31ebecff4f9372fdb66713ff399230` |
+
+7. Make the two files read-only, the same as `CPM.DSK`, so that nothing can change the originals:
+
+
+   ```
+   chmod a-w TOOLS.DSK PASCAL.DSK
+   ```
+
+
+8. Go back to the folder that holds `buildkit`, and make the work folder. The `cp` command copies `buildkit` and all its files to a new folder named `work`:
+
+
+   ```
+   cd ..
+   cp -R buildkit work
+   ```
+
+
+9. Go to the work folder:
 
 
    ```
@@ -332,15 +374,15 @@ This is a simulator, so as long as you do not work on the original files a mista
    ```
 
 
-6. Let the simulator write to the disks. The disks in the kit are read-only, and the copies are read-only too until you do this command:
+10. Let the simulator write to the disks. The disks in the build kit are read-only, and the copies are read-only too until you do this command:
 
 
-   ```
-   chmod u+w *.DSK
-   ```
+    ```
+    chmod u+w *.DSK
+    ```
 
 
-**Result:** You have a folder named `work` with a copy of all the kit files. Your terminal window is in that folder.
+**Result:** You have a folder named `work` with a copy of all the build kit files, with the three starting disks. Your terminal window is in that folder.
 
 If you close out your terminal session, make sure you are in your work folder before starting a new session. For example, type `cd ~/Desktop/work`.
 
@@ -354,7 +396,7 @@ If you close out your terminal session, make sure you are in your work folder be
 
 
    ```
-   pascal100 -f pascal100-kit.toml
+   pascal100 -f buildkit.toml
    ```
 
 
@@ -362,7 +404,7 @@ If you close out your terminal session, make sure you are in your work folder be
 
 **Result:** The simulator shows you `machine: pascal100` and then the `pascal100>` prompt. This prompt is the simulator's monitor, which you use to control the simulator. The terminal window that shows it is the launch window. After `QUIT`, you are back at the prompt of your computer.
 
-If your computer shows `command not found`, do step 5 of Step 1.1 again.
+If your computer shows `command not found`, do step 6 of Step 1.1 again.
 
 ### Step 1.4: Put a disk in a drive and start the machine
 
@@ -382,7 +424,7 @@ If your computer shows `command not found`, do step 5 of Step 1.1 again.
 
 
    ```
-   pascal100 -f pascal100-kit.toml
+   pascal100 -f buildkit.toml
    ```
 
 
@@ -472,7 +514,7 @@ cp CPM.DSK CPMWORK.DSK
 
 
    ```
-   pascal100 -f pascal100-kit.toml
+   pascal100 -f buildkit.toml
    ```
 
 
@@ -640,7 +682,7 @@ Do not skip step 5. `RUN 0` alone does not start the new disk. See "Stop the mac
 
 
    ```
-   pascal100 -f pascal100-kit.toml
+   pascal100 -f buildkit.toml
    MOUNT fd0:drive0 "CPMWORK.DSK"
    RUN 0
    ```
@@ -876,7 +918,7 @@ Do not use `BOOTCOPY` for these disks. `BOOTCOPY` expects 512-byte sectors on tr
 
 
    ```
-   pascal100 -f pascal100-kit.toml
+   pascal100 -f buildkit.toml
    MOUNT fd0:drive0 "CPMWORK.DSK"
    MOUNT fd0:drive1 "PASDD.DSK" CREATE media=8ss
    RUN 0
@@ -1170,7 +1212,7 @@ CP/M needs no change for this phase, because the CP/M BIOS already reads and wri
 
 
    ```
-   pascal100 -f pascal100-kit.toml
+   pascal100 -f buildkit.toml
    MOUNT fd0:drive0 "CPMWORK.DSK"
    MOUNT fd0:drive1 "CPMDS.DSK" CREATE media=8ds
    RUN 0
@@ -1251,7 +1293,7 @@ Do not use a DSDD Pascal boot disk with a different BIOS than the one we used he
 
 
    ```
-   pascal100 -f pascal100-kit.toml
+   pascal100 -f buildkit.toml
    MOUNT fd0:drive0 "CPMWORK.DSK"
    MOUNT fd0:drive1 "PASDS.DSK" CREATE media=8ds
    RUN 0
@@ -1351,6 +1393,7 @@ A double-sided disk has 154 tracks. Track 0, on side 0, holds the boot. On a Com
 | What you see | Cause | What to do |
 |---|---|---|
 | `command not found` when you start `pascal100` | The `pascal100` command is not installed | Do Step 1.1 again. |
+| `has no property 'title'` when you start `pascal100` | The simulator is version 0.1.0, older than this guide | Install the newest release. Do Step 1.1 again. |
 | `no such file` after `MOUNT` | The name is wrong, or the file is not in the work folder | Run `QUIT`, then look at the file names in the work folder. |
 | `WRITE-PROTECTED` after `MOUNT`, or `Bdos Err On B: Bad Sector` | The disk file is read-only | Stop the machine. Run `chmod u+w *.DSK`. |
 | `R: NAME: no such file` | The file is not in the work folder | Copy the file to the work folder. |

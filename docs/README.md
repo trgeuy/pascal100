@@ -24,7 +24,7 @@ chapter that is not in `ORDER` is not in the PDF.
 
 | Source | What it is |
 |---|---|
-| [`howto/`](howto/README.md) | Step-by-step guides from the period disks to a working system. It has the Pascal-100 build guide. |
+| [`../buildkit/`](../buildkit/README.md) | The Pascal-100 build kit and its step-by-step guide, from the period disks to a working system. |
 | [`devguide/`](devguide/README.md) | The Developer Guide: how the machine works inside and how to add a board. It also builds to `pascal100-devguide.pdf`. |
 | [`boards/`](boards/) | One file for each board: the real hardware, the registers, the quirks, and what is not modelled. `_TEMPLATE.md` is the form for a new board. |
 | [`config.md`](config.md) | Why the machine file format has its shape. |

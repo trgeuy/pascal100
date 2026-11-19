@@ -2,7 +2,7 @@
 
 `CPM.DSK` is the CompuPro CP/M 2.2 system disk that came with a CompuPro Disk 1 floppy
 controller. It is the first of the three disks that the Pascal-100 build guide
-([`docs/howto/`](../../../docs/howto/README.md)) starts from. The other two are on the Internet
+([`buildkit/`](../../../buildkit/README.md)) starts from. The other two are on the Internet
 Archive; [`disks/README.md`](../../README.md) says where.
 
 | | |

@@ -70,3 +70,4 @@ roms/MBL/*.ASM -text diff whitespace=cr-at-eol
 *.WAV binary
 *.pdf binary
 *.PDF binary
+*.zip binary

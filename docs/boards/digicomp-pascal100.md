@@ -43,7 +43,7 @@ addresses (FC40 = 1F880, FC68 = 1F8D0).
 
 **`examples/pascal/` has a system disk, ready to boot.** UCSD Pascal III.0 is out of print. Its
 distribution disks do not boot as they are: manual ch. V D builds the boot track (FBOOT, BIOS, QGEN) for the I/O of each
-machine. `docs/howto/HOWTO-Build-the-System.md` walks through that build. Mount a bootable
+machine. `buildkit/HOWTO-Build-the-System.md` walks through that build. Mount a bootable
 system disk for this hardware. To boot the example:
 
 ```
