@@ -10,7 +10,7 @@ register, the bit or the command that was wrong.
 
 ---
 
-## Unreleased
+## 0.3.0
 
 **New: the CompuPro M-Drive/H (`mdriveh`).** 512K of RAM that the system uses as a disk drive,
 on two I/O ports (C6H data, C7H address). Up to eight boards share the ports, with `cascade`
@@ -68,7 +68,7 @@ altairsim, and no example used them:
 - `bankmem`, the bank-switched RAM board. pascal100 has no banked RAM board now.
 
 A machine file that names one of these types does not load. The message names the type: `no
-board type 'c700'`. The CompuPro boards to build next are the M-Drive/H and the CPU 86/87.
+board type 'c700'`.
 
 **Renamed: the CP/M 2.2 example matches the other examples.** `examples/cpm22/cpm22.toml` (was
 `cpm22-terminal.toml`) opens the console in a window, and `cpm22-console.toml` (was
