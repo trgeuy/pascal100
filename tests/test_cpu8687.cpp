@@ -54,7 +54,8 @@ struct Rig {
 };
 
 // MOV DX,port  MOV AL,v  OUT DX,AL
-#define OUTDX(port, v) 0xBA, (uint8_t)(port), (uint8_t)((port) >> 8), 0xB0, (v), 0xEE
+// Masked before the cast: MSVC warns (C4310) when a cast truncates a constant.
+#define OUTDX(port, v) 0xBA, (uint8_t)((port) & 0xFF), (uint8_t)(((port) >> 8) & 0xFF), 0xB0, (v), 0xEE
 
 } // namespace
 
