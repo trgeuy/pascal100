@@ -794,7 +794,7 @@ The changes in `QGENC.ASM` are:
 
 The Pascal BIOS must fit in a fixed space. It starts at 480H, and `PSBQB` puts the sector buffer at 0800H, so the BIOS must end below 0800H. We checked this as we did for the CP/M BIOS in Step 2.3: assemble, then read the end address. Here the address before `USE FACTOR` is the end of the BIOS, because `PBIOS` has no buffers at the top.
 
-The first version that finds the sides of each disk ended at 081DH, 1DH bytes too long. A higher sector buffer would leave Pascal 512 bytes less memory, so we made the code smaller instead. Now it ends at 07F7H, 9 bytes below the limit. The other parts also fit: `PSBQB` ends at 0420H, below the BIOS, and `PFBOOT` ends at 017BH, inside the 4 sectors that the disk controller ROM reads.
+The first version that finds the sides of each disk ended at 081DH, 1DH bytes too long. A higher sector buffer would leave Pascal 512 bytes less memory, so we made the code smaller instead. Now it ends at 07F7H, 9 bytes below the limit. The other parts also fit: `PSBQB` ends at 0420H, below the BIOS, and `PFBOOT` ends at 017EH, inside the 4 sectors that the disk controller ROM reads.
 
 **How to do it:**
 
@@ -819,7 +819,7 @@ The first version that finds the sides of each disk ended at 081DH, 1DH bytes to
 
 | File | Address |
 |---|---|
-| `PFBOOT` | `017B` |
+| `PFBOOT` | `017E` |
 | `PBIOS` | `07F7` |
 | `PSBQB` | `0420` |
 | `QGENC` | `08A3` |

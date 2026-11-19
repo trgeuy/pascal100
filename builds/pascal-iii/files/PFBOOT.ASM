@@ -18,7 +18,9 @@ PBORG	EQU	5000H		;load point of the Pascal boot
 DATA:	DB	0,LOADP SHR 8,LOADP AND 0FFH	;DMA: extended, high, low
 CMD:	DB	06H,0,0,0,2,0,21,7,128		;READ T0 S2..S21
 RES:	DS	7
-START:	CALL	RD
+START:	LXI	SP,100H	;own stack: a reset leaves SP where the
+			;last program left it, maybe in the load area
+	CALL	RD
 	MVI	A,PBORG SHR 8
 	STA	DATA+1
 	XRA	A

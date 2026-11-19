@@ -31,6 +31,22 @@ board type 'c700'`. The CompuPro boards to build next are the M-Drive/H and the 
 `cpm22-terminal.toml`) opens the console in a window, and `cpm22-console.toml` (was
 `cpm22-buffered.toml`) keeps it on stdio.
 
+**Fixed: a Pascal-100 disk from the build needed two resets to reboot.** This was a fault in the
+build's boot loader, not in the simulator. After a Pascal session, the first RESET (not a power
+cycle) left the screen blank, and the second RESET booted. `PFBOOT` did not set a stack, and a
+reset does not change the Z80's stack pointer. After Pascal, SP was 0365H, inside the area that
+`PFBOOT` reads from the disk to 0280H. The read overwrote the return address of `CALL RD`, and the
+boot jumped to random code. Digicomp's own boot sets its stack first. `PFBOOT` now does the same
+(`LXI SP,100H`).
+
+- `builds/pascal-iii/files/PFBOOT.ASM`, the build guide (`PFBOOT` now ends at 017EH) and
+  `pascal-iii-buildkit.zip` are updated.
+- `examples/pascal/pascal-dd.dsk` has the new boot in track 0, sector 1. Nothing else on the
+  disk changed.
+- A disk that you built with the 0.2.0 kit keeps the old boot. To fix it, assemble the new
+  `PFBOOT.ASM` and make `BOOTGEN.COM` again (Steps 3.2 and 3.3). Then write the boot to the
+  disk as in Step 3.4.
+
 ---
 
 ## 0.2.0
