@@ -227,8 +227,23 @@ public:
     // is built for it -- the two boards of one group of eight users each put their own nibble
     // of the interrupt status on the bus (DESIGN.md 4.6). Overlapping lines still are
     // contention. COMBINATIONAL AND PURE, like decodes(), and asked only for an IoRead the
-    // board decodes. A board whose answer changes calls decodeChanged().
+    // board decodes. A board whose answer changes calls decodeChanged() -- unless the port
+    // is shared (sharesPort() below), which the bus never caches.
     virtual uint8_t drivesBits(const BusCycle&) const { return 0xFF; }
+
+    // DO I SHARE THIS I/O PORT ON PURPOSE? A few boards are built to sit at one port with
+    // other boards of their kind: every CompuPro M-Drive/H in a system answers the same two
+    // ports, every board takes every write, and a counter on each board picks the one that
+    // drives a read. True here says "this cycle is shared by design" (DESIGN.md 4.6):
+    //   - an I/O WRITE that several boards decode is not contention when EVERY one of them
+    //     says true. One board that does not say so (a misstrapped card at the same port)
+    //     is still reported;
+    //   - the bus never caches a shared port: it takes the exact path on every cycle and
+    //     asks drivesBits() each time, so a sharing board's drivesBits() may follow its own
+    //     state with no decodeChanged() call. A read still reports overlapping drivers.
+    // COMBINATIONAL AND PURE, like decodes(), and it changes only with the board's
+    // configuration. Asked only for I/O cycles the board decodes.
+    virtual bool sharesPort(const BusCycle&) const { return false; }
 
     // DO I DECODE A16-A23 (BusCycle::ext)? Most boards do not (the Altair-era ones), so
     // the bus gives every 64K segment segment 0's cached decode -- the IEEE 696 behaviour of a board that

@@ -142,6 +142,7 @@ Type the part before the bracket.
 | `disk2` | CompuPro Disk 2: hard disk controller (Fujitsu 2300), DMA |
 | `disk3` | CompuPro Disk 3: intelligent ST506 hard disk controller, DMA |
 | `jadedd` | Jade Double D: double-density controller, own Z80 |
+| `mdriveh` | CompuPro M-Drive/H: 512K RAM disk on two I/O ports |
 | `selch` | CompuPro Selector Channel: the Disk 2's DMA cycles |
 | `tarbell` | Tarbell #1011: single-density floppy controller |
 | `tarbelldd` | Tarbell #2022: double-density floppy controller |

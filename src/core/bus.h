@@ -574,8 +574,11 @@ private:
     };
     Decode scan(const BusCycle& c) const;
     // An I/O read that must take the exact path: more than one decoder, or one that drives
-    // only some data lines (Board::drivesBits). The cache and the verifier share this test.
+    // only some data lines (Board::drivesBits), or a port shared by design
+    // (Board::sharesPort). The cache and the verifier share this test.
     bool exactRead(const BusCycle& c, const Decode& d) const;
+    // An I/O write that every decoder shares by design: not contention (DESIGN.md 4.6).
+    bool sharedWrite(const BusCycle& c, const std::vector<Board*>& who) const;
 
     std::vector<Board*> decoders(const BusCycle& c) const;
     void reportContention(const BusCycle& c, const std::vector<Board*>& who);

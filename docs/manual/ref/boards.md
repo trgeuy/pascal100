@@ -40,6 +40,7 @@ and within a group the boards are in **alphabetical order**.
 | [`disk2`](#disk2) | CompuPro Disk 2: hard disk controller (Fujitsu 2300), DMA |
 | [`disk3`](#disk3) | CompuPro Disk 3: intelligent ST506 hard disk controller, DMA |
 | [`jadedd`](#jadedd) | Jade Double D: double-density controller, own Z80 |
+| [`mdriveh`](#mdriveh) | CompuPro M-Drive/H: 512K RAM disk on two I/O ports |
 | [`selch`](#selch) | CompuPro Selector Channel: the Disk 2's DMA cycles |
 | [`tarbell`](#tarbell) | Tarbell #1011: single-density floppy controller |
 | [`tarbelldd`](#tarbelldd) | Tarbell #2022: double-density floppy controller |
@@ -315,6 +316,20 @@ Jade Double D Rev C: an intelligent double-density floppy controller with its ow
 | `phantom` | bool | `false` | `on` \| `off` | The PHAN* jumper. On: the board pulls PHANTOM* while the host reads the window, so the window can overlap RAM that honors PHANTOM* |
 | `interrupt` | enum | `none` | `none` \| `vi0` \| `vi1` \| `vi2` \| `vi3` \| `vi4` \| `vi5` \| `vi6` \| `vi7` | The VI line the board pulls when its Z80 has halted (none by default) *(interrupt strap)* |
 | `size` | enum | `8` | `8` \| `5` | The CLOCK SELECT jumper. 8: 8-inch drives, Z80 at 4 MHz, FD1791 at 2 MHz. 5: 5.25-inch drives, Z80 at 2 MHz, FD1791 at 1 MHz |
+
+
+### `mdriveh`
+
+CompuPro M-Drive/H (board 197B): 512K of dynamic RAM used as a disk drive, on two I/O ports (default C6H data, C7H address; S1-1..7 = A7-A1). Each OUT to the address port shifts a 22-bit counter up 8 bits and loads the byte; each data IN/OUT moves one byte and counts up. Up to eight boards share the same two ports: MA21-MA19 against `cascade` (S1-8..10) pick the board that stores and drives, and a range with no board reads FF. RAM contents at power-on per `fill`. CompuPro CP/M 2.2, CP/M-86 and MP/M 8-16 size the boards and use them as drive M:
+
+#### Board properties
+
+| Key | Kind | Default | Legal | Meaning |
+|---|---|---|---|---|
+| `port` | int | `0xC6` | `0x0` .. `0xFE` | Switch S1-1..7 (A7-A1): the data port; the address port is the next one. CompuPro software uses C6H |
+| `cascade` | int | `0` | `0` .. `7` | Switch S1-8..10: which 512K of the 4M address range this board holds, 0-7. The 1st board is 0; every board in the system needs its own |
+| `fill` | enum | `random` | `zero` \| `random` | RAM contents at power-on: zero \| random (real DRAM is not zeroed) |
+| `seed` | int | `1` | any | Seed for fill=random. The same seed fills the RAM the same way at every POWER, so a run is repeatable |
 
 
 ### `selch`

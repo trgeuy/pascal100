@@ -127,6 +127,11 @@ The output names each port and both boards. You can build a machine that does no
 purpose, because a wrong setup is part of developing hardware. The program shows you what is
 wrong.
 
+A few boards are made to share ports. Up to eight CompuPro **M-Drive/H** boards sit at the same
+two ports: each board takes every write, and only one board drives a read. The simulator knows
+this, so two M-Drive/H boards at the same ports are not contention. Another type of board at
+those ports still is.
+
 ## The boards
 
 The boards are in groups, in the same order as the sections below.
@@ -162,6 +167,7 @@ The boards are in groups, in the same order as the sections below.
 | `disk1` | CompuPro Disk 1: an 8″ floppy controller with DMA, its own boot EPROM and a bit-banged serial line. Boots CompuPro CP/M 2.2 and UCSD Pascal on the Pascal-100 |
 | `disk1a` | CompuPro Disk 1A: an 8″ floppy controller with DMA and its own boot EPROM. Boots CompuPro CP/M |
 | `jadedd` | Jade Double D: a double-density floppy controller with its own Z80. The host loads the program that the Z80 runs |
+| `mdriveh` | CompuPro M-Drive/H: 512K of RAM used as a disk drive, on two ports. Up to eight boards. CompuPro's systems use it as drive M: |
 
 **Interrupts and the clock**
 
@@ -796,6 +802,52 @@ These things are not part of the board:
 - **Two-sided disks.** Each drive has one side.
 - **The 24-bit address mode.** The window is in the 16-bit address space.
 - **The debugger on the board's Z80.** `BREAK`, `STEP` and `REGS` work on the host processor only.
+
+### `mdriveh`: CompuPro M-Drive/H
+
+The **CompuPro M-Drive/H** (1982) is 512K of RAM that the system uses as a fast disk drive. It
+uses no memory addresses. The processor sees two ports: `C7` loads an address, and `C6` reads or
+writes the byte at that address. After each byte the address goes up by one, so a sector needs
+one address and then 128 bytes. The data is lost when the power goes off.
+
+CompuPro's CP/M 2.2, CP/M-86 and MP/M 8-16 have the driver built in. At a cold boot they count
+the boards, show the size, and format **drive M:**. Then you use M: as any other drive. Copy your
+files back to a disk before you stop the simulator, because nothing saves M:.
+
+```
+CompuPro CP/M 86 1.1PD
+
+512K M-DRIVE/H Active as Drive "M".
+...
+FORMATTING MEMORY DRIVE
+
+A>PIP M:=A:*.CMD[V]
+```
+
+To add one to a machine file:
+
+```toml
+[[board]]
+type = "mdriveh"
+id   = "mdh0"
+```
+
+| Property | Default | What it does |
+|---|---|---|
+| `port` | `C6` | the data port; the address port is the next one. An even number |
+| `cascade` | `0` | which board this is, 0-7. Give each board in the machine its own number |
+| `fill` | `random` | what the RAM holds at power-on: `random` or `zero` |
+| `seed` | `1` | the seed for `fill = random` |
+
+**More than one board.** Each board holds 512K. Put up to eight boards at the same `port`, with
+`cascade` 0, 1, 2 and so on. The system sees one drive: 1024K with two boards, up to 4M with
+eight. Two boards with the same `cascade` both answer a read, and `SHOW BUS CONTENTION` reports
+it.
+
+RESET does not clear the RAM. A power cycle fills it again per `fill`, as the real chips lose
+it.
+
+Not modeled: the wait states of the real board, and the power-fail jumper J1.
 
 ## Interrupts and the clock
 

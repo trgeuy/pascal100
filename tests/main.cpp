@@ -107,6 +107,7 @@ const struct {
     {"disk1a", test_disk1a},
     {"disk2", test_disk2},
     {"disk3", test_disk3},
+    {"mdriveh", test_mdriveh},
     {"spindle", test_spindle},
     {"printer", test_printer},
     {"tee", test_tee},

@@ -3,6 +3,7 @@
 #include "boards/compupro-disk1.h"
 #include "boards/compupro-disk2.h"
 #include "boards/compupro-disk3.h"
+#include "boards/compupro-mdriveh.h"
 #include "boards/compupro-selch.h"
 #include "boards/compupro-disk1a.h"
 #include "boards/compupro-cpu8588.h"
@@ -49,6 +50,7 @@ std::vector<BoardType> boardTypes() {
         {"disk1a", "CompuPro Disk 1A: uPD765A floppy controller with DMA", "CompuPro Disk 1A: an NEC uPD765A floppy controller for 8\" and 5.25\" drives, single and double density, up to 4 drives. Four ports at BASE+0..3 (default C0): 765 status / drive select, 765 data, board status / DMA address, motor control. All data moves by DMA. Carries a boot EPROM whose selected 512-byte routine answers at 0000 over PHANTOM* until the guest switches it off; any reset turns it back on"},
         {"disk2", "CompuPro Disk 2: hard disk controller (Fujitsu 2300), DMA", "CompuPro Disk 2 (board 177): a hard disk controller for up to four Fujitsu M2301B/M2302B drives (m10, m20: 244 cylinders, 4 or 8 heads, 11 sectors of 1024 bytes). Two ports at BASE+0..1 (default C8): CTL/STATUS, and the DRIVE/CYLINDER/HEAD/SECTOR registers (an IN steps the selected drive). Commands NULL, READ DATA, WRITE DATA, WRITE HEADER, READ HEADER. All data moves by DMA through a Selector Channel (`selch`) programmed for its dma_priority (default 10). ATTN to a VI line or pINT when a command ends"},
         {"disk3", "CompuPro Disk 3: intelligent ST506 hard disk controller, DMA", "CompuPro Disk 3 (board 194): an ST506 Winchester controller with its own 8085, up to four drives (default shape Quantum Q540: 512 cylinders, 8 heads, 9 sectors of 1024 bytes). One write-only attention port pair (default 90): 00 = attention, the J10 bit = reset. The host builds 16-byte IOPBs in memory, linked from 0:50h; the board fetches them, moves the data and writes STATUS back by its own DMA at dma_priority (default 9). Commands NOOP, VERSION, GLOBAL, SPECIFY, SET-MAP, HOME, SEEK, READ-HEADER, R/W, FORMAT, FORMAT-BAD. Completion interrupt to a VI line or pINT"},
+        {"mdriveh", "CompuPro M-Drive/H: 512K RAM disk on two I/O ports", "CompuPro M-Drive/H (board 197B): 512K of dynamic RAM used as a disk drive, on two I/O ports (default C6H data, C7H address; S1-1..7 = A7-A1). Each OUT to the address port shifts a 22-bit counter up 8 bits and loads the byte; each data IN/OUT moves one byte and counts up. Up to eight boards share the same two ports: MA21-MA19 against `cascade` (S1-8..10) pick the board that stores and drives, and a range with no board reads FF. RAM contents at power-on per `fill`. CompuPro CP/M 2.2, CP/M-86 and MP/M 8-16 size the boards and use them as drive M:"},
         {"selch", "CompuPro Selector Channel: the Disk 2's DMA cycles", "CompuPro Selector Channel (board 172): the 24-bit address, status and strobes of a temporary master, shared by the controllers that use it (the Disk 2). One port (default F0): an IN disables it, then four OUTs load A23-A16, A15-A8, A7-A0 and the MODE byte (write/read, memory/I/O, up/down, wait, and the complement of the controller's DMA priority). The boot EPROM is not modeled"},
         // "CONNECT it to a file" was true when a file was the only place printing could go.
         // It is not the offer any more -- printer:, socket: and the rest are on the same
@@ -82,6 +84,7 @@ static std::unique_ptr<Board> buildBoard(const std::string& typeName) {
     if (type == "disk1a") return std::make_unique<CompuProDisk1aBoard>();
     if (type == "disk2") return std::make_unique<CompuProDisk2Board>();
     if (type == "disk3") return std::make_unique<CompuProDisk3Board>();
+    if (type == "mdriveh") return std::make_unique<CompuProMDriveHBoard>();
     if (type == "selch") return std::make_unique<SelectorChannelBoard>();
     if (type == "hostbridge") return std::make_unique<HostBridgeBoard>();
     if (type == "io4") return std::make_unique<Io4Board>();

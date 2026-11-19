@@ -101,6 +101,7 @@ void test_disk1();
 void test_disk1a();
 void test_disk2();
 void test_disk3();
+void test_mdriveh();
 void test_spindle();
 void test_printer();
 void test_tee();

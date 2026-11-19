@@ -12,6 +12,20 @@ register, the bit or the command that was wrong.
 
 ## Unreleased
 
+**New: the CompuPro M-Drive/H (`mdriveh`).** 512K of RAM that the system uses as a disk drive,
+on two I/O ports (C6H data, C7H address). Up to eight boards share the ports, with `cascade`
+0-7. CompuPro's own systems find it and use it as drive M:: CP/M 2.2N prints `1 M-Drive/H`,
+CP/M-86 1.1 prints `512K M-DRIVE/H Active as Drive "M".` (`1024K` with two boards), and MP/M
+8-16 2.1F prints `512K M-DRIVE/H Active`. Each formats the drive at boot, and `MFORM M` formats
+it again. `docs/boards/compupro-mdriveh.md`; the manual is distilled in
+`reference/CompuPro M-Drive H.md`.
+
+**Changed: boards built to share a port are not reported as contention.** A board can say that
+it shares an I/O port by design (`Board::sharesPort`, DESIGN.md 4.6). An I/O write that several
+such boards decode is not contention; a write that also reaches a board that does not share
+the port is still reported. Two M-Drive/H boards needed this: before, every address load
+reported a CONTENTION.
+
 **Removed: five boards that do not fit an IEEE 696 CompuPro system.** pascal100 kept them from
 altairsim, and no example used them:
 

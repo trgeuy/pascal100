@@ -200,7 +200,7 @@ const char* boardCategory(const std::string& n) {
         n == "pascal100" || n == "cpu8588") return "CPU";
     if (n == "memory" || n == "v2z80rom") return "Memory";
     if (n == "dcdd" || n == "mds" || n == "fdcplus" || n == "hdsk" || n == "versafloppy" ||
-        n == "tarbell" || n == "tarbelldd" || n == "jadedd" || n == "disk1" || n == "disk1a" || n == "disk2" || n == "disk3" || n == "selch" || n == "16fdc" ||
+        n == "tarbell" || n == "tarbelldd" || n == "jadedd" || n == "disk1" || n == "disk1a" || n == "disk2" || n == "disk3" || n == "mdriveh" || n == "selch" || n == "16fdc" ||
         n == "64fdc" || n == "icom" || n == "dualsd" || n == "dualide" || n == "mdsa" || n == "mdsad" || n == "vgdmdc" || n == "vgmdc") return "Disk";
     if (n == "2sio" || n == "sio" || n == "sbc" || n == "pmmi" ||
         n == "turnkey" || n == "io4" || n == "interfacer1" || n == "interfacer3" || n == "interfacer4" || n == "propio" || n == "vgbsii" || n == "vgbs") return "Serial";

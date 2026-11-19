@@ -2810,7 +2810,11 @@ void Monitor::showBus(const std::vector<std::string>& a, std::ostream& out) {
             c.type = Cycle::IoWrite;
             c.addr = (uint16_t)P;
             auto who = m_.bus.respondersTo(c);
-            if (who.size() > 1) {
+            // Boards built to share a port (Board::sharesPort, DESIGN.md 4.6) all take the
+            // write by design: not contention, the same rule the live bus applies.
+            bool shared = who.size() > 1;
+            for (auto* b : who) shared = shared && b->sharesPort(c);
+            if (who.size() > 1 && !shared) {
                 std::string ids;
                 for (auto* b : who) ids += " " + b->id;
                 std::snprintf(buf, sizeof buf, "  port %s OUT driven by%s", fmtByte((uint8_t)P).c_str(), ids.c_str());

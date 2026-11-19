@@ -541,12 +541,15 @@ void Bus::ioWriteExact(uint16_t addr, uint8_t data, uint8_t status) {
     BusCycle c{Cycle::IoWrite, addr, data, false};
     c.status = status;  // the master's asserted word; settle() ORs the fallback base on
     Decode d = scan(c);
-    if (d.n > 1) reportContention(c, decoders(c));
+    std::vector<Board*> who;
+    if (d.n > 1) who = decoders(c);
+    const bool shared = d.n > 1 && sharedWrite(c, who);
+    if (d.n > 1 && !shared) reportContention(c, who);
     unclaimed_ = (d.n == 0);
-    contended_ = (d.n > 1);
+    contended_ = (d.n > 1 && !shared);
     responder_ = d.first;
     if (d.n == 1) d.first->write(c);
-    else if (d.n > 1) for (Board* b : decoders(c)) b->write(c);
+    else if (d.n > 1) for (Board* b : who) b->write(c);
     if (unclaimedPolicy_ != Unclaimed::Silent && d.n == 0) reportUnclaimed(c);
     settle(c);
 }
@@ -570,7 +573,22 @@ Bus::Slot Bus::resolve(Cycle t, uint16_t addr, uint8_t ext) const {
 
 bool Bus::exactRead(const BusCycle& c, const Decode& d) const {
     if (d.n > 1) return true;
-    return c.type == Cycle::IoRead && d.first && d.first->drivesBits(c) != 0xFF;
+    if (!d.first) return false;
+    // A port shared by design is never cached: the sharing board's drivesBits() follows its
+    // own state (board.h, sharesPort()), so only the exact path asks it at the right time.
+    const bool io = c.type == Cycle::IoRead || c.type == Cycle::IoWrite;
+    if (io && d.first->sharesPort(c)) return true;
+    return c.type == Cycle::IoRead && d.first->drivesBits(c) != 0xFF;
+}
+
+// An I/O write that several boards decode is contention unless EVERY one of them shares
+// the port by design (board.h, sharesPort()). The bus master drives the data lines on a
+// write; the question is only whether the boards meant to listen together.
+bool Bus::sharedWrite(const BusCycle& c, const std::vector<Board*>& who) const {
+    if (c.type != Cycle::IoWrite) return false;
+    for (Board* b : who)
+        if (!b->sharesPort(c)) return false;
+    return true;
 }
 
 void Bus::buildPages(uint8_t ext, Slot* rd, Slot* wr) const {
