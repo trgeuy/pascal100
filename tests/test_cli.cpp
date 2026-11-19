@@ -786,7 +786,11 @@ void test_cli() {
         fs::remove_all(dir);
         fs::create_directories(dir);
         { std::ofstream(dir / "i.txt") << "x"; }
-        const std::string where = dir.generic_string();
+        const std::string where  = dir.generic_string();
+        const std::string native = dir.string();  // with backslashes on Windows
+        auto noFolder = [&](const std::string& t) {
+            return t.find(where) == std::string::npos && t.find(native) == std::string::npos;
+        };
 
         Machine mp;
         Monitor monp(mp);
@@ -813,7 +817,7 @@ void test_cli() {
         std::ostringstream show;
         monp.exec("SHOW sio0", show);
         CHECK(show.str().find("out:o.txt") != std::string::npos &&
-                  show.str().find(where) == std::string::npos,
+                  noFolder(show.str()),
               "SHOW prints the path as typed, without the folder");
 
         const std::string saved = saveTomlText(mp);
@@ -821,7 +825,7 @@ void test_cli() {
                   saved.find("\"in:i.txt\"") != std::string::npos &&
                   saved.find("\"in:i.txt|cap.log\"") != std::string::npos,
               "CONFIG SAVE writes each endpoint as typed");
-        CHECK(saved.find(where) == std::string::npos, "and never the machine's folder");
+        CHECK(noFolder(saved), "and never the machine's folder");
 
         // The saved file loads from its own folder and opens the same files there.
         monp.exec("CONNECT sio0:a null", sp);
@@ -829,14 +833,18 @@ void test_cli() {
         monp.exec("CONNECT if3:user0 null", sp);
         fs::remove(dir / "o.txt");
         { std::ofstream(dir / "x.toml") << saved; }
-        Machine     ml;
-        std::string err;
-        CHECK(loadToml((dir / "x.toml").string(), ml, err), "the saved machine file loads");
-        CHECK(fs::exists(dir / "o.txt"), "and opens o.txt in its own folder again");
-        CHECK(state(ml, "sio0", "a") == "out:o.txt" && state(ml, "if3", "user0") == "in:i.txt|cap.log",
-              "and the loaded lines still say what was typed");
-        CHECK(saveTomlText(ml).find(where) == std::string::npos,
-              "and saving it again does not add the folder");
+        {
+            // In a block: `ml` holds o.txt and i.txt open, and Windows cannot delete an
+            // open file, so the machine must be gone before the folder is removed.
+            Machine     ml;
+            std::string err;
+            CHECK(loadToml((dir / "x.toml").string(), ml, err), "the saved machine file loads");
+            CHECK(fs::exists(dir / "o.txt"), "and opens o.txt in its own folder again");
+            CHECK(state(ml, "sio0", "a") == "out:o.txt" &&
+                      state(ml, "if3", "user0") == "in:i.txt|cap.log",
+                  "and the loaded lines still say what was typed");
+            CHECK(noFolder(saveTomlText(ml)), "and saving it again does not add the folder");
+        }
 
         // pty:LINK names a path too: the link is made in the machine's folder.
         if (platform::havePty()) {
@@ -866,7 +874,9 @@ void test_cli() {
                   (std::string(o.type) + ":" + o.unit + " says in:i.txt").c_str());
         }
         SpuzBoard::setResolver({});
-        fs::remove_all(dir);
+        std::error_code ec;
+        fs::remove_all(dir, ec);
+        CHECK(!ec, ("the test folder is removed: " + ec.message()).c_str());
     }
 
     SECTION("a hex operand that starts with 0B is hex; % is the binary marker (#730)");
