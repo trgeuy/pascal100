@@ -76,6 +76,7 @@ void test_expr();
 void test_debug();
 void test_coreswitch();
 void test_cpu8588();
+void test_cpu8687();
 void test_pascal100();
 void test_ddt();
 void test_dma();

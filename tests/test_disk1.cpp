@@ -292,7 +292,9 @@ void test_disk1() {
         Rig k(true);
         CHECK(k.m.bus.memRead(0x0000) == 0x40 && k.m.bus.memRead(0x00FF) == 0x4F,
               "0000-00FF read routine 4, the default");
-        CHECK(k.m.bus.memRead(0x0101) == 0x00, "0100 up is RAM (zero fill; the ROM would read 11)");
+        // PROM ENA* = BOOT and sMEMR: the ROM answers EVERY memory read, A0-A7 pick the byte.
+        CHECK(k.m.bus.memRead(0x0101) == 0x41, "0101 reads the ROM too: byte 01 of routine 4, not RAM");
+        CHECK(k.m.bus.memReadX(0xFFFF0) == 0x40, "...and FFFF0, the 8086 reset address: byte F0");
         std::string err;
         setProperty(*k.fdc, "routine", "5", err);
         CHECK(k.m.bus.memRead(0x0003) == 0x53, "routine 5 is the EPROM's sixth 256-byte page");
@@ -564,10 +566,12 @@ void test_disk1() {
         Rig a(true);
         std::string err;
         a.fdc->mount("drive0", "a.dsk", false, err);
+        // ROM off and the latch on first: while the ROM is on it answers every memory read,
+        // so the Z80's poll program at 8000 could not run (the Disk 1's PROM ENA*).
+        a.out(SER, 0x80);
         a.home();
         a.command({0x0F, 0x00, 5});
         a.dmaAt(0xABCDEF);
-        a.out(SER, 0x80);
         StateWriter w;
         a.fdc->serialize(w);
 

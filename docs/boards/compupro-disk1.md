@@ -17,7 +17,8 @@ The **CompuPro Disk 1** (board 171F, 1981) is CompuPro's first floppy controller
 - a **DMA engine** with a 24-bit address counter, the same design as on the Disk 1A. There is
   no byte count and no terminal count.
 - a **boot EPROM**, a 2716 of 2 KB. Switches and a jumper pick one 256-byte routine of the
-  eight. The routine answers memory reads at `0000`–`00FF` over `PHANTOM*`.
+  eight. While it boots, the routine answers **every** memory read over `PHANTOM*`; A0-A7 pick
+  the byte.
 - a **bit-banged serial line** on port 3, D7. There is no UART. The guest makes each bit with
   an `OUT` and times it with a delay loop. The manual says that the line is for the first start
   of a new machine only.
@@ -71,9 +72,15 @@ them off (1982 manual). With `port3 = serial`, the minifloppy motors are on all 
   straps. `docs/boards/compupro-disk1a.md` describes the shared parts.
 - **The drives** are four `DiskImageDrive`s over raw `.DSK` images, units `drive0`–`drive3`.
 - **DMA.** The board takes the bus for each byte, as the Disk 1A does.
-- **The boot EPROM** answers memory reads at `0000`–`00FF` and asserts `PHANTOM*`. Memory
-  writes go to the RAM below it, so the RAM of the machine must be set
-  `honors_phantom = "read"`.
+- **The boot EPROM** answers **every** memory read, at any address, and asserts `PHANTOM*` on
+  every memory cycle, until the guest turns it off (`OUT BASE+3` with D0 = 0). A0-A7 pick the
+  byte of the routine. The manual: "BOOT, which together with sMEMR generates PROM ENA* to
+  enable the boot EPROM whenever a memory read occurs", and PHANTOM* "whenever BOOT is
+  asserted and a DMA bus cycle (BC*) is not occurring". So an 8080 reads the routine at
+  `0000`, and an 8086 reads it at `FFFF0` (byte F0) and then at `0000:0006`. Memory writes go
+  to the RAM below it, so the RAM of the machine must be set `honors_phantom = "read"`. Until
+  the boot ends, `EXAMINE` and `DISASM` show the ROM at every address, as on the real board.
+  (Before 2026-11-19 the model answered at `0000`–`00FF` only.)
 - **The serial line** is a `BitSerialLine` (`src/chips/bitserial.h`), on the unit `serial`.
   The far end is a UART at `baud`, 8 data bits, no parity, 1 stop bit. It samples the middle of
   each bit that the guest writes, and sends each good byte to the endpoint. A byte from the
@@ -123,8 +130,10 @@ loaded system picks its console from it. CP/M 2.2N, as on the tracked disk, does
 | 6 | 2 | System Support 1 serial channel. Connect `ss1:serial` to see it |
 | 7 | 3 | Interfacer 3 or 4 at `10`. The machine has none, so nothing prints |
 
-Routines 0–3 are 8086 code, for a board that starts as an 8086 (the CPU 86/87 or CPU 286).
-pascal100 has none. The CPU 8085/88 (`cpu8588`) starts with its 8085 and uses routines 4–7.
+Routines 0–3 are 8086 code, for a board that starts as an 8086: the CPU 86/87 (`cpu8687`) or
+the CPU 286. The 8086 reads byte F0 of the routine at its reset address FFFF0 (a `JMPF
+0000:0006`), because the EPROM answers every memory read while it boots. The CPU 8085/88
+(`cpu8588`) starts with its 8085 and uses routines 4–7.
 
 ### Connect the serial line
 

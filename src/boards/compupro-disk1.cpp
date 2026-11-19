@@ -26,10 +26,12 @@ const CompuProDiskBoard::Traits kTraits = {
     "S2-3..8",
     "Boot routine (S2-1..2 and J17): the 256-byte page of the EPROM at 0000. J17 at A "
     "adds 4. In builtin:DISK1, 4-7 are 8080/Z80 code (default 4)",
-    "Boot EPROM enable (S1-4). On (default, S1-4 OFF): the ROM answers reads at 0000-00FF "
-    "over PHANTOM* after a reset. Off: a plain disk controller",
+    "Boot EPROM enable (S1-4). On (default, S1-4 OFF): after a reset the ROM answers every "
+    "memory read (A0-A7 pick the byte) over PHANTOM*, until OUT BASE+3 with D0 = 0. Off: a "
+    "plain disk controller",
     4,
     "S1-5..8",
+    true,
 };
 
 BitSerialLine::EndpointResolver g_resolver;

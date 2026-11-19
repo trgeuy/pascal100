@@ -463,6 +463,7 @@ add_library(altair_core STATIC
   # The Digicomp Pascal-100: a Z80 and the WD MicroEngine on one card (pascal100 Stage 4).
   src/boards/digicomp-pascal100.cpp
   src/boards/compupro-cpu8588.cpp
+  src/boards/compupro-cpu8687.cpp
   src/boards/mits-8085cpu.cpp
   # The CompuPro System Support 1 -- a multifunction card. Being brought up in phases
   # (issue #392); today the OKI MSM5832 real-time clock. See src/boards/compupro-ss1.h.
@@ -715,6 +716,7 @@ add_executable(altair_tests
   tests/test_debug.cpp
   tests/test_coreswitch.cpp
   tests/test_cpu8588.cpp
+  tests/test_cpu8687.cpp
   tests/test_pascal100.cpp
   tests/test_ddt.cpp
   tests/test_dma.cpp

@@ -271,14 +271,15 @@ bool CompuProDiskBoard::decodes(const BusCycle& c) const {
 bool CompuProDiskBoard::assertsPhantom(const BusCycle& c) const {
     if (!romOn_ || !boot_) return false;
     if (c.type != Cycle::MemRead && c.type != Cycle::MemWrite) return false;
-    return c.addr < traits_.romWindow;
+    return traits_.romEveryRead || c.addr < traits_.romWindow;
 }
 
 // DISASM and EXAMINE see the ROM while it is on. The ports are never peeked: an IN from the
 // data register takes a result byte.
 bool CompuProDiskBoard::peek(uint16_t addr, uint8_t& out) const {
-    if (!enabled_ || !romOn_ || !boot_ || addr >= traits_.romWindow) return false;
-    out = rom_[(size_t)routine_ * traits_.romWindow + addr];
+    if (!enabled_ || !romOn_ || !boot_) return false;
+    if (!traits_.romEveryRead && addr >= traits_.romWindow) return false;
+    out = rom_[(size_t)routine_ * traits_.romWindow + (addr & (traits_.romWindow - 1))];
     return true;
 }
 
@@ -537,6 +538,10 @@ std::vector<Property> CompuProDiskBoard::properties() {
 
 std::vector<MapEntry> CompuProDiskBoard::memMap() const {
     if (!boot_) return {};
+    if (traits_.romEveryRead)
+        return {{0x0000, 0xFFFF, "boot ROM",
+                 "every memory read gets byte A0-A7 of one " + std::to_string(traits_.romWindow) +
+                     "-byte routine, over PHANTOM* until OUT BASE+3 with D0 = 0"}};
     return {{0x0000, traits_.romWindow - 1, "boot ROM",
              "one " + std::to_string(traits_.romWindow) +
                  "-byte routine of the EPROM, over PHANTOM* until OUT BASE+3 with D0 = 0"}};

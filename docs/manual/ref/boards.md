@@ -22,6 +22,7 @@ and within a group the boards are in **alphabetical order**.
 |---|---|
 | [`8085`](#8085) | Generic 8085 CPU board |
 | [`cpu8588`](#cpu8588) | CompuPro CPU 8085/88: 8085 + 8088, one on line |
+| [`cpu8687`](#cpu8687) | CompuPro CPU 86/87: an 8086 on a 16-bit bus |
 | [`pascal100`](#pascal100) | Digicomp Pascal-100: Z80 + WD MicroEngine, one active |
 | [`z80`](#z80) | Generic Z80 CPU board |
 
@@ -101,6 +102,28 @@ CompuPro CPU 8085/88 (161F): an 8085 (unit 8085) and an 8088 (unit 8088), one on
 | `reset_8088` | bool | `true` | `on` \| `off` | Jumper J7: RESET* resets the 8088 too (A-B, factory). Off (B-C): the 8088 is reset only at power-on |
 | `clock_hz_8085` | int | `0` | `0` .. `100000000` | The 8085's clock (switch S4: 6000000 or 2000000; 5000000 with the parts-list crystal). 0 runs flat out |
 | `clock_hz_8088` | int | `0` | `0` .. `100000000` | The 8088's clock (X2/3: 8000000; 5000000 with the parts-list crystal). 0 runs flat out |
+| `idle` | bool | `true` | `on` \| `off` | Stand down when the guest is only polling an empty keyboard. On by default. |
+| `achieved_hz` | int | — | — | LIVE: T-states per real second the run loop last reached. Read-only; 0 until it has run. **(read-only — not a key you may set)** |
+
+
+### `cpu8687`
+
+CompuPro CPU 86/87 (186B): an 8086 (unit 8086) with 8- and 16-bit IEEE 696 transfers (SIXTN*; byte-serial, even byte first, otherwise). Starts at FFFF0, or at poj_addr with power_on_jump. Its own ports, which decode A0-A15: the Memory Manager (mm_port, default 00FD: D7-D4 of an OUT = A23-A20) and a ROM-less 80130 (port_80130, default FFF0; io_80130): an 8259A-like interrupt controller and three timers in hard-wired modes 2, 0, 3, clocked by the CPU clock. The 80130's outputs (jumpers J0-J7) are not fitted. INT* (pin 73) and NMI* reach the 8086. io_wait: one wait state per I/O cycle. No 8087 (J8 fitted). Runs no 8-bit software. IEEE 696 bus
+
+**Units:** `8086` (cpu)
+
+#### Board properties
+
+| Key | Kind | Default | Legal | Meaning |
+|---|---|---|---|---|
+| `mm_port` | int | `0xFD` | `0x0` .. `0xFFFF` | Switch S4-3..10: the Memory Manager port. A15-A8 are set, A7-A0 are FD. CompuPro standard 00FD |
+| `port_80130` | int | `0xFFF0` | `0x0` .. `0xFFF0` | Switches S2 and S4-1,2: the 80130's 16 ports, on a 16-port boundary (A15-A4). CompuPro standard FFF0 |
+| `io_80130` | bool | `true` | `on` \| `off` | S3-2: the 80130's ports answer. CompuPro standard on, so the system can mask its interrupts |
+| `io_wait` | bool | `true` | `on` \| `off` | S3-3 and S3-4: one wait state on every I/O cycle. CompuPro standard on |
+| `power_on_jump` | bool | `false` | `on` \| `off` | S5-10: start at poj_addr (a jammed JMPF) instead of FFFF0. Standard off |
+| `jump_on_reset` | bool | `false` | `on` \| `off` | S5-9: the power-on jump on every RESET too, not only at power-on |
+| `poj_addr` | int | `0xFF000` | `0x0` .. `0xFF000` | Switch S5-1..8 (A19-A12): where the power-on jump goes, a 4K boundary in the low megabyte. All OFF = FF000 |
+| `clock_hz` | int | `0` | `0` .. `100000000` | The 8086's clock: 8000000 or 10000000 as shipped, 5000000 with an 8087. 0 runs flat out |
 | `idle` | bool | `true` | `on` \| `off` | Stand down when the guest is only polling an empty keyboard. On by default. |
 | `achieved_hz` | int | — | — | LIVE: T-states per real second the run loop last reached. Read-only; 0 until it has run. **(read-only — not a key you may set)** |
 
@@ -192,7 +215,7 @@ CompuPro Disk 1 (1981), the Disk 1A's predecessor: an NEC uPD765A floppy control
 | `port` | int | `0xC0` | `0x0` .. `0xFC` | Base address (S2-3..8). The board decodes four ports: BASE+0 .. BASE+3 (default C0) |
 | `rom` | string | `builtin:DISK1` | text | The boot EPROM: builtin:DISK1 (default), or a 2716 image file (Intel HEX, S-records or binary) |
 | `routine` | int | `4` | `0` .. `7` | Boot routine (S2-1..2 and J17): the 256-byte page of the EPROM at 0000. J17 at A adds 4. In builtin:DISK1, 4-7 are 8080/Z80 code (default 4) |
-| `boot` | bool | `true` | `on` \| `off` | Boot EPROM enable (S1-4). On (default, S1-4 OFF): the ROM answers reads at 0000-00FF over PHANTOM* after a reset. Off: a plain disk controller |
+| `boot` | bool | `true` | `on` \| `off` | Boot EPROM enable (S1-4). On (default, S1-4 OFF): after a reset the ROM answers every memory read (A0-A7 pick the byte) over PHANTOM*, until OUT BASE+3 with D0 = 0. Off: a plain disk controller |
 | `dma_priority` | int | `15` | `0` .. `15` | DMA priority (S1-5..8): the TMA bus-arbitration priority, 0-15; the higher one gets the bus first. All four switches OFF = 15 (default, CompuPro's setting). Two bus masters must not share a priority |
 | `port3` | enum | `serial` | `serial` \| `motor` | S1-3: what the port 3 D7 latch drives. serial (default): the RS-232 output line. motor: the MOTOR ON line of the minifloppy cable, D7 = 0 on |
 | `interrupt` | enum | `none` | `none` \| `int` \| `vi0` \| `vi1` \| `vi2` \| `vi3` \| `vi4` \| `vi5` \| `vi6` \| `vi7` | Where the 765's INT goes (J0-J7 = vi0-vi7, J8 = int; default none, polled) *(interrupt strap)* |

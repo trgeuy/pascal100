@@ -450,4 +450,66 @@ void test_cpu8088() {
               "the byte at 3ABCD, not at ABCD in segment 0");
         CHECK(card.peekCodeByte(&r.cpu, r.m.bus, 0x0ABCD) == 0x11, "below 64K is unchanged");
     }
+
+    SECTION("8086: the 16-bit data bus (setWideBus) -- one cycle, byte-serial, odd address");
+    {
+        // The data cycles at 0200-0203 that the step ran: the fetches (at 0100) are left out.
+        struct Seen { uint16_t addr; bool write, xtrq; uint8_t lo, hi; };
+        auto run = [](bool wide, bool sixteen, std::initializer_list<uint8_t> code,
+                      std::vector<Seen>& seen, uint32_t& t, Rig*& keep) {
+            static std::unique_ptr<Rig> r;
+            r = std::make_unique<Rig>();
+            std::string err;
+            setProperty(*r->m.find("mem0"), "sixteen_bit", sixteen ? "true" : "false", err);
+            r->cpu.setWideBus(wide);
+            r->code(0x100, code);
+            r->m.bus.memWriteX(0x0200, 0x34);
+            r->m.bus.memWriteX(0x0201, 0x12);
+            r->m.bus.memWriteX(0x0202, 0x56);
+            r->set("AX", 0xBEEF);
+            seen.clear();
+            int h = r->m.bus.observe([&seen](const BusCycle& c) {
+                if ((c.type == Cycle::MemRead || c.type == Cycle::MemWrite) && c.addr >= 0x0200 &&
+                    c.addr <= 0x0203)
+                    seen.push_back({c.addr, c.type == Cycle::MemWrite, c.xtrq, c.data, c.dataHi});
+            });
+            t = r->step().tStates;
+            r->m.bus.unobserve(h);
+            keep = r.get();
+        };
+        std::vector<Seen> s;
+        uint32_t t = 0;
+        Rig* r = nullptr;
+
+        run(true, true, {0xA1, 0x00, 0x02}, s, t, r);  // MOV AX,[0200]
+        CHECK(std::string(r->cpu.isa()) == "8086", "setWideBus(true): the core is an 8086");
+        CHECK(s.size() == 1 && s[0].addr == 0x0200 && s[0].xtrq && s[0].lo == 0x34 &&
+                  s[0].hi == 0x12 && r->get("AX") == 0x1234,
+              "an even word from 16-bit RAM: ONE cycle, sXTRQ*, both bytes");
+        const uint32_t t86 = t;
+
+        run(true, false, {0xA1, 0x00, 0x02}, s, t, r);
+        CHECK(s.size() == 2 && s[0].addr == 0x0200 && s[1].addr == 0x0201 && !s[0].xtrq &&
+                  r->get("AX") == 0x1234,
+              "...from 8-bit RAM: the byte-serial pair, the EVEN byte first");
+        CHECK(t == t86 + 4, "...and the second cycle costs 4 clocks");
+
+        run(true, true, {0xA1, 0x01, 0x02}, s, t, r);  // MOV AX,[0201]
+        CHECK(s.size() == 2 && s[0].addr == 0x0201 && s[1].addr == 0x0202 && !s[0].xtrq &&
+                  r->get("AX") == 0x5612,
+              "an odd word, even from 16-bit RAM: two byte cycles, low byte first");
+
+        run(true, true, {0xA3, 0x00, 0x02}, s, t, r);  // MOV [0200],AX
+        CHECK(s.size() == 1 && s[0].write && s[0].xtrq && r->word(0x0200) == 0xBEEF,
+              "an even word write to 16-bit RAM: ONE cycle");
+        run(true, false, {0xA3, 0x00, 0x02}, s, t, r);
+        CHECK(s.size() == 2 && s[0].addr == 0x0200 && s[1].addr == 0x0201 && s[0].write &&
+                  r->word(0x0200) == 0xBEEF,
+              "...to 8-bit RAM: two writes, the even byte first");
+
+        run(false, true, {0xA1, 0x00, 0x02}, s, t, r);
+        CHECK(std::string(r->cpu.isa()) == "8088" && s.size() == 2 && !s[0].xtrq &&
+                  t == t86 + 4,
+              "the 8088 (the default) is unchanged: two byte cycles even from 16-bit RAM, +4");
+    }
 }

@@ -30,6 +30,7 @@ const CompuProDiskBoard::Traits kTraits = {
     "after a reset. Off: a plain disk controller",
     0,
     "S2-4..7",
+    false,  // not checked against the Disk 1A manual: the window at 0000 only
 };
 
 } // namespace

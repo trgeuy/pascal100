@@ -125,6 +125,19 @@ struct AddressTranslator {
     // Pascal-100's jump-on-reset (manual IV P) replaces the data of the Z80's first three
     // reads while the cycles still go out to the bus. Default: the byte the bus drove.
     virtual uint8_t readData(uint8_t v) { return v; }
+
+    // THE CARD'S OWN I/O. A device on the master's local bus, behind the card's S-100
+    // buffers: the CPU 86/87's 80130 and Memory Manager, which decode A8-A15 (FFF0-FFFF,
+    // 00FD). The cycle still runs on the S-100 bus -- address and status go out, every
+    // board and observer sees it, and an 8-bit board that decodes A0-A7 answers it as it
+    // would on a real backplane -- but it is not UNCLAIMED, and the core takes the local
+    // byte on a read (the card's buffers are off, ACK*; observers see the floating bus).
+    // ownsIo() is a pure question about the address (`addr` after ioAddress()); then the
+    // bus calls localRead() or localWrite() once, after the bus cycle. This keeps the
+    // board contract (an I/O decode on the BUS uses A0-A7 only, board.h).
+    virtual bool ownsIo(uint16_t, Cycle) const { return false; }
+    virtual uint8_t localRead(uint16_t) { return 0xFF; }
+    virtual void localWrite(uint16_t, uint8_t) {}
 };
 
 // The result of a 16-bit transfer request (Bus::memRead16 and the byte-serial helper).
@@ -685,6 +698,9 @@ private:
     uint8_t memReadExact(uint16_t addr, uint8_t ext, uint8_t status);
     void memWriteExact(uint16_t addr, uint8_t ext, uint8_t data, uint8_t status);
     uint8_t ioReadExact(uint16_t addr, uint8_t status);
+    // The S-100 half of ioRead/ioWrite, after the translator and the veto.
+    uint8_t ioReadBus(uint16_t addr, uint8_t status);
+    void ioWriteBus(uint16_t addr, uint8_t data, uint8_t status);
     void ioWriteExact(uint16_t addr, uint8_t data, uint8_t status);
 
     // The memory cycle in any segment, and the slot it uses (bus.cpp).
@@ -719,6 +735,7 @@ private:
     std::vector<std::string> log_;
     Contention policy_ = Contention::Warn;
     bool unclaimed_ = false;
+    bool localIo_ = false;   // the current I/O cycle is the master card's own (ownsIo)
     bool contended_ = false;
     Board* responder_ = nullptr;  // who drove the last cycle -- see lastResponder()
 

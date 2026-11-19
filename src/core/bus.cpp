@@ -532,7 +532,7 @@ uint8_t Bus::ioReadExact(uint16_t addr, uint8_t status) {
         }
     }
     c.data = v;  // what got driven -- see settle()
-    if (unclaimedPolicy_ != Unclaimed::Silent && d.n == 0) reportUnclaimed(c);
+    if (unclaimedPolicy_ != Unclaimed::Silent && d.n == 0 && !localIo_) reportUnclaimed(c);
     settle(c);
     return v;
 }
@@ -550,7 +550,7 @@ void Bus::ioWriteExact(uint16_t addr, uint8_t data, uint8_t status) {
     responder_ = d.first;
     if (d.n == 1) d.first->write(c);
     else if (d.n > 1) for (Board* b : who) b->write(c);
-    if (unclaimedPolicy_ != Unclaimed::Silent && d.n == 0) reportUnclaimed(c);
+    if (unclaimedPolicy_ != Unclaimed::Silent && d.n == 0 && !localIo_) reportUnclaimed(c);
     settle(c);
 }
 
@@ -928,6 +928,17 @@ uint8_t Bus::ioRead(uint16_t addr, uint8_t status) {
     if (xlat_) [[unlikely]] addr = xlat_->ioAddress(addr, Cycle::IoRead);
     // IEEE 696 keeps all of A0-A15 on an I/O cycle (extended I/O, 2.2.2.4).
     if (preVeto_ && preVeto_(BusCycle{Cycle::IoRead, addr, 0, false})) throw CycleBreakBefore{};
+    localIo_ = xlat_ && xlat_->ownsIo(addr, Cycle::IoRead);
+    if (localIo_) [[unlikely]] {
+        (void)ioReadBus(addr, status);   // the S-100 cycle still runs; its data floats past
+        unclaimed_ = false;
+        localIo_ = false;
+        return xlat_->localRead(addr);
+    }
+    return ioReadBus(addr, status);
+}
+
+inline uint8_t Bus::ioReadBus(uint16_t addr, uint8_t status) {
     if (dirty_) rebuild();
     const Slot& s = ioRead_[addr & 0xFF];
 
@@ -940,7 +951,7 @@ uint8_t Bus::ioRead(uint16_t addr, uint8_t status) {
     responder_ = s.who;
     uint8_t v = s.who ? s.who->read(c) : 0xFF;
     c.data = v;  // what got driven -- see settle()
-    if (unclaimedPolicy_ != Unclaimed::Silent && s.who == nullptr) reportUnclaimed(c);
+    if (unclaimedPolicy_ != Unclaimed::Silent && s.who == nullptr && !localIo_) reportUnclaimed(c);
     settle(c);
     return v;
 }
@@ -949,6 +960,18 @@ void Bus::ioWrite(uint16_t addr, uint8_t data, uint8_t status) {
     // A mapped board's own core: the board decides what goes on A0-A15 (AddressTranslator).
     if (xlat_) [[unlikely]] addr = xlat_->ioAddress(addr, Cycle::IoWrite);
     if (preVeto_ && preVeto_(BusCycle{Cycle::IoWrite, addr, data, false})) throw CycleBreakBefore{};
+    localIo_ = xlat_ && xlat_->ownsIo(addr, Cycle::IoWrite);
+    if (localIo_) [[unlikely]] {
+        ioWriteBus(addr, data, status);  // the S-100 cycle still runs
+        unclaimed_ = false;
+        localIo_ = false;
+        xlat_->localWrite(addr, data);
+        return;
+    }
+    ioWriteBus(addr, data, status);
+}
+
+inline void Bus::ioWriteBus(uint16_t addr, uint8_t data, uint8_t status) {
     if (dirty_) rebuild();
     const Slot& s = ioWrite_[addr & 0xFF];
 
@@ -960,7 +983,7 @@ void Bus::ioWrite(uint16_t addr, uint8_t data, uint8_t status) {
     unclaimed_ = (s.who == nullptr);
     responder_ = s.who;
     if (s.who) s.who->write(c);
-    if (unclaimedPolicy_ != Unclaimed::Silent && s.who == nullptr) reportUnclaimed(c);
+    if (unclaimedPolicy_ != Unclaimed::Silent && s.who == nullptr && !localIo_) reportUnclaimed(c);
     settle(c);
 }
 

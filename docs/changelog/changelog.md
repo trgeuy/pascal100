@@ -20,6 +20,26 @@ CP/M-86 1.1 prints `512K M-DRIVE/H Active as Drive "M".` (`1024K` with two board
 it again. `docs/boards/compupro-mdriveh.md`; the manual is distilled in
 `reference/CompuPro M-Drive H.md`.
 
+**New: the CompuPro CPU 86/87 (`cpu8687`).** An 8086 on a 16-bit IEEE 696 bus: a word at an
+even address is one 16-bit cycle when the memory board answers SIXTN*, and the byte-serial pair,
+even byte first, when it does not. The board's own Memory Manager (OUT 00FD: A20-A23) and the
+80130's interrupt controller and timers (FFF0-FFFF) are modeled; the 8087 is not (an empty
+socket). CompuPro CP/M-86 1.1 Disk #2 boots on it through the Disk 1's 8086 routine, and so does
+MP/M 8-16 2.1F after `MPMGEN B:MPMLDRFY.86`. `docs/boards/compupro-cpu8687.md`; the manual is
+distilled in `reference/CompuPro CPU 86-87.md`.
+
+**New: a processor card's own I/O ports** (`AddressTranslator::ownsIo`, DESIGN.md 4.6). A device
+on the card's local bus that decodes A8-A15, such as the CPU 86/87's 80130, answers its own
+processor without a bus decode. The cycle still runs on the bus, and it is not reported as
+unclaimed.
+
+**Changed: the Disk 1's boot ROM answers every memory read while it is on.** The manual: the
+boot EPROM is enabled "whenever a memory read occurs", and PHANTOM* is asserted on every
+non-DMA cycle; A0-A7 pick the byte. Before, the model answered at 0000-00FF only. An 8080 boot
+is the same; an 8086 now finds the routine at its reset address FFFF0. Until the guest turns
+the ROM off (`OUT C3` with D0 = 0), `EXAMINE` and `DISASM` show the ROM at every address. The
+Disk 1A is not changed (its manual is not yet checked for this).
+
 **Changed: boards built to share a port are not reported as contention.** A board can say that
 it shares an I/O port by design (`Board::sharesPort`, DESIGN.md 4.6). An I/O write that several
 such boards decode is not contention; a write that also reaches a board that does not share

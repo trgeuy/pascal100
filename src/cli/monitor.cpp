@@ -420,6 +420,12 @@ static std::string fmtWord(uint16_t v) {
     return b;
 }
 
+// An I/O port: one byte, or four digits for a port that decodes A8-A15 (a processor card's own
+// ports, such as the CPU 86/87's 00FD and FFF0-FFFF). A cut to one byte printed FFF0 as F0.
+static std::string fmtPort(uint32_t p) {
+    return p > 0xFF ? fmtWord((uint16_t)p) : fmtByte((uint8_t)p);
+}
+
 // A PHYSICAL ADDRESS -- what DUMP, EDIT, FILL, SEARCH, COMPARE, MOVE, LOAD, SAVE, WHO and
 // SHOW BUS MAP print: A0-A23, six hex digits or three split-octal bytes, always (also
 // below 64K), so the machine never shows a 4-digit address that means "segment 00".
@@ -1615,7 +1621,7 @@ void Monitor::showBoards(std::ostream& out, const Machine& m) {
         r.disabled = !b->enabled();
 
         for (const auto& e : b->ioMap()) {
-            std::snprintf(buf, sizeof buf, "%s%s", r.io.empty() ? "" : ",", fmtByte(e.lo).c_str());
+            std::snprintf(buf, sizeof buf, "%s%s", r.io.empty() ? "" : ",", fmtPort(e.lo).c_str());
             r.io += buf;
         }
 
@@ -2718,8 +2724,8 @@ void Monitor::showBus(const std::vector<std::string>& a, std::ostream& out) {
                         if (r == b.get()) return true;
                     return false;
                 };
-                std::string ports = fmtByte((uint8_t)e.lo);
-                if (e.hi != e.lo) ports += "-" + fmtByte((uint8_t)e.hi);
+                std::string ports = fmtPort(e.lo);
+                if (e.hi != e.lo) ports += "-" + fmtPort(e.hi);
                 std::snprintf(buf, sizeof buf, "  %-*s  %-8s %-3s %-3s    %s", aw, ports.c_str(),
                               b->id.c_str(), answers(Cycle::IoRead) ? "IN" : "--",
                               answers(Cycle::IoWrite) ? "OUT" : "--", e.note.c_str());
@@ -2932,7 +2938,7 @@ Insn Monitor::insnAt(uint32_t at, const Disassembler& d) {
 // segment and the peek adds the segment base. True, with CS and IP, for a core that speaks
 // the 8088 instruction set; false for every other core.
 static bool csIp(CpuCore* c, uint16_t& cs, uint16_t& ip) {
-    if (!c || std::string(c->isa()) != "8088") return false;
+    if (!c || !CpuCore::isX86(c->isa())) return false;
     bool haveCs = false, haveIp = false;
     for (const RegDef& r : c->registers()) {
         if (r.name == "CS") { cs = (uint16_t)r.get(); haveCs = true; }
@@ -3146,7 +3152,7 @@ std::string Monitor::renderInsn(const Debugger::InsnRec& rec) {
         // The 8088 decodes at IP, an offset in CS (isa/isa8088.cpp); the record's PC is
         // linear. Take IP from the record's own register values.
         uint16_t at = (uint16_t)rec.pc;
-        if (std::string(c->isa()) == "8088")
+        if (CpuCore::isX86(c->isa()))
             for (size_t i = 0; i < regs.size() && i < rec.regs.size(); ++i)
                 if (regs[i].name == "IP") at = (uint16_t)rec.regs[i];
         auto peek = [&rec, at](uint16_t a) -> uint8_t {
@@ -5763,7 +5769,7 @@ bool Monitor::exec(const std::string& line, std::ostream& out) {
         // The 8088's CALL and RST: CALL near/far/indirect and INT n, INT 3, INTO -- each
         // comes back to the next instruction (a BDOS call on CP/M-86 and MP/M is INT E0).
         bool overX86 = false;
-        if (isa == "8088") {
+        if (CpuCore::isX86(isa)) {
             uint16_t cs = 0, ip = 0;
             if (csIp(cpu, cs, ip)) {
                 uint16_t k = ip;

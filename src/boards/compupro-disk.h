@@ -64,6 +64,12 @@ public:
         const char* bootHelp;
         int         routineDefault;  // the first routine for an 8080/Z80
         const char* prioritySwitch;  // "S1-5..8", the four DMA priority switches
+        // The Disk 1: "BOOT, which together with sMEMR generates PROM ENA* to enable the
+        // boot EPROM whenever a memory read occurs", and PHANTOM* "whenever BOOT is asserted
+        // and a DMA bus cycle (BC*) is not occurring" (Disk 1 manual, theory of operation).
+        // So while it boots the ROM answers EVERY memory read, ROM[A0-A7], at any address:
+        // an 8086 reads it at FFFF0 and then at 0000:0006. false = only the window at 0000.
+        bool        romEveryRead;
     };
 
     explicit CompuProDiskBoard(const Traits& t);

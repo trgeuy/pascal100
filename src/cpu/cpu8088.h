@@ -46,7 +46,8 @@ public:
     Cpu8088(const Cpu8088&) = delete;
     Cpu8088& operator=(const Cpu8088&) = delete;
 
-    const char* isa() const override { return "8088"; }
+    // "8088", or "8086" with setWideBus(true): one instruction set, two buses.
+    const char* isa() const override { return wide_ ? "8086" : "8088"; }
     // opcode, ModRM, a 16-bit displacement and a 16-bit immediate (6), plus a segment
     // override and a REP or LOCK prefix. More prefixes are legal but pointless.
     uint8_t maxInsnLen() const override { return 8; }
@@ -73,6 +74,19 @@ public:
     // Manager latch drives the top four lines (its high nibble). 0 on a plain 1 MB system.
     void setHighAddress(uint8_t a20to23) { high_ = (uint32_t)(a20to23 & 0x0F) << 20; }
 
+    // THE 8086: the same instructions on a 16-bit data bus. A word at an even address is one
+    // 16-bit request (Bus::memRead16); with no SIXTN* answer the byte-serial pair follows,
+    // even byte first, as the CPU 86/87 runs it. A word at an odd address is two byte
+    // cycles, as on the chip. Only a word that took two cycles costs the 8088's extra 4
+    // clocks (timing8088.h's base is the 8086's). The prefetch queue (6 bytes on the 8086, 4
+    // on the 8088) is not modelled in either.
+    void setWideBus(bool on) { wide_ = on; }
+
+    // CS:IP exactly, as a far jump leaves them. The CPU 86/87's power-on jump jams
+    // JMPF ss00:0000 (setPc() would keep CS when the target is inside its 64K).
+    void jumpFar(uint16_t cs, uint16_t ip);
+    bool wideBus() const { return wide_; }
+
     // A REP string instruction is part way through: IP is still on it, and the next step()
     // does its next iteration.
     bool repeating() const;
@@ -84,6 +98,7 @@ private:
     struct Impl;
     std::unique_ptr<Impl> impl_;
     uint32_t high_ = 0;  // A20-A23, already shifted
+    bool wide_ = false;  // the 8086's 16-bit data bus
 };
 
 } // namespace altair

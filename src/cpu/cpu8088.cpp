@@ -34,7 +34,8 @@ constexpr uint8_t kStInta  = StInta | StWo;
 struct Wire {
     Bus* bus = nullptr;
     uint32_t high = 0;  // A20-A23, shifted
-    int words = 0;      // word transfers this step (timing: the 8088 needs two cycles)
+    int words = 0;      // word transfers that took two bus cycles (timing: +4 clocks each)
+    bool wide = false;  // the 8086: a 16-bit data bus (Cpu8088::setWideBus)
 };
 
 // THE MEMORY CLK SEES. CLK asks for `access<IntT, type>(linear, base)`; reads go to the
@@ -56,15 +57,45 @@ struct BusMemory {
         return ((address - base) & 0xFFFF) == 0xFFFF ? base : address + 1;
     }
 
+    // THE 8086's ONE-CYCLE WORD: an even address whose odd byte is the next address (not the
+    // FFFF wrap). It asks for 16 bits (sXTRQ*); a board that answers SIXTN* moves both bytes
+    // in one cycle. Otherwise the CPU 86/87 runs the byte-serial pair itself, the EVEN byte
+    // first (its A0 = LA0 XOR FLIP, schematic 5/9), and that costs the second cycle.
+    bool oneCycle(uint32_t address, uint32_t base) const {
+        return w.wide && (address & 1) == 0 && next(address, base) == address + 1;
+    }
+    uint32_t phys(uint32_t a) const { return w.high | (a & (MaxAddress - 1)); }
+
     template <typename IntT> IntT read2(uint32_t address, uint32_t base) {
         if constexpr (sizeof(IntT) == 1) {
             return rd(address);
         } else {
-            ++w.words;
+            if (oneCycle(address, base)) {
+                Transfer16 t = w.bus->memRead16(phys(address), kStRead);
+                if (!t.sixtn) {
+                    ++w.words;
+                    t = w.bus->byteSerialRead16(phys(address), true, kStRead);
+                }
+                return IntT(t.even | (t.odd << 8));
+            }
+            ++w.words;  // the 8088, or an 8086 word at an odd address: two byte cycles
             const uint8_t lo = rd(address);
             const uint8_t hi = rd(next(address, base));
             return IntT(lo | (hi << 8));
         }
+    }
+
+    void word(uint32_t address, uint32_t base, uint8_t lo, uint8_t hi) {
+        if (oneCycle(address, base)) {
+            if (!w.bus->memWrite16(phys(address), lo, hi, kStWrite)) {
+                ++w.words;
+                w.bus->byteSerialWrite16(phys(address), lo, hi, true, kStWrite);
+            }
+            return;
+        }
+        ++w.words;
+        wr(address, lo);
+        wr(next(address, base), hi);
     }
 
     union Buf { uint8_t b; uint16_t h; uint32_t d; } bufs[2]{};
@@ -98,21 +129,15 @@ struct BusMemory {
     template <typename IntT> void write_back() {
         if (!wbSize) return;
         const uint8_t* p = reinterpret_cast<const uint8_t*>(&bufs[cur]);
-        wr(wbAddr, p[0]);
-        if (wbSize >= 2) {
-            ++w.words;
-            wr(next(wbAddr, wbBase), p[1]);
-        }
+        if (wbSize >= 2) word(wbAddr, wbBase, p[0], p[1]);
+        else             wr(wbAddr, p[0]);
         wbSize = 0;
     }
 
     template <typename IntT> void preauthorised_write(uint32_t address, uint32_t base, IntT value) {
         address &= MaxAddress - 1;
-        wr(address, uint8_t(value));
-        if constexpr (sizeof(IntT) >= 2) {
-            ++w.words;
-            wr(next(address, base), uint8_t(value >> 8));
-        }
+        if constexpr (sizeof(IntT) >= 2) word(address, base, uint8_t(value), uint8_t(value >> 8));
+        else                             wr(address, uint8_t(value));
     }
 
     void preauthorise_read(uint32_t, uint32_t) {}
@@ -120,7 +145,10 @@ struct BusMemory {
     template <typename IntT> IntT read(uint32_t address) { return read2<IntT>(address, address); }
 };
 
-// I/O: a 16-bit port on A0-A15; a word is two byte cycles, port then port+1 (the 8088).
+// I/O: a 16-bit port on A0-A15; a word is two byte cycles, port then port+1. The 8088 always
+// does this. The 8086 asks for 16 bits at an even port, and the CPU 86/87 runs the same two
+// byte cycles when no board answers SIXTN*; no I/O board in pascal100 does, so the bus has
+// no 16-bit I/O cycle (docs/boards/compupro-cpu8687.md).
 struct BusIo {
     Wire& w;
     template <typename IntT> void out(uint16_t port, IntT value) {
@@ -227,6 +255,12 @@ void Cpu8088::setPc(uint32_t v) {
     }
     impl_->repActive = false;
 }
+void Cpu8088::jumpFar(uint16_t cs, uint16_t ip) {
+    impl_->registers.cs() = cs;
+    impl_->registers.ip() = ip;
+    impl_->resyncSegments();
+    impl_->repActive = false;
+}
 bool Cpu8088::repeating() const { return impl_->repActive; }
 bool Cpu8088::halted() const { return impl_->halted; }
 bool Cpu8088::interruptsEnabled() const { return impl_->flags.flag<x86::Flag::Interrupt>(); }
@@ -258,6 +292,7 @@ StepResult Cpu8088::step(Bus& bus) {
     c.wire.bus = &bus;
     c.wire.high = high_;
     c.wire.words = 0;
+    c.wire.wide = wide_;
 
     // ---- NMI*: edge-triggered, taken whatever IF says, vector 2 ----
     const bool nmi = bus.nmiAsserted();
@@ -347,7 +382,9 @@ StepResult Cpu8088::step(Bus& bus) {
     f.shiftCount = cx0 & 0xFF;
     f.wordTransfers = c.wire.words;
     int t = i8088::timing(code, len, f);
-    if (!continuing) t = std::max(t, 4 * len);  // the fetch floor (timing8088.h)
+    // The fetch floor (timing8088.h): the 8088 fetches a byte per 4-clock cycle, the 8086
+    // a word.
+    if (!continuing) t = std::max(t, (c.wire.wide ? 2 : 4) * len);
 
     // ---- TF: single step, INT 1 after an instruction that started with TF set ----
     if (trap && !repeating && !c.halted) {

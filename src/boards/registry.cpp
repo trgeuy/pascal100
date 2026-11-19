@@ -7,6 +7,7 @@
 #include "boards/compupro-selch.h"
 #include "boards/compupro-disk1a.h"
 #include "boards/compupro-cpu8588.h"
+#include "boards/compupro-cpu8687.h"
 #include "boards/compupro-ss1.h"
 #include "boards/hostbridge.h"
 #include "boards/mits-z80cpu.h"
@@ -41,6 +42,7 @@ std::vector<BoardType> boardTypes() {
         {"z80", "Generic Z80 CPU board", "Generic Z80 CPU board. Decodes nothing -- it drives the bus. The 88-CPU's twin, with a Z80 core"},
         {"pascal100", "Digicomp Pascal-100: Z80 + WD MicroEngine, one active", "Digicomp Research Pascal-100: a Z80 (unit z80) and the Western Digital MicroEngine (unit me, UCSD Pascal III.0 P-code), one active at a time. IEEE 696 bus only. System Control Port at PORT (switch U225, default D0) and the Map Output Port at PORT+1, both write-only. Standard Map: 16 entries of 8K, 128K physical, per processor on or off. Z80 and MicroEngine I/O put the port on both address halves; MicroEngine words FFpp/FEpp are I/O port pp. pINT and NMI go to the Z80; NMI, and pINT with auto-transfer on, give the Z80 control. Jump-on-reset (J202, reset_addr)"},
         {"cpu8588", "CompuPro CPU 8085/88: 8085 + 8088, one on line", "CompuPro CPU 8085/88 (161F): an 8085 (unit 8085) and an 8088 (unit 8088), one on line at a time; the 8085 starts. One port (PORT, switch S3, default FD): an IN swaps the processors and reads FF, an OUT latches the Memory Manager byte -- A16-A23 for the 8085, its high nibble on A20-A23 for the 8088. The 8088 first comes on line at FFFF0; after that each processor resumes, or is reset (swap_reset_8085/8088). Power-on-jump for the 8085 (power_on_jump, poj_addr). IOW: one wait state per I/O cycle. pINT reaches the processor on line; NMI and VI0-VI2 to the 8085's TRAP/RST pins are not modeled. IEEE 696 bus"},
+        {"cpu8687", "CompuPro CPU 86/87: an 8086 on a 16-bit bus", "CompuPro CPU 86/87 (186B): an 8086 (unit 8086) with 8- and 16-bit IEEE 696 transfers (SIXTN*; byte-serial, even byte first, otherwise). Starts at FFFF0, or at poj_addr with power_on_jump. Its own ports, which decode A0-A15: the Memory Manager (mm_port, default 00FD: D7-D4 of an OUT = A23-A20) and a ROM-less 80130 (port_80130, default FFF0; io_80130): an 8259A-like interrupt controller and three timers in hard-wired modes 2, 0, 3, clocked by the CPU clock. The 80130's outputs (jumpers J0-J7) are not fitted. INT* (pin 73) and NMI* reach the 8086. io_wait: one wait state per I/O cycle. No 8087 (J8 fitted). Runs no 8-bit software. IEEE 696 bus"},
         {"8085", "Generic 8085 CPU board", "Generic 8085 CPU board. Decodes nothing -- it drives the bus. The 88-CPU's twin, with an 8085 core (RIM/SIM + TRAP/RST 5.5/6.5/7.5)"},
         {"2sio", "MITS 88-2SIO: two 6850 serial ports", "MITS 88-2SIO: two 6850 ACIAs, units 'a' and 'b'. Four ports at BASE+0..3"},
         {"tarbell", "Tarbell #1011: single-density floppy controller", "Tarbell #1011: single-density WD FD1771 floppy, up to 4 drives. Eight ports at BASE+0..7 (default F8). Carries a 32-byte boot PROM that shadows 0000 over PHANTOM* -- boots CP/M automatically at reset (bootstrap=on)"},
@@ -74,6 +76,7 @@ static std::unique_ptr<Board> buildBoard(const std::string& typeName) {
     if (type == "z80") return std::make_unique<CpuZ80Board>();
     if (type == "pascal100") return std::make_unique<Pascal100Board>();
     if (type == "cpu8588") return std::make_unique<Cpu8588Board>();
+    if (type == "cpu8687") return std::make_unique<CompuProCpu8687Board>();
     if (type == "8085") return std::make_unique<Cpu8085Board>();
     if (type == "2sio") return std::make_unique<Sio2Board>();
     if (type == "tarbell") return std::make_unique<TarbellBoard>();

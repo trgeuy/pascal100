@@ -28,9 +28,11 @@ code that the routine passes in register C.
 The manual gives routine 5 to the Disk 1's own serial line. The CP/M 2.2N BIOS has no driver
 for that line. With C = 1, it reads its console from an Interfacer at `10`/`11`.
 
-Only routines 4–7 run in pascal100. Routines 0–3 are for a board that starts as an 8086 (the
-CompuPro CPU 86/87 or CPU 286), and pascal100 has none. The CPU 8085/88 (`cpu8588`) starts with
-its 8085, so it uses routines 4–7 too.
+Routines 0–3 are for a board that starts as an 8086: the CompuPro CPU 86/87 (`cpu8687`) or the
+CPU 286. At the 8086 reset address FFFF0 each has `EA 06 00 00 00` at byte F0, `JMPF
+0000:0006`, which goes on in the same page: the Disk 1's EPROM answers every memory read while
+it boots. Routines 0 and 2 boot CompuPro CP/M-86 Disk #2 and MP/M 8-16 on the `cpu8687`. The
+CPU 8085/88 (`cpu8588`) starts with its 8085, so it uses routines 4–7.
 
 ## What routine 4 does
 

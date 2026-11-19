@@ -81,6 +81,7 @@ const struct {
     {"debug", test_debug},
     {"coreswitch", test_coreswitch},
     {"cpu8588", test_cpu8588},
+    {"cpu8687", test_cpu8687},
     {"pascal100", test_pascal100},
     {"ddt", test_ddt},
     {"dma", test_dma},

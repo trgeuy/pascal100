@@ -2089,7 +2089,7 @@ Json callTool(Machine& m, McpSession& sess, const std::string& name, const Json&
         // reads (the CPU 8085/88 adds its A20-A23 latch); else straight off the bus.
         const bool x86 = std::string(dis->name()) == "8088";
         CpuCore* x86core = nullptr;
-        if (CpuCore* c = m.cpu(); c && std::string(c->isa()) == "8088") x86core = c;
+        if (CpuCore* c = m.cpu(); c && CpuCore::isX86(c->isa())) x86core = c;
         uint32_t segBase = 0;
         if (x86) {
             uint32_t seg = 0;

@@ -149,6 +149,7 @@ The boards are in groups, in the same order as the sections below.
 | `8085` | an 8085 processor board. It runs all 8080 code, and adds RIM, SIM and the TRAP and RST interrupts |
 | `z80` | a Z80 processor board. The same bus, with a different instruction set |
 | `pascal100` | Digicomp Research Pascal-100: a Z80 and the Western Digital MicroEngine, one active at a time |
+| `cpu8687` | CompuPro CPU 86/87: an 8086 on a 16-bit bus. Boots CompuPro CP/M-86 and MP/M 8-16 from their Disk #2 |
 
 **Serial ports and consoles**
 
@@ -212,8 +213,8 @@ A `memory` board has no bank switching.
 
 ## The processor boards
 
-The processor boards are `8085`, `z80` and `pascal100`. This section applies to all of them.
-The sections after it describe each one.
+The processor boards are `8085`, `z80`, `pascal100` and `cpu8687`. This section applies to all
+of them. The sections after it describe each one.
 
 **The processor is a board like the other boards.** It plugs into the backplane, and you can
 remove it. With `-n`, you can build a machine with no processor. The `8085` and `z80` boards
@@ -340,6 +341,59 @@ EPROM:
 pascal100> MOUNT fd0:drive0 PASCAL.DSK
 pascal100> RUN 0
 ```
+
+### `cpu8687`: CompuPro CPU 86/87
+
+The **CompuPro CPU 86/87** (1982) is an **8086** processor board. The 8086 moves 16 bits at a
+time when the memory board can, and one byte at a time when it cannot. A `memory` board with
+`sixteen_bit = true` takes the 16-bit cycles. The board runs **no 8-bit software**: for 8080
+programs, CompuPro sold the CPU 8085/88.
+
+The 8086 starts at `FFFF0`. The Disk 1 boot EPROM answers there while it boots, so set the
+Disk 1 to an 8086 routine: `routine = 0` for the Interfacer 1 console at `00`/`01`, or
+`routine = 2` for the System Support 1 serial channel. On the real board that is jumper J17 at
+B. CompuPro's CP/M-86 and MP/M 8-16 boot from their **Disk #2** on this board; Disk #1 does
+not. To make an MP/M 8-16 disk boot, put the CPU 86/87 loader on it from CP/M-86:
+
+```
+A>B:MPMGEN B:MPMLDRFY.86
+```
+
+A machine file:
+
+```toml
+[[board]]
+type = "cpu8687"
+id   = "cpu"
+
+[[board]]
+type    = "disk1"
+id      = "fd0"
+routine = 0
+```
+
+The board has two functions of its own:
+
+- **The Memory Manager**, port `00FD`. The top four bits of an `OUT` to it drive address lines
+  A20-A23 from the next cycle on. RESET clears it.
+- **The 80130**, ports `FFF0`-`FFFF`: an interrupt controller and three timers. CompuPro's
+  systems use the interrupt controllers of the System Support 1; the 80130 is there for
+  programs that want its timers.
+
+| Property | Default | What it does |
+|---|---|---|
+| `clock_hz` | `0` | the 8086's clock: 8000000 or 10000000. 0 runs flat out |
+| `mm_port` | `00FD` | the Memory Manager's port. The low byte is always FD |
+| `port_80130` | `FFF0` | the first of the 80130's 16 ports |
+| `io_80130` | `true` | the 80130's ports answer |
+| `io_wait` | `true` | one wait state on every I/O cycle |
+| `power_on_jump` | `false` | start at `poj_addr` instead of `FFFF0` |
+| `jump_on_reset` | `false` | do the power-on jump at every RESET too |
+| `poj_addr` | `FF000` | where the power-on jump goes: a 4K boundary below 1 MB |
+
+Not modeled: the 8087 math chip (the socket is empty), the 80130's ROM, and the jumpers that send
+the 80130's interrupt and timer outputs to the bus. With those jumpers open, as in CompuPro's
+standard system, the 80130 interrupts nothing.
 
 ## Serial ports and consoles
 

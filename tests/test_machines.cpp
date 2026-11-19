@@ -148,10 +148,11 @@ void test_machines() {
         CHECK(u.state == "console", "and it is connected to the console");
     }
 
-    // 64K of RAM. 0000-00FF answers with the Disk 1's boot EPROM over PHANTOM* until the
-    // guest switches it off, so the RAM checks are above it.
+    // 64K of RAM. The Disk 1's boot EPROM answers every memory read over PHANTOM* until the
+    // guest switches it off (OUT C3 with D0 = 0), so the RAM checks come after that.
     (void)m.bus.memRead(0x0000);
     CHECK(!m.bus.lastUnclaimed(), "a board drives 0000 -- the boot EPROM, after the reset");
+    m.bus.ioWrite(0xC3, 0x00);
     m.bus.memWrite(0x0100, 0x76);
     CHECK(m.bus.memRead(0x0100) == 0x76, "0100 is RAM -- it stores a write");
     m.bus.memWrite(0xFFFF, 0x3E);
@@ -294,6 +295,7 @@ id   = "mem0"
     std::string es;
     CHECK(loadTomlText(kReplace, "small", ms, es), "re-fitting a card the base brought loads");
     CHECK(ms.boards().size() == 5, "...and REPLACES it -- there is not a second memory board");
+    ms.bus.ioWrite(0xC3, 0x00);  // the Disk 1's boot EPROM off: it answers every read while on
     ms.bus.memWrite(0x5FFF, 0x42);
     CHECK(ms.bus.memRead(0x5FFF) == 0x42, "5FFF is the top of the new 24K");
     (void)ms.bus.memRead(0x6000);

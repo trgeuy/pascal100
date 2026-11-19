@@ -352,7 +352,7 @@ const Disassembler* disassemblerFor(const std::string& isa) {
     if (k == "8085") return isa8085Disassembler();  // the 8080 set + RIM/SIM, its own table
     if (k == "z80") return z80Disassembler();
     if (k == "pcode") return pcodeDisassembler();  // the WD MicroEngine; no assembler, by design
-    if (k == "8088") return isa8088Disassembler();  // CLK decodes; offsets within one segment
+    if (k == "8088" || k == "8086") return isa8088Disassembler();  // one set; CLK decodes
     return nullptr;  // The caller reports it. Disassembling a Z80 as an 8080
                      // produces plausible, WRONG text -- worse than an error.
 }

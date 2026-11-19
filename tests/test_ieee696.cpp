@@ -477,6 +477,7 @@ void test_ieee696() {
         CHECK(loadToml(dir + "cpm22n-alias64k.toml", m, err),
               ("cpm22n-alias64k.toml loads: " + err).c_str());
         m.bus.setVerify(true);
+        m.bus.ioWrite(0xC3, 0x00);  // the Disk 1's boot ROM off: it answers every read while on
         m.bus.memWriteX(0x000200, 0x5E);
         CHECK(m.bus.memReadX(0x9A0200) == 0x5E, "alias64k: segment 9A is segment 00");
 
@@ -500,6 +501,7 @@ void test_ieee696() {
         CHECK(loadToml(dir + "cpm22n-seg128k.toml", h, err),
               ("cpm22n-seg128k.toml loads: " + err).c_str());
         h.bus.setVerify(true);
+        h.bus.ioWrite(0xC3, 0x00);  // the Disk 1's boot ROM off
         h.bus.memWriteX(0x000200, 0x11);
         h.bus.memWriteX(0x010200, 0x22);
         CHECK(h.bus.memReadX(0x000200) == 0x11 && h.bus.memReadX(0x010200) == 0x22,
@@ -517,6 +519,7 @@ void test_ieee696() {
         Machine back;
         CHECK(loadTomlText(saved, dir + "../compupro/saved.toml", back, err),
               ("seg128k: the saved file loads back: " + err).c_str());
+        back.bus.ioWrite(0xC3, 0x00);  // the Disk 1's boot ROM off
         back.bus.memWriteX(0x000200, 0x55);
         back.bus.memWriteX(0x010200, 0x44);
         CHECK(back.bus.memReadX(0x000200) == 0x55 &&

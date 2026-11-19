@@ -3455,18 +3455,21 @@ void test_achieved_hz() {
             };
             const std::string machine = ex("SHOW MACHINE");
             std::string       map     = ex("SHOW BUS MAP");
-            CHECK(map.find("000000-0000FF  fd0") != std::string::npos,
+            // The armed EPROM answers every memory read (the Disk 1's PROM ENA*), over
+            // PHANTOM* on every address.
+            CHECK(map.find("000000-00FFFF  fd0") != std::string::npos,
                   "armed: SHOW BUS MAP lists the boot EPROM");
             // RAM that honors PHANTOM* for reads only still takes the writes under the
-            // EPROM, so it answers there. RAM that honors it for both does not.
+            // EPROM, so it answers there. RAM that honors it for both does not answer at all.
             const bool all = std::string(honors) == "all";
-            CHECK(map.find(all ? "000100-00FFFF  mem0" : "000000-00FFFF  mem0") != std::string::npos,
+            CHECK(all ? map.find("mem0") == std::string::npos
+                      : map.find("000000-00FFFF  mem0") != std::string::npos,
                   "armed: the RAM row is the part of the RAM that answers");
             CHECK(ex("WHO 0080").find("fd0") != std::string::npos, "armed: WHO 0080 says fd0");
 
             mb.bus.ioWrite(0xC3, 0x00);  // the guest's OUT C3 with D0 = 0 switches the EPROM off
             map = ex("SHOW BUS MAP");
-            CHECK(map.find("000000-0000FF  fd0") == std::string::npos,
+            CHECK(map.find("000000-00FFFF  fd0") == std::string::npos,
                   "switched out: SHOW BUS MAP does not list the boot EPROM");
             CHECK(map.find("000000-00FFFF  mem0") != std::string::npos,
                   "switched out: all of the RAM answers");
