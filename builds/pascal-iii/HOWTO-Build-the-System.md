@@ -53,7 +53,7 @@ Each phase is made up of multiple steps. In each step you will see three parts:
 
 - A terminal window on your computer. The `cp` and `chmod` commands in this guide are for macOS and Linux.
 
-- The build kit. Download [`buildkit.zip`](https://github.com/trgeuy/pascal100/raw/master/buildkit/buildkit.zip) from the [`buildkit` folder](https://github.com/trgeuy/pascal100/tree/master/buildkit) of the pascal100 repository. It unpacks to a folder named `buildkit`. When you finish Step 1.2, the folder holds these files:
+- The build kit. Download [`pascal-iii-buildkit.zip`](https://github.com/trgeuy/pascal100/raw/master/builds/pascal-iii/pascal-iii-buildkit.zip) from the [`builds/pascal-iii` folder](https://github.com/trgeuy/pascal100/tree/master/builds/pascal-iii) of the pascal100 repository. It unpacks to a folder named `pascal-iii-buildkit`. When you finish Step 1.2, the folder holds these files:
 
 | File                                                | Contents                                                            |
 | --------------------------------------------------- | ------------------------------------------------------------------- |
@@ -216,7 +216,7 @@ We have found that while `RESET` followed by `RUN 0` restarts CP/M, it does not 
 
 The machine changes a disk file when it writes to the disk. You cannot undo a write. So you work from copies, at two levels:
 
-- **Always work from a copy of the original folder `buildkit`.** Never start the machine in the original folder. Keep that folder unchanged.
+- **Always work from a copy of the original folder `pascal-iii-buildkit`.** Never start the machine in the original folder. Keep that folder unchanged.
 
 - **We will often make new disks from old disks.** For example, `cp PASCAL.DSK PASSD.DSK` makes a new disk file, and in Phase 3 we make changes only to the copy. The three starting disks are not changed at any point.
 
@@ -304,11 +304,11 @@ This is a simulator, so as long as you do not work on the original files a mista
 
 ### Step 1.2: Set up the work folder
 
-**Overview:** The `buildkit` folder holds the original files. First we will add the two Pascal-100 disks to it. Then we will make a copy of it, the work folder, and we will do all our work there.
+**Overview:** The `pascal-iii-buildkit` folder holds the original files. First we will add the two Pascal-100 disks to it. Then we will make a copy of it, the work folder, and we will do all our work there.
 
 **How to do it:**
 
-1. Unpack `buildkit.zip`, and put the `buildkit` folder in a place that is easy to find, for example your Desktop.
+1. Unpack `pascal-iii-buildkit.zip`, and put the `pascal-iii-buildkit` folder in a place that is easy to find, for example your Desktop.
 
 2. Download the two Pascal-100 disks from the Internet Archive. They are on the page <https://archive.org/details/cpm-files>, with the Pascal-100 manual. These links download the two files:
 
@@ -317,15 +317,15 @@ This is a simulator, so as long as you do not work on the original files a mista
 
 3. Open a terminal window.
 
-4. Go to the `buildkit` folder. If it is on your Desktop, type this command:
+4. Go to the `pascal-iii-buildkit` folder. If it is on your Desktop, type this command:
 
 
    ```
-   cd ~/Desktop/buildkit
+   cd ~/Desktop/pascal-iii-buildkit
    ```
 
 
-5. Move the two files into the `buildkit` folder, with the names that this guide uses. If they are in your Downloads folder, type these commands:
+5. Move the two files into the `pascal-iii-buildkit` folder, with the names that this guide uses. If they are in your Downloads folder, type these commands:
 
 
    ```
@@ -357,12 +357,12 @@ This is a simulator, so as long as you do not work on the original files a mista
    ```
 
 
-8. Go back to the folder that holds `buildkit`, and make the work folder. The `cp` command copies `buildkit` and all its files to a new folder named `work`:
+8. Go back to the folder that holds `pascal-iii-buildkit`, and make the work folder. The `cp` command copies `pascal-iii-buildkit` and all its files to a new folder named `work`:
 
 
    ```
    cd ..
-   cp -R buildkit work
+   cp -R pascal-iii-buildkit work
    ```
 
 

@@ -1,4 +1,4 @@
-# The Pascal-100 build kit
+# Build UCSD Pascal III on the Pascal-100
 
 The build kit and its guide take the simulated Pascal-100 from the three disks that came with
 the boards to a working UCSD Pascal III.0 system. The guide is written for a person alone at
@@ -23,12 +23,12 @@ ends with something that works, so you can stop after any phase:
 1. **The simulator.** Get the archive for your computer from the
    [releases page](https://github.com/trgeuy/pascal100/releases). The guide needs a version
    later than 0.1.0. Step 1.1 of the guide installs it.
-2. **The build kit,** [`buildkit.zip`](buildkit.zip). It unpacks to a folder named `buildkit`,
+2. **The build kit,** [`pascal-iii-buildkit.zip`](pascal-iii-buildkit.zip). It unpacks to a folder named `pascal-iii-buildkit`,
    with the guide, the CP/M starting disk, the machine file, the BIOS and boot sources, and a
    `README.txt`.
 3. **The two Pascal-100 disks.** They are not in the zip. They are on the Internet Archive, with
    the Pascal-100 manual, at <https://archive.org/details/cpm-files>. Download these two files,
-   rename each one, and put it in the `buildkit` folder, next to `CPM.DSK`. Step 1.2 of the guide
+   rename each one, and put it in the `pascal-iii-buildkit` folder, next to `CPM.DSK`. Step 1.2 of the guide
    gives the commands.
 
    | Download this file | Rename it to | SHA-1 |
@@ -53,9 +53,9 @@ the kit. The disks that Phases 2 to 4 make were also tested on a real Pascal-100
 | File | What it is |
 |---|---|
 | [`HOWTO-Build-the-System.md`](HOWTO-Build-the-System.md) | The guide. The zip has the same file. |
-| [`buildkit.zip`](buildkit.zip) | The kit to download |
+| [`pascal-iii-buildkit.zip`](pascal-iii-buildkit.zip) | The kit to download |
 | [`files/`](files/) | The files of the kit: the machine file `buildkit.toml`, the BIOS and boot sources, and `README.txt` |
-| [`make-buildkit.sh`](make-buildkit.sh) | Makes `buildkit.zip` from `files/`, the guide and [`../disks/compupro-disk1/cpm22/CPM.DSK`](../disks/compupro-disk1/cpm22/README.md). Run it after you change any of them. |
+| [`make-buildkit.sh`](make-buildkit.sh) | Makes `pascal-iii-buildkit.zip` from `files/`, the guide and [`../../disks/compupro-disk1/cpm22/CPM.DSK`](../../disks/compupro-disk1/cpm22/README.md). Run it after you change any of them. |
 
 ## License
 

@@ -83,11 +83,13 @@ build guide takes you through that work in the simulator, from the three distrib
 CP/M and Pascal work disks, in phases that each end with a working system. You do not need any
 real hardware.
 
-- [`buildkit/`](buildkit/README.md): what to download, and what each phase gives you.
-- [`buildkit/buildkit.zip`](buildkit/buildkit.zip): the kit, with the CP/M starting disk, the
-  machine file, the BIOS and boot sources and the guide. The two Pascal-100 disks come from the
-  Internet Archive; `buildkit/README.md` gives the file names.
-- [`HOWTO-Build-the-System.md`](buildkit/HOWTO-Build-the-System.md): the guide.
+- [`builds/pascal-iii/`](builds/pascal-iii/README.md): what to download, and what each phase gives you.
+- [`pascal-iii-buildkit.zip`](builds/pascal-iii/pascal-iii-buildkit.zip): the kit, with the CP/M
+  starting disk, the machine file, the BIOS and boot sources and the guide. The two Pascal-100
+  disks come from the Internet Archive; the folder's README gives the file names.
+- [`HOWTO-Build-the-System.md`](builds/pascal-iii/HOWTO-Build-the-System.md): the guide.
+
+More builds will follow in [`builds/`](builds/README.md).
 
 ## Build
 
@@ -145,8 +147,8 @@ altairsim and its Altair machines, and say so at the top. These files apply to p
 - `docs/QUICK-START.md`: boot CP/M with one command.
 - `docs/boards/digicomp-pascal100.md`: the Pascal-100 board.
 - `docs/manual/ref/`: the boards, machines and commands, generated from the binary.
-- `buildkit/`: the build kit and the step-by-step guide that builds the Pascal-100 system from
-  its distribution disks.
+- `builds/`: step-by-step guides, each with a build kit, from the distribution disks to a
+  working system. The first builds UCSD Pascal III on the Pascal-100.
 - `DESIGN.md`: the design of the simulator, with a heritage note at the top.
 
 ## Why the name pascal100

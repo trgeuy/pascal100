@@ -1,5 +1,5 @@
-pascal100 build kit
-===================
+pascal100 build kit: UCSD Pascal III on the Pascal-100
+======================================================
 
 This kit holds what HOWTO-Build-the-System.md needs to build a UCSD Pascal
 III.0 system for the simulated Pascal-100 from its distribution disks. The
