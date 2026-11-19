@@ -6,7 +6,7 @@ description: How to build a CP/M program inside a pascal100 machine — assemble
 # Build a CP/M program in the machine
 
 This skill needs the `pascal100` skill, which tells you how to boot a machine and type at it.
-Each step here was replayed on `examples/cpm22/cpm22-buffered.toml` (2026-11-09). The disk of that
+Each step here was replayed on `examples/cpm22/cpm22-console.toml` (2026-11-09). The disk of that
 machine has `ASM`, `MAC` with `Z80.LIB`, `LOAD`, `DDT` and the host bridge utilities.
 
 Build in the machine. The assembler that the program was written for is on the disk, and no

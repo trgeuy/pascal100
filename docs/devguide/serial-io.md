@@ -387,43 +387,16 @@ manual tells you the polarity and the port map; the data sheet tells you the chi
 right shape when you are modeling real silicon** — and the project rule stands: never give the
 hardware a behavior it never had to make software happy.
 
-**The strap-configurable card** does not model a chip's register map at all. **`StrapSerialBoard`
-(`src/boards/strapserial.h`)** — the chip-less strap engine — holds a `std::unique_ptr<ByteStream>`
-per channel and *synthesizes* each status byte from the stream:
-
-```cpp
-uint8_t s = 0;
-if (ch.stream->readable() != ch.straps.inverterGate) s |= (1u << ch.straps.davBit);   // XOR = inverter-gate inversion
-if (ch.stream->writable() != ch.straps.inverterGate) s |= (1u << ch.straps.tbmtBit);  // both bits, one knob
-```
-
-Two boards ride this engine. **`GsioBoard` (`src/boards/gsio.h`, `type() == "gsio"`)** is the
-Generic SIO, which carries **two independent serial channels** — units `a` and `b`, configured under
-`[board.unit.a]` / `[board.unit.b]`. It makes no claim to be a specific card; a documented board that
-needs programmable word length, parity, stop bits or framing/overrun status is a separate emulated
-board, not a strap on this one. **`PropIoBoard` (`src/boards/propio.h`, `type() == "propio"`)** is the
-S100Computers Console IO Board, a single channel; being single-channel, its straps surface as
-board-level properties and its one unit is named `serial`. The operator *describes* each channel
-with straps rather than picking a chip: which port is status/control, which port is data, which
-status bit is `dav` (data available) and which is `tbmt` (transmit buffer empty), and whether the
-**inverter gate** is engaged — one knob, because both status bits pass through the same inverting
-buffer and so always share a polarity. Control-port writes are accepted and ignored — there is no
-chip to program. To make common cards turnkey it ships **built-in profiles** in one table
-(`serialBuiltins()` — `sior1`, `sior0`, `tuart`, `imsai-sio2`, `compupro-if2`, `compupro-ss1`), each just a
-bundle of those straps and trivial to extend: add one struct and its name becomes a `profile`
-choice and appears in the generated docs. The default profile is **`sior1`** (MITS SIO Rev 1), what
-the SSM 8080 monitor expects on its console. These cards are **polled, with no interrupts** — a
-deliberate first phase, because without a working control/interrupt-enable register a strapped
-TX-empty interrupt would storm (TBMT is asserted at idle). This is the right shape when the goal is
-to *reach* an abstract serial interface some software expects, not to reproduce a particular
-board's silicon.
+**pascal100: there is no strap-configurable card.** altairsim's chip-less strap engine
+(`StrapSerialBoard`, behind `gsio` and `propio`) synthesized a status byte from straps instead of
+modeling a chip. Both boards were removed from pascal100 (`gsio` in 2026-11), and the engine with
+them. Every serial board here models its real chip.
 
 ## Adding an IO-4 profile
 
 The chip-backed `io4` (`src/boards/io4.{h,cpp}`, the SSM IO-4) is worth its own note, because the
 cheapest useful change you can make to a serial board lives there: **teaching it a new host
-personality**. Unlike `gsio`'s strap presets — a `dav`/`tbmt` bit pair — an IO-4 **profile** is a
-richer bundle, because the real card's W1/W2 headers strap *six* status signals to any data bit,
+personality**. An IO-4 **profile** is a bundle, because the real card's W1/W2 headers strap *six* status signals to any data bit,
 through a buffer of either polarity, with the status and data ports optionally swapped. A profile is
 that whole map:
 
@@ -477,8 +450,7 @@ The general playbook is `adding-a-board.md`; the serial-specific steps on top of
    any baud change, and surface a refusal through `drainLog()`.
 6. **If you model real silicon**, put the chip in `src/chips/` from its data sheet, keep the
    inverting buffers and interrupt-enable bits on the card, and reuse `Sio2Port` if it is a
-   6850. If instead you want a strap-configured abstract interface, `StrapSerialBoard` already
-   exists (behind `gsio` and `propio`) — add a profile, do not write a new board.
+   6850.
 7. **Test with a `ScriptedStream`** bound through the real `connect()` path: `feed()` bytes at the
    card, assert on `out()`, and check the status bits land where the straps put them.
 

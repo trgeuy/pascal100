@@ -1,4 +1,5 @@
 #include "test.h"
+#include "stub_line_board.h"
 
 #include "cli/monitor.h"
 #include "config/toml.h"
@@ -676,13 +677,14 @@ void test_mcp() {
         }
 
         // A board with no connectStream holds a bare scripted line. Upstream used the 88-PIO
-        // (in/out); pascal100 (2026-11-09) uses the 88-C700, whose one unit is `prn`, and
-        // hands the console back to sio0:a.
+        // (in/out), then the 88-C700 (removed 2026-11); now the test-only stub board
+        // (tests/stub_line_board.h), whose one unit is `prn`, and hands the console back to
+        // sio0:a.
         {
             Machine m;
             if (!loadAltmon(m)) return;
-            auto rep = runScript(m, init + mon(2, "BOARDS ADD c700 lp0") +
-                                        mon(3, "CONNECT lp0:prn console") +
+            m.adopt(std::make_unique<StubLineBoard>("lp0"));
+            auto rep = runScript(m, init + mon(3, "CONNECT lp0:prn console") +
                                         mon(4, "SHOW CONSOLE") +
                                         mon(5, "CONNECT sio0:a console"));
             CHECK(textOf(rep, 3).rfind("console taken from sio0:a\n", 0) == 0,

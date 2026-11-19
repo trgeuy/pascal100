@@ -3,7 +3,7 @@
 #
 #     cd examples/ai-mcp && pascal100 cpm-ai.toml --mcp
 #
-# THIS FILE IS THE WHOLE MACHINE. It is the machine of examples/cpm22/cpm22-buffered.toml.
+# THIS FILE IS THE WHOLE MACHINE. It is the machine of examples/cpm22/cpm22-console.toml.
 #
 # THE DISK is cpm22k-64k.dsk: the same disk as examples/cpm22, plus HELLO.ASM with its planted bug.
 #

@@ -10,7 +10,7 @@ usage: tools/update-hostbridge-disk.py <machine.toml> <COM|CMD> <prompt> [option
 Run it in the folder of the machine file; the disks are the files that it mounts.
 
     cd examples/cpm22   && python3 -I ../../tools/update-hostbridge-disk.py \\
-                              cpm22-buffered.toml COM "A>" cpm22k-64k.dsk
+                              cpm22-console.toml COM "A>" cpm22k-64k.dsk
     cd examples/cpm86   && python3 -I ../../tools/update-hostbridge-disk.py \\
                               cpm86-console.toml CMD "A>" cpm86-11.dsk
     cd examples/mpm8-16 && python3 -I ../../tools/update-hostbridge-disk.py \\

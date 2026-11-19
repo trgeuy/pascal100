@@ -131,7 +131,6 @@ Type the part before the bracket.
 
 | Type | What it is |
 |---|---|
-| `bankmem` | Bank-switched RAM (Vector, Cromemco, North Star, ExpandoRAM) |
 | `memory` | RAM/ROM board: plain, unbanked memory regions |
 
 **Disk**
@@ -152,30 +151,16 @@ Type the part before the bracket.
 | Type | What it is |
 |---|---|
 | `2sio` | MITS 88-2SIO: two 6850 serial ports |
-| `gsio` | Generic SIO: two strap-configurable serial channels |
 | `interfacer1` | CompuPro Interfacer 1: two serial channels |
 | `interfacer3` | CompuPro Interfacer 3: eight serial channels |
 | `interfacer4` | CompuPro Interfacer 4: three serial, Centronics, parallel |
 | `io4` | SSM IO-4: two serial + two parallel ports |
-
-**Parallel and printer**
-
-| Type | What it is |
-|---|---|
-| `c700` | MITS 88-C700: Centronics line-printer controller |
-
-**PROM programmer**
-
-| Type | What it is |
-|---|---|
-| `pb1` | SSM PB1: 2708/2716 EPROM programmer |
 
 **Other**
 
 | Type | What it is |
 |---|---|
 | `hostbridge` | Host Bridge: file transfer to the host (not a period board) |
-| `rtc100` | SciTronics RTC-100: battery-backed clock/calendar |
 | `ss1` | CompuPro System Support 1: interrupts, timer, clock, serial |
 
 ## Machines

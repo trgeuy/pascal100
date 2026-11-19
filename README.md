@@ -21,10 +21,10 @@ bus in pascal100.
 |---|---|
 | Processors | `pascal100` (Z80 and MicroEngine), `cpu8588` (CompuPro CPU 8085/88: 8085 and 8088), `z80`, `8085` |
 | Disk controllers | `disk1` (CompuPro Disk 1), `disk1a` (CompuPro Disk 1A), `disk2` (CompuPro Disk 2 hard disk) with `selch` (Selector Channel), `disk3` (CompuPro Disk 3 hard disk), `tarbell`, `tarbelldd`, `jadedd` |
-| Serial and parallel | `interfacer1`, `interfacer3`, `interfacer4` (CompuPro Interfacers), `2sio`, `gsio`, `io4`, `c700` (Centronics printer) |
-| System support and clock | `ss1` (CompuPro System Support 1: interrupts, timer, clock, serial), `rtc100` (clock) |
-| Memory | `memory`, `bankmem` |
-| Other | `pb1` (EPROM programmer), `hostbridge` (file transfer to the host) |
+| Serial and parallel | `interfacer1`, `interfacer3`, `interfacer4` (CompuPro Interfacers), `2sio`, `io4` |
+| System support | `ss1` (CompuPro System Support 1: interrupts, timer, clock, serial, 4K RAM) |
+| Memory | `memory` |
+| Other | `hostbridge` (file transfer to the host) |
 
 The `hostbridge` board is not a period board. The CP/M tools R.COM, W.COM and HDIR.COM use it to copy
 files between the host and a CP/M disk. pascal100 keeps the same board identity as altairsim, so
@@ -40,8 +40,7 @@ make your own.
 
 | File | What it is |
 |---|---|
-| `examples/cpm22/cpm22-buffered.toml` | CompuPro CP/M 2.2K: Z80, Interfacer 1, Disk 1, host bridge, 64K. |
-| `examples/cpm22/cpm22-terminal.toml` | The same machine, with the console in a VT100 window. |
+| `examples/cpm22/cpm22.toml` | CompuPro CP/M 2.2K: Z80, Interfacer 1, Disk 1, host bridge, 64K, in a VT100 window. |
 | `examples/cpm86/cpm86.toml` | CompuPro CP/M-86 1.1 on the CPU 8085/88, in a window. |
 | `examples/cpm8-16/cpm816.toml` | CompuPro CP/M 8-16 1.1PD from a Quantum Q540 hard disk on a Disk 3: 8086 programs on the 8088, 8080 programs on the 8085. |
 | `examples/mpm8-16/mpm816.toml` | CompuPro MP/M 8-16 2.1F from a Fujitsu M20 hard disk: three users in three windows. |

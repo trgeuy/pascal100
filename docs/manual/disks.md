@@ -214,7 +214,7 @@ A blank disk is an unformatted diskette. A format program in the guest makes it 
 Disk 1 needs to know the size and the sides of a blank diskette, and only the machine file can
 give them, with `media`.
 
-1. Copy the CP/M example `cpm22-buffered.toml` to `scratch.toml` in the same folder. In the
+1. Copy the CP/M example `cpm22-console.toml` to `scratch.toml` in the same folder. In the
    `[[board]]` of `fd0`, after the drive 0 table, add a blank disk in drive 1:
 
    ```toml

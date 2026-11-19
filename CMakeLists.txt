@@ -338,7 +338,6 @@ add_library(altair_core STATIC
   src/core/debug.cpp
   src/core/debuglog.cpp
   src/core/spindle.cpp
-  src/core/hostticker.cpp
   src/isa/isa8080.cpp
   src/isa/isa8085.cpp
   src/isa/isaZ80.cpp
@@ -458,7 +457,6 @@ add_library(altair_core STATIC
   src/chips/am9511a.cpp
   src/chips/am9512.cpp
   src/boards/s100-memory.cpp
-  src/boards/bankmem.cpp
   # The generic Z80 CPU card -- the 88-CPU's twin (mits-z80cpu.h), carrying a
   # CpuZ80 instead of a Cpu8080. Listed after it so the reader sees the pair.
   src/boards/mits-z80cpu.cpp
@@ -484,21 +482,13 @@ add_library(altair_core STATIC
   # SerialBoardBase -- the reusable 88-SIO B serial engine (UART, inverted status word, VI
   # straps, interrupt enables, decode, connector, snapshot). Not a registered board; the
   # 88-SIO is it plus a name, the cassette engine extends it. See serial-board-base.h.
-  src/boards/scitronics-rtc100.cpp
   # SSM PB1 -- a 2708/2716 EPROM programmer + on-board EPROM board. A hybrid decode: a 4K
   # programming-socket window + one arm/type control port, plus a read-only on-board PROM area.
-  src/boards/ssm-pb1.cpp
   # Tarbell #1011 (SD) / #2022 (DD) -- one card carrying a WD FD177x floppy controller
   # AND a 32-byte boot PROM that shadows low RAM over PHANTOM*. See src/boards/tarbell.h.
   src/boards/tarbell.cpp
   src/boards/jade-dd.cpp
   src/boards/floppy-drive.cpp
-  # The 88-C700 line-printer controller -- an output-only card that sinks its data
-  # port to a ByteStream (a file, the console, a socket). No chip: a printer sends
-  # nothing back, so there is no receiver to model. See mits-88c700.h.
-  src/boards/mits-88c700.cpp
-  src/boards/strapserial.cpp   # chip-less strap-serial engine (gsio + propio)
-  src/boards/gsio.cpp          # generic strap-serial board: two channels
   src/boards/io4.cpp           # SSM IO-4: real chip-backed dual-UART serial board (2P+2S; serial section)
   # OUR OWN CARD -- the only one in this list that is not a period board, and the
   # first genuinely new hardware built against the board API (DESIGN.md 12.1).
@@ -693,7 +683,6 @@ add_executable(altair_tests
   tests/test_statefile.cpp
   tests/test_snapshot.cpp
   tests/test_memory.cpp
-  tests/test_bankmem.cpp
   tests/test_paths.cpp
   tests/test_hex.cpp
   tests/test_srec.cpp
@@ -729,9 +718,6 @@ add_executable(altair_tests
   tests/test_ddt.cpp
   tests/test_dma.cpp
   tests/test_sio2.cpp
-  tests/test_c700.cpp
-  tests/test_pb1.cpp
-  tests/test_gsio.cpp
   tests/test_io4.cpp
   tests/test_interfacer1.cpp
   tests/test_interfacer3.cpp
@@ -762,7 +748,6 @@ add_executable(altair_tests
   tests/test_disk2.cpp
   tests/test_disk3.cpp
   tests/test_spindle.cpp
-  tests/test_rtc100.cpp
   tests/test_ss1.cpp
   tests/test_hostdir.cpp
   tests/test_hostbridge.cpp
@@ -895,17 +880,6 @@ set_tests_properties(cpu-8085exm PROPERTIES LABELS slow TIMEOUT 1800)
 add_test(NAME cpu-zexdoc COMMAND altair_cputest ZEXDOC)
 add_test(NAME cpu-zexall COMMAND altair_cputest ZEXALL)
 set_tests_properties(cpu-zexdoc cpu-zexall PROPERTIES LABELS slow TIMEOUT 3600)
-
-# The SSM PB1 EPROM programmer: run the manual's own 2708 burner software against the board and
-# read the burned chip back out as an Intel HEX file (issues #397, #382). If it fails, the board
-# is wrong, not the software.
-add_test(NAME acceptance-pb1
-         COMMAND ${CMAKE_COMMAND}
-                 -DSIM=$<TARGET_FILE:pascal100>
-                 -DSRC=${CMAKE_CURRENT_SOURCE_DIR}
-                 -DBIN=${CMAKE_CURRENT_BINARY_DIR}
-                 -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/acceptance/pb1.cmake)
-set_tests_properties(acceptance-pb1 PROPERTIES LABELS acceptance TIMEOUT 120)
 
 # The CompuPro Disk 1A: boot CompuPro CP/M 2.2LD off a real 8" disk through the board's own
 # boot EPROM, then read and write files on it. If it fails, the board is wrong, not the disk.
@@ -1189,7 +1163,7 @@ set_tests_properties(acceptance-snapshot PROPERTIES LABELS acceptance TIMEOUT 60
 # repository. This test proves the EXAMPLES work -- every machine file in each one, run from
 # a copy outside the tree -- and nothing else. No test of the simulator may read the examples
 # (examples-isolation, below, enforces it); a test that needs media takes it from tests/media.
-# HAVE_SDL tells it which answer cpm22-terminal.toml's windowed console must give on this build.
+# HAVE_SDL tells it which answer cpm22.toml's windowed console must give on this build.
 # ---------------------------------------------------------------------------
 if(SDL3_FOUND)
   set(examples_have_sdl 1)

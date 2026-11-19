@@ -24,8 +24,7 @@
 //     the Centronics acknowledge flop, RxI4 = the Universal Parallel input flop), bits 1-3 =
 //     U36, U35, U34. J26 swaps only the chip enables of relative users 0 and 2.
 //
-//   * THE CENTRONICS PORT works as the 88-C700 does (src/boards/mits-88c700.h): a data write
-//     goes to the unit's endpoint (a file, a print queue, a socket), and a short handshake
+//   * THE CENTRONICS PORT: a data write goes to the unit's endpoint (a file, a print queue, a socket), and a short handshake
 //     later the printer's ACKNLG* sets TxI4. A data write clears TxI4; reset does not.
 
 #include "chips/sig2651.h"

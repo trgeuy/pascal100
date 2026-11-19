@@ -33,8 +33,8 @@ id   = "cpu0"
 type = "hostbridge"
 id   = "hb0"
 [[board]]
-type = "gsio"                  # serial console: channel a at ports 0/1
-id   = "io0"
+type = "interfacer1"           # serial console: channel a at ports 0/1
+id   = "if1"
   [board.unit.a]
   connect = "console"
 # ... your disk controller + A: (8 MB work) and C: (tools floppy) ...

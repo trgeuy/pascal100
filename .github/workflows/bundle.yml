@@ -94,7 +94,7 @@ jobs:
           "$py" - "$pkg/$exe" "$pkg/examples/cpm22" <<'EOF'
           import json, os, subprocess, sys
           exe, cwd = os.path.abspath(sys.argv[1]), sys.argv[2]   # absolute: Popen runs it from cwd
-          p = subprocess.Popen([exe, "cpm22-buffered.toml", "--mcp"], cwd=cwd, stdin=subprocess.PIPE,
+          p = subprocess.Popen([exe, "cpm22-console.toml", "--mcp"], cwd=cwd, stdin=subprocess.PIPE,
                                stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
           n = 0
           def rpc(method, params):

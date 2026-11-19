@@ -1,6 +1,4 @@
 #include "boards/mits-2sio.h"
-#include "boards/mits-88c700.h"
-#include "boards/gsio.h"
 #include "boards/io4.h"
 #include "boards/compupro-interfacer1.h"
 #include "boards/compupro-interfacer3.h"
@@ -314,8 +312,6 @@ int main(int argc, char** argv) {
     // nobody else's -- a board that could reach `resolveEndpoint` itself would be
     // one `#include` away from knowing what a socket is.
     Sio2Board::setResolver(resolveEndpoint);
-    C700Board::setResolver(resolveEndpoint);
-    StrapSerialBoard::setResolver(resolveEndpoint);  // the gsio / propio strap-serial family's lines
     InterfacerOneBoard::setResolver(resolveEndpoint);  // the CompuPro Interfacer 1's two UART channels
     InterfacerThreeBoard::setResolver(resolveEndpoint);  // the CompuPro Interfacer 3's eight 2651s
     InterfacerFourBoard::setResolver(resolveEndpoint);   // the Interfacer 4's 2651s and parallel ports

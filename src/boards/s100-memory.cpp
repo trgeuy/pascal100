@@ -11,9 +11,9 @@
 
 namespace altair {
 
-// Bank switching used to live here as a `bank_type=` strap; it is now its own board
-// (src/boards/bankmem.h), because the real cards do not share one encoding
-// (docs/devguide/banked-ram.md). What is left is plain RAM/ROM.
+// Bank switching used to live here as a `bank_type=` strap. It moved to a board of its own,
+// `bankmem`, because the real cards do not share one encoding (DESIGN.md 4.3), and that board
+// was removed in 2026-11. What is left is plain RAM/ROM.
 
 std::string Region::describe(bool ext) const {
     char buf[128];

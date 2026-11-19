@@ -441,8 +441,8 @@ period software needs this behavior.
 
 `RESET*` is a **line on the backplane**. It is not an instruction that pascal100 does for
 you. Every board receives it, and each board does what its real hardware did. The result is
-different for each board. A `bankmem` board clears its bank-select latch, but it does not change
-RAM, because a RAM chip has no reset pin. The Disk 1 turns its boot EPROM on again, so the
+different for each board. A `memory` board does not change RAM, because a RAM chip has no reset
+pin. The Disk 1 turns its boot EPROM on again, so the
 processor finds the boot routine at `0000`.
 
 A 2SIO does **nothing**, because the 6850 has no reset pin for `RESET*`. Its baud rate, word

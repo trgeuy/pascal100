@@ -88,13 +88,13 @@ Status-P: D0 data available, D1 data not taken.
   1s, so a single 4-7 board with nothing pending reads `0F` (manual page 15). It is not
   contention (DESIGN.md 4.6). A mask write is latched in `snoop()` by both boards of the group.
   Each board takes its own nibble.
-- **The Centronics port** works as the 88-C700 does. A data write goes to the endpoint of the
+- **The Centronics port:** a data write goes to the endpoint of the
   `centronics` unit: an `out:` file, a `printer:` queue, a socket, the console. The line is
   raw: no byte is changed. After each write the printer handshake takes about 20 µs:
   - The port reads busy for the whole handshake.
   - ACKNLG\* reads low for the last 10 µs.
   - TxI4 sets at the end, where ACKNLG\* goes high again.
-  A data write clears TxI4. Paper out, error and not selected never occur, as on the C700.
+  A data write clears TxI4. Paper out, error and not selected never occur.
 - **The Universal Parallel port:** a write goes to the `parallel` unit's endpoint, and the
   stream takes it at once, so "data not taken" clears when the stream can accept the byte. A
   byte that arrives on the stream latches as a strobe would: data available, RxI4. The next byte
@@ -186,4 +186,3 @@ is user 5, the reverse of the comments in its LPRS file; the Interfacer 3 machin
 
 - `reference/CompuPro Interfacer 4.md`
 - `docs/boards/compupro-interfacer3.md`, the board it shares ports with.
-- `docs/boards/mits-88c700.md`, the printer model the Centronics port follows.

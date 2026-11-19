@@ -1076,8 +1076,8 @@ std::string saveTomlText(Machine& m, std::string* err, const SaveConsoleHolds& h
         // deciding read-only-ness its own way.
         //
         // And IT WROTE TO THE MACHINE IT WAS DESCRIBING. A setter is not a question, and
-        // some of them do work: `card` on the bankmem board rebuilds every segment (and
-        // clears the live bank), so CONFIG SAVE on a banked card would have silently
+        // some of them do work: `card` on the (since removed) bankmem board rebuilt every segment
+        // (and cleared the live bank), so CONFIG SAVE on a banked card would have silently
         // remapped the guest's address space -- a save that MOVED MEMORY. The note that
         // used to sit below excused this walk on the grounds that a board property is "a
         // port jumper". `card` is not a port jumper, and the next board's property will

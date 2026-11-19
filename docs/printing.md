@@ -1,7 +1,9 @@
 # Printing to a real printer
 
 > **altairsim's design note, not yet rewritten for pascal100.** Issue #70 is on altairsim's
-> tracker. The note cites the VDM-1 and source files that pascal100 removed. The CMake option
+> tracker. The note cites the VDM-1, the 88-C700, the Sol and source files that pascal100 removed
+> (the 88-C700 in 2026-11). In pascal100 the printer board is the Interfacer 4's `centronics`
+> unit, and any serial unit can use `printer:` too. The CMake option
 > it calls `ALTAIRSIM_ENABLE_PRINTER` is `PASCAL100_ENABLE_PRINTER` in pascal100. For the
 > operator's side of the `printer:` endpoint, read the User Manual's serial chapter.
 

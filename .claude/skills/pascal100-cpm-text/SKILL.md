@@ -6,7 +6,7 @@ description: Rules for a text file that a CP/M program will read on a pascal100 
 # Text files for CP/M
 
 This skill needs the `pascal100` skill, which tells you how to boot a machine and type at it.
-Each rule here was replayed on `examples/cpm22/cpm22-buffered.toml`.
+Each rule here was replayed on `examples/cpm22/cpm22-console.toml`.
 
 A file goes into the guest as it is. The host bridge (`R`) and `PASTE` do not change one
 byte. For this reason, the file must be correct for CP/M before you send it.

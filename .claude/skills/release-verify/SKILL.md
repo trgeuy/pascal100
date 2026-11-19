@@ -37,7 +37,7 @@ Then boot two machines and see them reach their prompt. Drive them with `pascal1
 
 | machine | reaches |
 |---|---|
-| `examples/cpm22/cpm22-buffered.toml` | `A>` |
+| `examples/cpm22/cpm22-console.toml` | `A>` |
 | `examples/basic4k/basic4k.toml` | `MEMORY SIZE?` |
 
 ## Is SDL3 inside the binary?

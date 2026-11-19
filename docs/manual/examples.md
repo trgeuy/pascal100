@@ -12,7 +12,7 @@ README, in Markdown and as a PDF, that says what the machine is and what to type
 ## 1. CompuPro CP/M from a floppy disk
 
 ```
-$ pascal100 examples/cpm22/cpm22-buffered.toml
+$ pascal100 examples/cpm22/cpm22-console.toml
 ```
 
 ```
@@ -97,7 +97,7 @@ everything that the machine needs, and it boots from any place:
 
 ```
 $ cp -R examples/cpm22 my-cpm
-$ pascal100 my-cpm/cpm22-buffered.toml
+$ pascal100 my-cpm/cpm22-console.toml
 ```
 
 When you finish writing files, **go back to the `A>` prompt before you quit.** Then the

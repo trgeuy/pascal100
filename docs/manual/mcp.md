@@ -90,7 +90,7 @@ session that the assistant controls**, with every character that the guest print
 **type on the line to take over**, and share the console:
 
 ```
-$ pascal100 examples/cpm22/cpm22-buffered.toml --mcp --mirror socket:2323
+$ pascal100 examples/cpm22/cpm22-console.toml --mcp --mirror socket:2323
 ```
 
 This is the same mirror that the monitor has (`<endpoint>|socket:PORT`, see the chapter *Serial
@@ -100,7 +100,7 @@ the mirror watch-only. **Put quotes around it on the command line**, because `?`
 wildcard:
 
 ```
-$ pascal100 examples/cpm22/cpm22-buffered.toml --mcp --mirror 'socket:2323?ro'
+$ pascal100 examples/cpm22/cpm22-console.toml --mcp --mirror 'socket:2323?ro'
 ```
 
 ### A watcher that connects again
@@ -128,7 +128,7 @@ sends each key when you press it, and does not print the key a second time. Ther
 number to select.
 
 ```
-$ pascal100 examples/cpm22/cpm22-buffered.toml --mcp --mirror pty
+$ pascal100 examples/cpm22/cpm22-console.toml --mcp --mirror pty
 pascal100: --mirror: open /tmp/pascal1000 (/dev/ttys004)
 ```
 
@@ -168,7 +168,7 @@ computer with a terminal program, watches the session and can type on it. This w
 platform.
 
 ```
-$ pascal100 examples/cpm22/cpm22-buffered.toml --mcp --mirror serial:/dev/cu.usbserial-AL009KFH
+$ pascal100 examples/cpm22/cpm22-console.toml --mcp --mirror serial:/dev/cu.usbserial-AL009KFH
 pascal100: --mirror: open /dev/cu.usbserial-AL009KFH at 9600 baud
 ```
 
@@ -190,7 +190,7 @@ Add `--log FILE` with `--mcp`, and the program writes each character that the gu
 `FILE`, at the time that the guest prints it:
 
 ```
-$ pascal100 examples/cpm22/cpm22-buffered.toml --mcp --log session.log
+$ pascal100 examples/cpm22/cpm22-console.toml --mcp --log session.log
 ```
 
 The file holds the text that a terminal shows, with nothing added. It is an ordinary text file,

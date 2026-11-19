@@ -4,9 +4,9 @@
 // (DESIGN.md 7.1, 7.7; docs/printing.md; issue #70).
 //
 // A printer is something on the far end of a line, so it is a ByteStream and not a
-// property of the printer card -- exactly like out: and serial:. The 88-C700 works
-// the day this lands, and every other card that can put a byte on a line (the future
-// 88-LPC, the Sol-20 printer unit, a serial printer on the 2SIO) works later with no
+// property of the printer card -- exactly like out: and serial:. The Interfacer 4's
+// Centronics port works with it, and every other card that can put a byte on a line
+// (a serial printer on an Interfacer 1 or the 2SIO, say) works with no
 // board changed. The grammar lives in resolveEndpoint (host/endpoint.cpp), the one
 // place allowed to know it; this class is handed the parsed pieces.
 //
@@ -41,7 +41,7 @@
 // blank pages. Every boundary checks there is something to send.
 //
 // flush() IS A NO-OP, DELIBERATELY. ByteStream::flush() means "push what you are
-// holding" and the C700 calls it on EVERY pump (mits-88c700.cpp), so if it submitted
+// holding" and the Interfacer 4 calls it on EVERY pump (compupro-interfacer4.cpp), so if it submitted
 // a job every idle slice would submit an empty one. The job boundary is its own
 // thing (submitIfPending), and it does not ride on flush().
 //
@@ -96,7 +96,7 @@ public:
     bool readable() const override { return false; }
     bool writable() const override { return true; }
 
-    // NOT the job boundary -- the C700 calls it every slice. See the header note.
+    // NOT the job boundary -- a printer board calls it every slice. See the header note.
     void flush() override {}
 
     // The idle-timer check. Called once per slice from the board's pump(); submits

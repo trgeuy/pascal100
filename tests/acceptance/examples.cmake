@@ -75,26 +75,26 @@ function(expect_cpm out why)
 endfunction()
 
 execute_process(
-  COMMAND           "${SIM}" cpm22-buffered.toml
+  COMMAND           "${SIM}" cpm22-console.toml
   WORKING_DIRECTORY "${cpm}"
   INPUT_FILE        "${SRC}/tests/acceptance/cpm-dir.keys"
   OUTPUT_VARIABLE   out
   ERROR_VARIABLE    out
   TIMEOUT           60
 )
-expect_cpm("${out}" "`cd examples/cpm22 && pascal100 cpm22-buffered.toml` did not boot CP/M")
+expect_cpm("${out}" "`cd examples/cpm22 && pascal100 cpm22-console.toml` did not boot CP/M")
 
 # ...and by path from the distribution root, where the disk is NOT. Same machine, and the
 # floppy has to be found beside the file that names it rather than beside the operator.
 execute_process(
-  COMMAND           "${SIM}" examples/cpm22/cpm22-buffered.toml
+  COMMAND           "${SIM}" examples/cpm22/cpm22-console.toml
   WORKING_DIRECTORY "${dist}"
   INPUT_FILE        "${SRC}/tests/acceptance/cpm-dir.keys"
   OUTPUT_VARIABLE   out
   ERROR_VARIABLE    out
   TIMEOUT           60
 )
-expect_cpm("${out}" "`pascal100 examples/cpm22/cpm22-buffered.toml` from the dist root did not boot CP/M")
+expect_cpm("${out}" "`pascal100 examples/cpm22/cpm22-console.toml` from the dist root did not boot CP/M")
 
 # A script run by -s from the dist root finds the floppy beside the SCRIPT, not the shell's folder
 # (#575). The script is the three lines the manual's machines chapter shows, written into the copy.
@@ -116,14 +116,14 @@ expect_cpm("${out}" "`pascal100 -s examples/cpm22/boot.cmd` from the dist root d
 # afterwards reports the pacing that the boot had. Without --set the file gives full speed --
 # that is the control, and it is what makes `paced` a claim about the option.
 execute_process(
-  COMMAND           "${SIM}" cpm22-buffered.toml --set "cpu0 clock_hz=2000000" -x "SHOW CLOCK"
+  COMMAND           "${SIM}" cpm22-console.toml --set "cpu0 clock_hz=2000000" -x "SHOW CLOCK"
   WORKING_DIRECTORY "${cpm}"
   INPUT_FILE        "${SRC}/tests/acceptance/cpm-dir.keys"
   OUTPUT_VARIABLE   out
   ERROR_VARIABLE    out
   TIMEOUT           60
 )
-expect_cpm("${out}" "`pascal100 cpm22-buffered.toml --set \"cpu0 clock_hz=2000000\"` did not boot CP/M")
+expect_cpm("${out}" "`pascal100 cpm22-console.toml --set \"cpu0 clock_hz=2000000\"` did not boot CP/M")
 string(FIND "${out}" "set> SET cpu0 clock_hz=2000000" at_set)
 string(FIND "${out}" "startup> RUN 0" at_startup)
 if(at_set LESS 0 OR at_startup LESS 0 OR NOT at_set LESS at_startup)
@@ -133,7 +133,7 @@ if(NOT out MATCHES "pacing +paced")
   message(FATAL_ERROR "examples: with --set \"cpu0 clock_hz=2000000\", SHOW CLOCK does not say `paced`\n--- output ---\n${out}")
 endif()
 execute_process(
-  COMMAND           "${SIM}" cpm22-buffered.toml -x "SHOW CLOCK"
+  COMMAND           "${SIM}" cpm22-console.toml -x "SHOW CLOCK"
   WORKING_DIRECTORY "${cpm}"
   INPUT_FILE        "${SRC}/tests/acceptance/cpm-dir.keys"
   OUTPUT_VARIABLE   out
@@ -144,7 +144,7 @@ if(NOT out MATCHES "pacing +free")
   message(FATAL_ERROR "examples: without --set, SHOW CLOCK does not say `free` (the --set check proves nothing)\n--- output ---\n${out}")
 endif()
 
-# cpm22-terminal.toml puts the console in the built-in windowed VT100. A build with SDL loads it
+# cpm22.toml puts the console in the built-in windowed VT100. A build with SDL loads it
 # -- under SDL's dummy video driver, so no window opens on a test machine -- and the console
 # line must hold the terminal. A headless build (no SDL) must REFUSE it, with the one message
 # that says why: the spec parsed, and only the missing window stopped it. Each leg asserts the
@@ -153,7 +153,7 @@ mcp_session("${dist}/terminal.jsonl"
   [=[{"name":"monitor","arguments":{"command":"SHOW if1"}}]=])
 execute_process(
   COMMAND           "${CMAKE_COMMAND}" -E env SDL_VIDEODRIVER=dummy
-                    "${SIM}" cpm22-terminal.toml --mcp
+                    "${SIM}" cpm22.toml --mcp
   WORKING_DIRECTORY "${cpm}"
   INPUT_FILE        "${dist}/terminal.jsonl"
   OUTPUT_VARIABLE   out
@@ -161,10 +161,10 @@ execute_process(
   TIMEOUT           30
 )
 if(HAVE_SDL)
-  expect_contains("${out}" "`pascal100 cpm22-terminal.toml` did not load on a build with SDL"
+  expect_contains("${out}" "`pascal100 cpm22.toml` did not load on a build with SDL"
                   "if1  (interfacer1)" "serial  terminal?emulation=vt100&size=80x24")
 else()
-  expect_contains("${out}" "a headless build did not refuse cpm22-terminal.toml for its missing window"
+  expect_contains("${out}" "a headless build did not refuse cpm22.toml for its missing window"
                   "terminal: this build has no window")
 endif()
 
@@ -200,7 +200,7 @@ expect_contains("${out}" "the pascal README's steps did not go as it says"
                 "U.C.S.D.  Pascal  System  III.0" "Command: E(d" "F(ile" "Filer:"
                 "WORK:" "SYSTEM.FILER" "SYSTEM.COMPILER")
 
-# pascal.toml puts the console in the built-in VT52 window. As for cpm22-terminal.toml: a build
+# pascal.toml puts the console in the built-in VT52 window. As for cpm22.toml: a build
 # with SDL loads it under the dummy video driver, a headless build refuses it for the window.
 mcp_session("${dist}/pascal-vt52.jsonl"
   [=[{"name":"monitor","arguments":{"command":"SHOW if1"}}]=])

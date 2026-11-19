@@ -254,9 +254,9 @@ A **write** to an unclaimed address is the mirror image: nobody latches it, and 
 
 ## Banking is a different board
 
-This board has **no** banking and **no** I/O port. Bank switching lives on its own board, `bankmem` — see `docs/boards/bankmem.md`. A banked card decodes an I/O port that swaps a whole 64K plane underneath the same address range, which is different enough hardware, with a genuinely different decoder on every real card, that folding it into this one was the mistake. This board stays what fact 3 above already made it: plain, unbanked RAM and ROM.
+This board has **no** banking and **no** I/O port. A banked card decodes an I/O port that swaps a whole 64K plane underneath the same address range, which is different enough hardware, with a genuinely different decoder on every real card, that folding it into this one would be a mistake. A banked card, if one is added, is a board of its own. (pascal100 had a generic one, `bankmem`, until 2026-11; it was removed.) This board stays what fact 3 above already made it: plain, unbanked RAM and ROM.
 
-This board is also the honest model of the **SD Systems ExpandoRAM I**: unlike the boards on `bankmem`, the ExpandoRAM I has **no I/O port at all** — it is static-strapped memory, no different from a jumper-configured 16K board — so it belongs here, not there.
+This board is also the honest model of the **SD Systems ExpandoRAM I**: unlike the banked ExpandoRAMs, the ExpandoRAM I has **no I/O port at all** — it is static-strapped memory, no different from a jumper-configured 16K board — so it belongs here, not there.
 
 ## Fill on power-up — real RAM does not come up zeroed
 
@@ -335,7 +335,7 @@ seed = 12345              # ...but reproducibly so. Snapshotted; replay stays de
   size = "16K"
 
 # A second, static-strapped card above it -- an SD Systems ExpandoRAM I has
-# no I/O port, so it is plain memory too, not a bankmem card.
+# no I/O port, so it is plain memory too, not a banked card.
 [[board]]
 type = "memory"
 id   = "mem1"
@@ -359,7 +359,7 @@ Overlap two cards and the bus reports it, naming both.
 
 POC\* and power coming up coincide on real hardware, which is why they share the `POWER` command — but they are **different things**, and the memory array is the proof: a RAM chip has no POC\* pin. Its contents are indeterminate because *the chips just powered up*, not because a signal arrived. Model the fill as belonging to power, and let both resets leave the store alone.
 
-**A reset on this board touches nothing at all** — there is no bank latch here to clear. (`bankmem` has its own reset behavior; see `docs/boards/bankmem.md`.)
+**A reset on this board touches nothing at all** — there is no bank latch here to clear.
 
 And the trap in the other direction: *"my program vanished when I hit reset"* reads like a memory-model bug rather than a reset bug, and will cost you a day.
 
@@ -416,4 +416,3 @@ These run in a machine with no CPU card in it, where **the monitor is the bus ma
 
 - `DESIGN.md` §4.1 (decode), §4.2 (PHANTOM\*), §4.6 (contention, the floating bus), §5 (properties), §6 (reset), §10.2 (`RAW`), §10.3 (Intel HEX), §10.3.1 (built-in ROMs).
 - `docs/roms.md` — the built-in ROM registry and its provenance rule.
-- `docs/boards/bankmem.md` — the banked-memory board (banking now lives there, not here).

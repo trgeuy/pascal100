@@ -8,8 +8,8 @@ namespace {
 constexpr uint64_t kNsPerTick = 1000000000ull / (uint64_t)BusClock::kHz;  // 500
 
 // Paced, pump() moves the count to host time only when host time is this far ahead.
-// The same slack as HostTicker's: a host's sleep can overshoot by a scheduler quantum,
-// and that is not lateness worth moving the count for.
+// A host's sleep can overshoot by a scheduler quantum, and that is not lateness worth
+// moving the count for.
 constexpr uint64_t kPacedSlackTicks = (uint64_t)BusClock::kHz / 10;  // 100 ms
 
 uint64_t steadyNs() {

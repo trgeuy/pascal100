@@ -1,6 +1,6 @@
 # CompuPro CP/M 2.2K on a Z80, an Interfacer 1 console, a Disk 1 and 64K of RAM.
 #
-#     cd examples/cpm22 && pascal100 cpm22-buffered.toml
+#     cd examples/cpm22 && pascal100 cpm22-console.toml
 #     -> CP/M boots and you land at the A> prompt. Type DIR to see the disk.
 #
 # THIS FILE IS THE WHOLE MACHINE. Each [[board]] table below is one card in the backplane.
@@ -15,7 +15,7 @@
 # Drive 0 is read/write, as on a real machine. Copy the image first if you test writes.
 
 [machine]
-name    = "cpm22-buffered"
+name    = "cpm22-console"
 startup = ["RUN 0"]
 
 # THE CPU: a generic Z80 card, flat out (clock_hz = 0). SET cpu0 clock_hz=4000000 gives a 4 MHz

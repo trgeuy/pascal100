@@ -35,7 +35,7 @@ id   = "if1"
 ```
 
 This is the `[[board]]` of the Interfacer 1 in a machine file, for example in a copy of
-`examples/cpm22/cpm22-buffered.toml`. The `connect` line of unit `a` is the only line that
+`examples/cpm22/cpm22-console.toml`. The `connect` line of unit `a` is the only line that
 changes. The other boards of the file stay as they are.
 
 The endpoint is always one string in quotes, with its options and its tap.
@@ -521,11 +521,12 @@ takes no options.
 
 ## Print on a real printer
 
-On macOS and Linux, a line can go to a print queue on your computer. These examples use a
-`c700` printer board with the id `lpt0`, which the boards chapter adds:
+On macOS and Linux, a line can go to a print queue on your computer. These examples use the
+Centronics printer port of an Interfacer 4 with the id `if4`:
 
 ```
-pascal100> CONNECT lpt0:prn printer:linewriter
+pascal100> BOARDS ADD interfacer4 if4
+pascal100> CONNECT if4:centronics printer:linewriter
 ```
 
 Here `linewriter` is the name of the print queue, as you made it in the printer settings of
@@ -536,7 +537,7 @@ The **Windows** builds do not have host printing yet. On Windows, send the outpu
 name. The program lists the queues that it can reach, or tells you that the build has no host
 printing.
 
-Any line can use `printer:`, not only the `c700`. An Interfacer 1 unit can use it too. The bytes go into a
+Any line can use `printer:`, not only a printer port. An Interfacer 1 unit can use it too. The bytes go into a
 buffer, and then to the print system as one **job**.
 
 **A printer has no "done" signal, so the program decides where a job ends.** Set it on the
@@ -549,9 +550,9 @@ endpoint:
 | `?max=N` | at **N bytes**, so that a program that does not stop cannot fill memory | a large number |
 
 ```
-pascal100> CONNECT lpt0:prn printer:linewriter?idle=15
-pascal100> CONNECT lpt0:prn printer:linewriter?onff
-pascal100> CONNECT lpt0:prn printer:linewriter?idle=0&onff
+pascal100> CONNECT if4:centronics printer:linewriter?idle=15
+pascal100> CONNECT if4:centronics printer:linewriter?onff
+pascal100> CONNECT if4:centronics printer:linewriter?idle=0&onff
 ```
 
 `?onff` with no value turns the option on. The first option that applies ends the job. **An

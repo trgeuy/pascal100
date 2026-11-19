@@ -10,6 +10,29 @@ register, the bit or the command that was wrong.
 
 ---
 
+## Unreleased
+
+**Removed: five boards that do not fit an IEEE 696 CompuPro system.** pascal100 kept them from
+altairsim, and no example used them:
+
+- `c700`, the MITS 88-C700 printer controller. Print through the Interfacer 4's `centronics`
+  unit, or connect any serial unit to `printer:`.
+- `gsio`, the generic strap serial board, and the chip-less strap engine under it. Every serial
+  board now models its real chip: `interfacer1`, `interfacer3`, `interfacer4`, `2sio`, `io4`.
+- `rtc100`, the SciTronics RTC-100 clock. The `ss1` has the clock of a CompuPro system.
+  Its host-time ticker (`HostTicker`) had no other user and is removed too.
+- `pb1`, the SSM PB1 EPROM programmer.
+- `bankmem`, the bank-switched RAM board. pascal100 has no banked RAM board now.
+
+A machine file that names one of these types does not load. The message names the type: `no
+board type 'c700'`. The CompuPro boards to build next are the M-Drive/H and the CPU 86/87.
+
+**Renamed: the CP/M 2.2 example matches the other examples.** `examples/cpm22/cpm22.toml` (was
+`cpm22-terminal.toml`) opens the console in a window, and `cpm22-console.toml` (was
+`cpm22-buffered.toml`) keeps it on stdio.
+
+---
+
 ## 0.2.0
 
 **Build the Pascal-100 system yourself.** The new `builds/` folder holds step-by-step builds

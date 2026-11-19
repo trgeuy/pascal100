@@ -11,7 +11,7 @@ This works with **any MCP-capable assistant**. The examples below use **Claude**
 client, but the server speaks the open Model Context Protocol and the same steps apply elsewhere.
 
 Every recipe below was **verified end to end** against the CP/M machine that ships in this
-package (`examples/cpm22/cpm22-buffered.toml`). Point at the `pascal100` you were given.
+package (`examples/cpm22/cpm22-console.toml`). Point at the `pascal100` you were given.
 
 **New to this?** The `examples/ai-mcp/` folder is a ready-made working directory: register the
 server there (below) and ask your assistant to build and fix the little program waiting in it —
@@ -63,13 +63,13 @@ program. If the Mac cannot reach Apple, remove the quarantine mark: run
 download. Every new archive carries a new mark.
 
 Each machine in `examples/` is one complete TOML file. The CP/M example this guide is written
-against is the machine file `examples/cpm22/cpm22-buffered.toml`.
+against is the machine file `examples/cpm22/cpm22-console.toml`.
 
 Minimal driver:
 
 ```python
 import subprocess, json
-p = subprocess.Popen(["pascal100", "examples/cpm22/cpm22-buffered.toml", "--mcp"],
+p = subprocess.Popen(["pascal100", "examples/cpm22/cpm22-console.toml", "--mcp"],
                      cwd=WORKDIR, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                      text=True, bufsize=1)
 # write {"jsonrpc":"2.0","id":N,"method":"tools/call","params":{"name":..,"arguments":..}}\n
@@ -189,7 +189,7 @@ driving** — every character the guest prints as it prints it —
 and **type back onto the line to take over**, sharing the console with the assistant:
 
 ```
-pascal100 examples/cpm22/cpm22-buffered.toml --mcp --mirror socket:2323
+pascal100 examples/cpm22/cpm22-console.toml --mcp --mirror socket:2323
 ```
 
 The assistant keeps driving through `run`/`send`/`recv` exactly as before — the mirror is
@@ -238,7 +238,7 @@ copy from it at any time, and can follow it live with, for example, `tail -f FIL
 a mirror shows only what is printed while a watcher is connected.
 
 ```
-pascal100 examples/cpm22/cpm22-buffered.toml --mcp --log session.log
+pascal100 examples/cpm22/cpm22-console.toml --mcp --log session.log
 ```
 
 The log is watch-only; use `--mirror` when the person must type. The two can be given together.
@@ -817,8 +817,8 @@ it there, and when they disagree you have a known-good side to compare against.
 If you cannot run the MCP server, the same machine answers the monitor:
 
 ```
-pascal100 examples/cpm22/cpm22-buffered.toml -x 'BOARDS' -i          # run a command, then stay interactive
-pascal100 examples/cpm22/cpm22-buffered.toml -s script.cmd           # run a command script, exit with status
+pascal100 examples/cpm22/cpm22-console.toml -x 'BOARDS' -i          # run a command, then stay interactive
+pascal100 examples/cpm22/cpm22-console.toml -s script.cmd           # run a command script, exit with status
 ```
 
 But note: a bare monitor **`RUN` blocks on stdin under a pipe** (stdin is the script/JSON-RPC

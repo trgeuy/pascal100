@@ -3,17 +3,12 @@
 **To start it**, name the machine file from inside this folder:
 
 ```
-$ pascal100 cpm22-buffered.toml
+$ pascal100 cpm22.toml
 ```
 
-On **Windows** the program is `pascal100.exe`:
-
-```
-> pascal100.exe cpm22-buffered.toml
-```
-
-The machine boots by itself and stops at the CP/M prompt. You do not type a boot command. Type
-`DIR` to see the disk:
+On **Windows** the program is `pascal100.exe`. The machine boots by itself. A VT100 terminal
+window opens and stops at the CP/M prompt. You do not type a boot command. Type `DIR` to see the
+disk:
 
 ```
 CompuPro Systems
@@ -27,25 +22,27 @@ console, a CompuPro Disk 1 floppy controller at `C0`, the host bridge at `B0` an
 a reset, the boot EPROM of the Disk 1 answers at `0000`. `RUN 0` is the whole startup of the
 machine file: the EPROM reads track 0 of drive 0 and starts CP/M.
 
+`cpm22-console.toml` is the same machine with the console on the terminal where you started the
+program. Use it on a build with no window.
+
 `^E` (STOP) gives the keyboard back to the monitor at any time. `RUN` continues the guest. `^C`
 goes to CP/M, where it does a warm boot.
 
 ## Settings for one run
 
-The machine file runs CP/M at full speed, on the terminal where you started the program. To change
-a setting for one run, give it on the command line with `--set`. The machine file does not change.
+The machine files run CP/M at full speed. To change a setting for one run, give it on the command line with `--set`. The machine file does not change.
 The text after `--set` is the text that you type after `SET` at the `pascal100>` prompt.
 
 This command runs the Z80 at 2 MHz:
 
 ```
-$ pascal100 cpm22-buffered.toml --set "cpu0 clock_hz=2000000"
+$ pascal100 cpm22.toml --set "cpu0 clock_hz=2000000"
 ```
 
-This command puts the console in a terminal window of its own:
+This command makes the terminal window an ADM-3A, a period CP/M terminal:
 
 ```
-$ pascal100 cpm22-buffered.toml --set "if1:a connect=terminal" --set "TERMINAL bsdel=bs"
+$ pascal100 cpm22.toml --set "if1:a connect=terminal?emulation=adm3a"
 ```
 
 You can give more than one `--set` in one command.
@@ -54,8 +51,8 @@ You can give more than one `--set` in one command.
 
 | File | What it is |
 |---|---|
-| `cpm22-buffered.toml` | The whole machine in one file: a Z80, an Interfacer 1, a Disk 1, the host bridge and 64K, the disk in drive 0 and `RUN 0`. |
-| `cpm22-terminal.toml` | The same machine and disk. The console is a **built-in VT100 window** that the simulator draws, not stdio. The monitor stays in the terminal where you started the program. Needs a build with SDL3. Try `emulation=adm3a` for a period CP/M terminal. |
+| `cpm22.toml` | The whole machine in one file: a Z80, an Interfacer 1, a Disk 1, the host bridge and 64K, the disk in drive 0 and `RUN 0`. The console is a **built-in VT100 window** that the simulator draws. The monitor stays in the terminal where you started the program. Needs a build with SDL3. |
+| `cpm22-console.toml` | The same machine and disk, with the console on stdio. |
 | `cpm22k-64k.dsk` | The system disk: CompuPro 64K CP/M 2.2K, BIOS at `F300`. |
 
 The disk holds these programs:

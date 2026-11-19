@@ -392,7 +392,7 @@ It hands a *spec* like `socket:2323` or `out:printout.txt` to a resolver and get
 tab completion and the MCP schema all speak the same vocabulary without any board learning what
 a socket is.
 
-A board reaches the resolver through a static `setResolver()` (the 88-C700 and the SIO family
+A board reaches the resolver through a static `setResolver()` (the 2SIO and the Interfacers
 are the models). The trap is that this is wired at the **composition root**, and there are
 **two** of them:
 
@@ -492,10 +492,10 @@ Our board answers a cycle. A more interesting one **asks for something**:
 - **The outside world.** Anything that talks to a socket, a file or a keyboard does it in
   `pump()` — **never inside a bus cycle**. That seam is what keeps `read()` and `write()` pure
   computation over state, and it is what a deterministic replay would be built on. The
-  **88-C700 printer** (`src/boards/mits-88c700.{h,cpp}`, `docs/boards/mits-88c700.md`) is the
-  smallest shipped board that does this for real: a bare latch that sinks its data port to a
-  `ByteStream`, so `CONNECT lpt0:prn out:printout.txt` captures the printout and the board never
-  learns what a file is. It is a good next read after this lamp.
+  **Centronics port of the Interfacer 4** (`src/boards/compupro-interfacer4.{h,cpp}`,
+  `docs/boards/compupro-interfacer4.md`) does this for real: it sinks its data port to a
+  `ByteStream`, so `CONNECT if4:centronics out:printout.txt` captures the printout and the board
+  never learns what a file is. It is a good next read after this lamp.
 - **Sub-units.** A board with a *list* of things — regions on a memory board, drives on a
   controller — declares `subUnitTables()` and gets `[[board.region]]` / `[[board.drive]]` in
   TOML for free.

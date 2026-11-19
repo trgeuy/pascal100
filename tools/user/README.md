@@ -12,7 +12,7 @@ Scripts that show the console of the machine in a second window, while an AI ass
 controls the machine. Start the simulator with a mirror:
 
 ```
-pascal100 examples/cpm22/cpm22-buffered.toml --mcp --mirror socket:2323
+pascal100 examples/cpm22/cpm22-console.toml --mcp --mirror socket:2323
 ```
 
 Then run one script in a second window:

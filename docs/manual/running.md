@@ -64,7 +64,7 @@ that machine instead.
 To get a different machine, give its name or its file:
 
 ```
-$ pascal100 examples/cpm22/cpm22-buffered.toml     a machine file: this one boots CP/M
+$ pascal100 examples/cpm22/cpm22-console.toml     a machine file: this one boots CP/M
 $ pascal100 examples/pascal/pascal.toml          a machine file: the Digicomp Pascal-100
 $ pascal100 default                              the BUILT-IN machine, by name
 ```

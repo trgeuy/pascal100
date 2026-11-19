@@ -648,4 +648,4 @@ esac
 # Name the binary the reader actually has: pascal100.exe on Windows, pascal100 elsewhere.
 # A runbook that says ./pascal100 on a machine holding pascal100.exe reads as a broken package.
 echo "    ./$(basename "$sim") --version                            # a bare 'pascal100 $ver'"
-echo "    ./$(basename "$sim") examples/cpm22/cpm22-buffered.toml   # CP/M reaches A>"
+echo "    ./$(basename "$sim") examples/cpm22/cpm22-console.toml   # CP/M reaches A>"

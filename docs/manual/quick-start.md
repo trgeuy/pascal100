@@ -11,20 +11,20 @@ Type the commands in the folder where you unzipped the package.
 1. Start the machine:
 
    ```
-   $ ./pascal100 examples/cpm22/cpm22-buffered.toml
+   $ ./pascal100 examples/cpm22/cpm22-console.toml
    ```
 
    On **Windows**, the program is `pascal100.exe`, and the path uses backslashes:
 
    ```
-   > pascal100.exe examples\cpm\cpm22-buffered.toml
+   > pascal100.exe examples\cpm\cpm22-console.toml
    ```
 
    The machine boots CP/M:
 
    ```
    pascal100 X.Y.Z -- z80, full speed.
-   machine: cpm22-buffered.  HELP for commands.
+   machine: cpm22-console.  HELP for commands.
    startup> RUN 0
    [console -- ^E returns to the monitor]
    CompuPro Systems
@@ -112,7 +112,7 @@ keeps no copy. The folder has all that the machine needs, and the copy boots fro
 
 ```
 $ cp -R examples/cpm22 my-cpm
-$ ./pascal100 my-cpm/cpm22-buffered.toml
+$ ./pascal100 my-cpm/cpm22-console.toml
 ```
 
 **Go back to the `A>` prompt before you quit or copy the image.** Then the programs that wrote

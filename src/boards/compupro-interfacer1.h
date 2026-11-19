@@ -3,8 +3,8 @@
 // CompuPro Interfacer 1 (Godbout 133H, 1980-81) -- two serial channels on two 1602-family
 // UARTs. See docs/boards/compupro-interfacer1.md.
 //
-// THIS IS NOT THE gsio STRAP BOARD. `gsio` with `profile = "compupro-if2"` describes the
-// console the CompuPro BIOS polls -- DAV on D1, TBMT on D0 -- and nothing more. This board is
+// THE REAL CARD. (altairsim's chip-less `gsio` strap board, removed here in 2026-11, could only
+// describe the console the CompuPro BIOS polls -- DAV on D1, TBMT on D0.) This board is
 // the real card, modeled from its manual and schematic: two UARTs (U11 = Channel A,
 // U18 = Channel B; "1602, AY-5-1013 OR SIMILAR"), each with
 //

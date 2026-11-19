@@ -359,41 +359,55 @@ void test_readonly_props() {
 //
 // CONFIG SAVE used to probe: it called each board setter with the value it had just got, to
 // find out whether the property was writable (the reflection layer answers that now, with
-// `!p.set`). A setter is not a question, though. Some of them do work -- the `bankmem` card's
-// `card` and `banks` setters rebuild every segment and clear the live bank -- so a save that
-// called them would deselect the guest's bank and remap its address space underneath a running
-// program.
+// `!p.set`). A setter is not a question, though. Some of them do work -- a setter can rebuild
+// a board's segments or clear its live state -- so a save that called them could remap the
+// address space underneath a running program.
 //
 // This is the whole contract in one test, and it is aimed at the MACHINE, not at the text --
 // a save that perturbs what it describes is broken however good the file looks. It runs on a
-// bankmem card because that is where the perturbing setter now lives.
+// test-only board whose one setter counts its calls, so ANY call is caught, not only one that
+// happens to change something visible. (Until 2026-11 it ran on the bankmem board, whose
+// `card` setter rebuilt every segment; that board was removed.)
+namespace {
+class SetterCountBoard : public Board {
+public:
+    std::string type() const override { return "settercount"; }
+    std::vector<Property> properties() override {
+        Property p;
+        p.name  = "level";
+        p.help  = "a value whose setter counts its calls";
+        p.kind  = Kind::Int;
+        p.get   = [this] { return Value::ofInt(level_); };
+        p.set   = [this](const Value& v, std::string&) {
+            ++setCalls;
+            level_ = v.i();
+            return true;
+        };
+        return {p};
+    }
+    int setCalls = 0;
+
+private:
+    long long level_ = 7;
+};
+} // namespace
+
 void test_save_is_a_read() {
     SECTION("CONFIG SAVE does not write to the machine it is describing");
 
     Machine m;
-    std::string err;
-    auto* b = m.add("bankmem", "mem0", err);
-    CHECK(b != nullptr, "a bankmem card");
+    auto* b = static_cast<SetterCountBoard*>(m.adopt(std::make_unique<SetterCountBoard>()));
+    CHECK(b != nullptr, "the setter-counting board");
     if (!b) return;
-    CHECK(setProperty(*b, "card", "vector", err), "a Vector Graphic: one-hot select");
+    b->id = "probe0";
     m.power();
-    m.bus.ioWrite(0x40, 0x08);   // one-hot 0x08 selects bank 3
-
-    // Held by value -- see test_readonly_props: a pointer into the temporary from
-    // properties() dangles the moment the range-for that bound it ends.
-    const auto props = b->properties();
-    const Property* active = nullptr;
-    for (const auto& p : props)
-        if (p.name == "active") active = &p;
-    CHECK(active != nullptr, "the card reports its `active` bank");
-    if (!active) return;
-    CHECK(active->get().s() == "bank 3", "bank 3 is selected before the save");
 
     std::string toml = saveTomlText(m);
 
+    CHECK(toml.find("level = 7") != std::string::npos,
+          "the save READ the property: its value is in the file");
     // THE ASSERTION. Not "the file is right" -- "the machine is untouched".
-    CHECK(active->get().s() == "bank 3",
-          "and bank 3 is STILL selected after it: CONFIG SAVE did not touch the card");
+    CHECK(b->setCalls == 0, "and CONFIG SAVE called no setter on the board it described");
 }
 
 // ONE BOARD, MORE THAN 64K. `ext = true` makes the board decode A16-A23: region `at` is a

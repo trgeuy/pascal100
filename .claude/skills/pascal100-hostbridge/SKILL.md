@@ -6,7 +6,7 @@ description: Rules for the pascal100 host bridge utilities `R`, `W` and `HDIR`, 
 # The host bridge: `R`, `W` and `HDIR`
 
 This skill needs the `pascal100` skill, which tells you how to boot a machine and type at it.
-Each rule here was replayed on `examples/cpm22/cpm22-buffered.toml`.
+Each rule here was replayed on `examples/cpm22/cpm22-console.toml`.
 
 The host bridge is a board (`hb0`) with three CP/M programs on the disk. It is the way to
 move a file into or out of a guest. Do not use a host tool to write into a disk image. Such

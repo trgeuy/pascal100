@@ -287,7 +287,7 @@ in the folder of the package:
 
 ```
 $ xattr -dr com.apple.quarantine ./pascal100
-$ ./pascal100 examples/cpm22/cpm22-buffered.toml
+$ ./pascal100 examples/cpm22/cpm22-console.toml
 ```
 
 You can also allow the program in System Settings when you open it from Finder. This way needs

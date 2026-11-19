@@ -1312,29 +1312,21 @@ void test_cli() {
     // -----------------------------------------------------------------------
     // SHOW BOARD <type> lists a property's LEGAL VALUES under its help, the same
     // facts the generated ref/boards.md prints -- so an operator can read the choices
-    // (e.g. a strap-serial built-in profile) straight off the type card, not just its prose.
-    // gsio carries these per channel (pascal100 2026-11-09: upstream used propio, which had
-    // them at board level; it is gone), so this reads SHOW BOARD gsio UNITS.
+    // straight off the type card, not just its prose. The Interfacer 1 carries a port, bools
+    // and a free-form endpoint per channel; the IO-4 a decimal range. (Until 2026-11 this read
+    // the gsio strap board, whose built-in profiles were removed with it.)
     // -----------------------------------------------------------------------
     SECTION("cli: SHOW BOARD lists a property's legal values under its help");
     {
         Machine mp;
         Monitor monP(mp);
         std::ostringstream o;
-        monP.exec("SHOW BOARD gsio units", o);
+        monP.exec("SHOW BOARD interfacer1 units", o);
         const std::string s = o.str();
-        // The enum's choices, including every built-in profile name.
-        // The enum header plus each built-in name -- the list can word-wrap across lines,
-        // so assert the members individually rather than one contiguous string.
-        CHECK(s.find("values: custom | sior1 | sior0 | tuart") != std::string::npos,
-              "the profile enum lists custom plus each built-in as its legal values");
-        CHECK(s.find("compupro-if2") != std::string::npos, "compupro-if2 is a listed profile");
-        CHECK(s.find("compupro-ss1") != std::string::npos, "compupro-ss1 is a listed profile");
         // A bounded int prints its range in the property's own radix...
-        CHECK(s.find("values: 0x0 .. 0xFF") != std::string::npos,
+        CHECK(s.find("values: 0x0 .. 0xFE") != std::string::npos,
               "a port's range is shown in hex, the radix it is written in");
-        // ...a bit field in decimal, and a bool as on|off.
-        CHECK(s.find("values: 0 .. 7") != std::string::npos, "a bit field's range is 0 .. 7");
+        // ...and a bool as on|off.
         CHECK(s.find("values: on | off") != std::string::npos, "a bool is on | off");
         // A free-form endpoint string constrains nothing, so it gets NO values line:
         // `connect` is the last property of unit a, so nothing between it and unit b's
@@ -1349,6 +1341,12 @@ void test_cli() {
         CHECK(s.find("default: 0x") != std::string::npos, "a port's default is shown in hex");
         CHECK(s.find("default: ", cAt) != std::string::npos,
               "a property with no values line still shows its default");
+
+        // A bounded int with no radix of its own prints in decimal.
+        std::ostringstream o4;
+        monP.exec("SHOW BOARD io4 units", o4);
+        CHECK(o4.str().find("values: 5 .. 8") != std::string::npos,
+              "a decimal range is shown in decimal (the IO-4's data_bits)");
     }
 
     // -----------------------------------------------------------------------
@@ -3318,7 +3316,7 @@ void test_achieved_hz() {
         mon.exec("BOARDS ADD memory mem0", s);
         mon.exec("BOARDS ADD 2sio sio0", s);
         mon.exec("BOARDS ADD disk1 fd0", s);
-        mon.exec("BOARDS ADD c700 lp0", s);
+        mon.exec("BOARDS ADD ss1 ss0", s);
         std::ostringstream o;
         mon.exec("SHOW BUS IO", o);
         std::string io = o.str();
@@ -3334,10 +3332,11 @@ void test_achieved_hz() {
         CHECK(io.find("C0             fd0      IN  --") != std::string::npos,
               "the Disk 1 reads C0 (765 main status) but decodes no OUT there");
 
-        // The C700 data port is the mirror case: write-only, so OUT is named and IN is
-        // a dash. Its decode() actually distinguishes the two, unlike the coarse boards.
-        CHECK(io.find("lp0      --  OUT    C700 -- data") != std::string::npos,
-              "the C700 data port is OUT-only");
+        // The SS-1's 8253 control word is the mirror case: write-only, so OUT is named and IN
+        // is a dash. Its decode() actually distinguishes the two, unlike the coarse boards.
+        // (Until 2026-11 this was the 88-C700's data port; that board was removed.)
+        CHECK(io.find("57             ss0      --  OUT    8253 timer -- control word") != std::string::npos,
+              "the SS-1 8253 control word is OUT-only");
 
         // The notes carry FUNCTION, not direction -- the columns carry direction now.
         // No 'out:' / 'in:' / '(read)' / '(write)' survives in the I/O rows.

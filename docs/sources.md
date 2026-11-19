@@ -278,7 +278,7 @@ clone knows what it is missing and why. All of it is Mike Douglas's work, from *
 
 | Directory | Source | Runs as |
 |---|---|---|
-| `mits-88dcdd/cpm22/buffered/` | `…/8_inch_floppy/CPM/CPM 2.2/CPM 2.2B/` | `examples/cpm22/cpm22-buffered.toml` → `56K CP/M 2.2b v2.3`. **The machine file and the 56K image moved to `examples/cpm22/` on 2026-07-19** — they ship; what stays here is source. **`BOOT.ASM` + `BIOS.ASM` here are the 88-DCDD's authoritative source.** |
+| `mits-88dcdd/cpm22/buffered/` | `…/8_inch_floppy/CPM/CPM 2.2/CPM 2.2B/` | `examples/cpm22/cpm22-console.toml` → `56K CP/M 2.2b v2.3`. **The machine file and the 56K image moved to `examples/cpm22/` on 2026-07-19** — they ship; what stays here is source. **`BOOT.ASM` + `BIOS.ASM` here are the 88-DCDD's authoritative source.** |
 | `mits-88dcdd/cpm22/8mb/` | `…/8_inch_floppy/CPM/CPM 2.2/FDC+ 8Mb CPM 2.2/` | `cpm22-8mb.toml` → `A0>`. Authoritative for the **8 MB medium** — which is the *same* hard-sector format, just 2048 tracks (see `docs/boards/mits-dcdd.md`). |
 | `mits-88dcdd/cpm22/burcon/` | `…/8_inch_floppy/CPM/CPM 2.2/Burcon CPM/` | `cpm22-burcon.toml` → `56K CP/M Version 2.2mits`, © 1980 Burcon. |
 | `mits-88dcdd/cpm22/lifeboat/` | `…/8_inch_floppy/CPM/CPM 2.2/Lifeboat CPM/` | `cpm22-lifeboat.toml` → Lifeboat `CONFIG` v4.8. A **48K** build, so it re-fits the memory card. |

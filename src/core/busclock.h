@@ -21,7 +21,7 @@
 // A switch between the two, or a new hz, re-anchors the count where it stands, so it
 // never jumps and never runs backwards. Paced, pump() also moves the count forward to
 // host time when the host fell well behind its crystal or the machine sat stopped at
-// the monitor, as HostTicker::pump() does for a tick. That happens only in pump(), so
+// the monitor. That happens only in pump(), so
 // two reads in one slice always agree.
 //
 // Nothing is scheduled here. A board turns the tick it wants into a T-state with
@@ -48,7 +48,8 @@ public:
 
     // The T-state at which tick `tick` arrives. Paced, exact. Flat out, an estimate at
     // the clock's hz: a deadline that keeps a HLT waiting for the tick from being taken
-    // for the end of the run (see HostTicker::start), not the moment the tick lands --
+    // for the end of the run (the run loop takes a HLT with no Clock deadline queued as
+    // finished, core/debug.cpp), not the moment the tick lands --
     // the board's pump() sees that. Always later than clk.now() for a future tick.
     uint64_t tStateOf(uint64_t tick, const Clock& clk) const;
 

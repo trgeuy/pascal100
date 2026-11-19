@@ -27,7 +27,7 @@ a declined board is recorded there with its reason.
 - **Reuse the chip.** `src/chips/` already holds the 6850, 8251, 8253, 8259A, 2651, MSM5832,
   WD17xx, TMS5501 and more. A card is usually a port decode and a strap file wrapped around a
   chip that exists — the MSM5832's header literally says "the next card with one gets this for
-  free", and the RTC-100 took it up unchanged.
+  free", and the SS-1's clock took it up.
 - **Read the relevant `DESIGN.md` section.** Most surprises here are deliberate.
 
 ## Quick anatomy (all in `src/core/board.h`)

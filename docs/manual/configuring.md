@@ -42,11 +42,11 @@ The machines chapter gives the rules for the command line and for relative paths
 
 **Write the whole machine in one file.** Then the file is the machine: you read it from top to
 bottom and you see every board. The examples in the package are written this way. This is
-`examples/cpm22/cpm22-buffered.toml` without its comments:
+`examples/cpm22/cpm22-console.toml` without its comments:
 
 ```toml
 [machine]
-name    = "cpm22-buffered"
+name    = "cpm22-console"
 startup = ["RUN 0"]
 
 [[board]]
@@ -209,9 +209,9 @@ A base can be a machine file that you wrote, and that file can have a base of it
 two files are in the same folder as the disk image. The first file is a CP/M machine:
 
 ```toml
-# cpm22.toml
+# my-cpm22.toml
 [machine]
-name    = "cpm22"
+name    = "my-cpm22"
 base    = "default"
 startup = ["RUN 0"]
 
@@ -226,24 +226,24 @@ id = "fd0"
 The second file is the same machine at 2 MHz. It contains the one setting that is different:
 
 ```toml
-# cpm22-2mhz.toml
+# my-cpm22-2mhz.toml
 [machine]
-name = "cpm22-2mhz"
-base = "cpm22.toml"
+name = "my-cpm22-2mhz"
+base = "my-cpm22.toml"
 
 [[board]]
 id       = "cpu0"
 clock_hz = 2000000
 ```
 
-- **The chain has three levels:** `cpm22-2mhz.toml`, then `cpm22.toml`, then the built-in
+- **The chain has three levels:** `my-cpm22-2mhz.toml`, then `my-cpm22.toml`, then the built-in
   machine `default`.
 - **The second file gets the disk and the `startup` list from the first.** It does not write
   them again. A file that has its own `startup` list uses that list and not the list of its
   base.
-- **`base = "cpm22.toml"` is the file in the same folder**, because the path is relative to the
+- **`base = "my-cpm22.toml"` is the file in the same folder**, because the path is relative to the
   file that names it.
-- **A change to `cpm22.toml` reaches the two machines.**
+- **A change to `my-cpm22.toml` reaches the two machines.**
 
 If two files name each other as a base, the chain has no end. The program stops at 8 levels
 and does not load the machine. The message gives the file that you loaded and the line of its
@@ -335,8 +335,8 @@ also when the two names have different case.
 
 ```toml
 [[board]]
-type = "rtc100"
-id   = "rtc0"
+type = "io4"
+id   = "io40"
 ```
 
 The machine now has this board. **In a file with no `base`, this is the only form**, because

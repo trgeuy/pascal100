@@ -32,7 +32,7 @@ constexpr uint8_t kNotBusy = 0x81;
 constexpr uint8_t kAcknlg  = 0x04;
 constexpr uint8_t kSlct    = 0x40;
 
-// The printer's handshake after a data write, as on the 88-C700: about 20 us in all. U10
+// The printer's handshake after a data write: about 20 us in all. U10
 // strobes the byte 1 us after the write, for 1 us; the printer answers with ACKNLG*, a
 // 10 us low pulse (page 25), and TxI4 sets at its end. BUSY covers the whole window.
 constexpr long long kHandshakePerSecond = 50000;  // 20 us

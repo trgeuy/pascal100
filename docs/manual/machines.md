@@ -40,7 +40,7 @@ prints *give ONE machine* and stops. It does not choose one for you.
 
 ```
 $ pascal100 default                     a BUILT-IN, by name
-$ pascal100 examples/cpm22/cpm22-buffered.toml             a FILE, by path
+$ pascal100 examples/cpm22/cpm22-console.toml             a FILE, by path
 ```
 
 The program decides from the word only. **It never looks for a file on your disk:**
@@ -261,7 +261,7 @@ A **script** follows the same idea. A path in a script is relative to the script
 path in a machine file is relative to the machine file. This is true for a script that you run
 with `DO` and for a script that you run with `-s`.
 
-`examples/cpm22/cpm22-buffered.toml` has `mount = "cpm22k-64k.dsk"`. This means *the disk in
+`examples/cpm22/cpm22-console.toml` has `mount = "cpm22k-64k.dsk"`. This means *the disk in
 this folder*. It still means that after you copy the folder, rename it or send it to another
 person. For this reason, each example is a folder that has all its files, and the `cp -R` in
 the quick start works. If you then type this:
@@ -372,14 +372,14 @@ A machine file gives each setting one value. To run the machine with a different
 the setting on the command line with `--set`. The machine file does not change, and you do not
 need a second machine file.
 
-For example, `cpm22-buffered.toml` runs CP/M at full speed. This command runs the same machine
+For example, `cpm22-console.toml` runs CP/M at full speed. This command runs the same machine
 at 2 MHz:
 
 ```
 $ cd examples/cpm22
-$ pascal100 cpm22-buffered.toml --set "cpu0 clock_hz=2000000"
+$ pascal100 cpm22-console.toml --set "cpu0 clock_hz=2000000"
 pascal100 X.Y.Z (commit) -- z80, full speed.
-machine: cpm22-buffered.  HELP for commands.
+machine: cpm22-console.  HELP for commands.
 set> SET cpu0 clock_hz=2000000
 cpu0: clock_hz=2000000
 startup> RUN 0
@@ -396,7 +396,7 @@ line shows the change. Without `--set`, the machine runs at full speed again:
 
 ```
 $ cd examples/cpm22
-$ pascal100 cpm22-buffered.toml
+$ pascal100 cpm22-console.toml
 ```
 
 **The text after `--set` is what you type after `SET` at the monitor.** `SET cpu0
@@ -414,7 +414,7 @@ file. `SHOW cpu0` lists the keys of a board, and the boards chapter describes th
 A `--set` comes after your `~/pascal100.ini`. If the two set the same key, the `--set` is the
 value that the machine has.
 
-This order is why `--set` works for a machine that starts by itself. `cpm22-buffered.toml` has
+This order is why `--set` works for a machine that starts by itself. `cpm22-console.toml` has
 `startup = ["RUN 0"]`, so CP/M starts as soon as the file is loaded. A `-x "SET ..."` runs
 after the startup commands, when CP/M has started. `--set` runs before them.
 
@@ -423,7 +423,7 @@ window of its own:
 
 ```
 $ cd examples/cpm22
-$ pascal100 cpm22-buffered.toml --set "if1:a connect=terminal" --set "TERMINAL bsdel=bs"
+$ pascal100 cpm22-console.toml --set "if1:a connect=terminal" --set "TERMINAL bsdel=bs"
 ```
 
 `if1:a` is channel `a` of the Interfacer 1, which is the console of this machine. `connect` is
@@ -448,14 +448,14 @@ You can use `pascal100` without typing at the prompt.
 
 ```
 $ pascal100 default -x 'SHOW MACHINE'
-$ pascal100 examples/cpm22/cpm22-buffered.toml -x 'DUMP 0 F'
+$ pascal100 examples/cpm22/cpm22-console.toml -x 'DUMP 0 F'
 ```
 
 `-x` runs one monitor command on the machine, and then the program exits. You can give `-x` more
 than one time. The commands run in the order that you give them:
 
 ```
-$ pascal100 examples/cpm22/cpm22-buffered.toml -x 'MOUNT fd0:drive1 mine.dsk' -x 'RUN 0' -i
+$ pascal100 examples/cpm22/cpm22-console.toml -x 'MOUNT fd0:drive1 mine.dsk' -x 'RUN 0' -i
 ```
 
 Without `-i`, the program exits when the commands are done. With `-i`, you get the monitor, and
@@ -463,7 +463,7 @@ the machine is as your commands left it. `-i` with no `-x` or `-s` has no effect
 
 `-s` runs a **script**. A script is a file of monitor commands, one on each line. These are the
 same commands that you type at the prompt. For example, put these three lines in a file called
-`boot.cmd` in `examples/cpm22`. They build the same CP/M machine as `cpm22-buffered.toml`, and boot
+`boot.cmd` in `examples/cpm22`. They build the same CP/M machine as `cpm22-console.toml`, and boot
 it:
 
 ```

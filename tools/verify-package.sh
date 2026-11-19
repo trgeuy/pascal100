@@ -351,7 +351,7 @@ while [ "$rec_i" -lt "$nrec" ]; do
 
   bn=$(basename "$toml_run")
   case $bn in
-    cpm22-buffered.toml) route CPM   "$rundir" "$toml_run" "\$ pascal100 $arg" ;;
+    cpm22-console.toml) route CPM   "$rundir" "$toml_run" "\$ pascal100 $arg" ;;
     pascal.toml|pascal-console.toml)
                          route PASCAL "$rundir" "$toml_run" "\$ pascal100 $arg" ;;
     *)

@@ -105,7 +105,7 @@ the README of the example that you want.
 
 ```
 $ ls examples/
-$ pascal100 examples/cpm22/cpm22-buffered.toml
+$ pascal100 examples/cpm22/cpm22-console.toml
 ```
 
 **You can move an example folder anywhere.** It still boots after you copy it, rename it or send

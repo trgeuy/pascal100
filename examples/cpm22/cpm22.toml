@@ -1,11 +1,11 @@
 # CompuPro CP/M 2.2K, with its console in a built-in terminal WINDOW instead of stdio.
 #
-#     cd examples/cpm22 && pascal100 cpm22-terminal.toml
+#     cd examples/cpm22 && pascal100 cpm22.toml
 #     -> a VT100 window opens; the CP/M banner and the A> prompt appear IN IT.
 #        The monitor's pascal100> prompt stays in the terminal you launched from.
 #
 # THIS FILE IS THE WHOLE MACHINE. It is the same machine and the same disk as
-# cpm22-buffered.toml. Only the console cable is different: channel A of the Interfacer 1
+# cpm22-console.toml. Only the console cable is different: channel A of the Interfacer 1
 # connects to `terminal`, a VT100 window that the simulator draws, instead of to `console`
 # (your stdio).
 #
@@ -13,14 +13,14 @@
 # terminals. `size` is COLSxROWS and defaults to 80x24.
 #
 # SDL ONLY. `terminal` needs a window, so it works only in a build with SDL and a display. A
-# headless build refuses it at CONNECT and says why. Use cpm22-buffered.toml there.
+# headless build refuses it at CONNECT and says why. Use cpm22-console.toml there.
 #> CompuPro CP/M 2.2K, with its console in a VT100 window -- the window that just opened.
 #> The monitor stays here on stdio: type BOARDS or SHOW MOUNTS, and RUN 0 to boot.
 #> STOP (^E) pulls the keyboard back here to the monitor; RUN resumes the guest.
 
 [machine]
-name    = "cpm22-terminal"
-# Boot the disk as cpm22-buffered.toml does. The keyboard follows the guest on RUN, so once
+name    = "cpm22"
+# Boot the disk as cpm22-console.toml does. The keyboard follows the guest on RUN, so once
 # CP/M is up you type into the VT100 window; ^E returns you here.
 startup = ["RUN 0"]
 

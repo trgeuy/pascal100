@@ -916,11 +916,11 @@ CONN if1:b socket:bbs.example:23                ; the guest dials OUT, to somebo
 CONN if1:b serial:/dev/tty.usbserial-AL009KFH   ; a real cable, real hardware
 CONN if1:b serial:COM3                          ; ...the same, on Windows
 CONN if1:b pty                                  ; `screen /tmp/pascal1000` now reaches the guest
-CONN lpt0:prn out:printout.txt                  ; capture a printer to a file
+CONN if4:centronics out:printout.txt            ; capture a printer to a file
 CONN if1:b in:TAPE.TAP?cps=300                  ; a paper-tape reader on a serial line
 CONN if1:b out:TAPE.PUN                         ; a paper-tape punch
 CONN if1:a terminal?emulation=adm3a             ; a windowed ADM-3A of its own
-CONN lpt0:prn printer:linewriter                ; print to a real host queue
+CONN if4:centronics printer:linewriter          ; print to a real host queue
 CONN if1:b socket:2323|bbs.hex?fmt=cols         ; telnet in, and TAP it to a log
 ```
 

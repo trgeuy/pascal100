@@ -198,22 +198,21 @@ void schemaTable(std::ostream& o, std::vector<Property>& props) {
 const char* boardCategory(const std::string& n) {
     if (n == "8080" || n == "z80" || n == "8085" || n == "6800" || n == "vgzcb" ||
         n == "pascal100" || n == "cpu8588") return "CPU";
-    if (n == "memory" || n == "bankmem" || n == "v2z80rom") return "Memory";
+    if (n == "memory" || n == "v2z80rom") return "Memory";
     if (n == "dcdd" || n == "mds" || n == "fdcplus" || n == "hdsk" || n == "versafloppy" ||
         n == "tarbell" || n == "tarbelldd" || n == "jadedd" || n == "disk1" || n == "disk1a" || n == "disk2" || n == "disk3" || n == "selch" || n == "16fdc" ||
         n == "64fdc" || n == "icom" || n == "dualsd" || n == "dualide" || n == "mdsa" || n == "mdsad" || n == "vgdmdc" || n == "vgmdc") return "Disk";
     if (n == "2sio" || n == "sio" || n == "sbc" || n == "pmmi" ||
-        n == "turnkey" || n == "gsio" || n == "io4" || n == "interfacer1" || n == "interfacer3" || n == "interfacer4" || n == "propio" || n == "vgbsii" || n == "vgbs") return "Serial";
+        n == "turnkey" || n == "io4" || n == "interfacer1" || n == "interfacer3" || n == "interfacer4" || n == "propio" || n == "vgbsii" || n == "vgbs") return "Serial";
     if (n == "acr" || n == "uio") return "Tape";
-    if (n == "pio" || n == "4pio" || n == "d7a" || n == "music6" || n == "c700" ||
+    if (n == "pio" || n == "4pio" || n == "d7a" || n == "music6" ||
         n == "lpc")
         return "Parallel and printer";
     if (n == "vdm1" || n == "dazzler" || n == "dazzler2" || n == "vdb8024" || n == "vgfwii" ||
         n == "cadzilla")
         return "Video";
     if (n == "sol") return "Systems";  // a whole machine's I/O on one card -- more will come
-    if (n == "pb1") return "PROM programmer";
-    if (n == "fp" || n == "virtc" || n == "hostbridge" || n == "ss1" || n == "rtc100")
+    if (n == "fp" || n == "virtc" || n == "hostbridge" || n == "ss1")
         return "Other";
     return nullptr;
 }

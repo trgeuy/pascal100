@@ -193,6 +193,6 @@ FILE  LICENSE-CLK          <=  third_party/clk/LICENCE
 
 # The CP/M machine. CompuPro CP/M 2.2K on the default machine: it carries `startup = ["RUN 0"]`,
 # so naming it IS booting it, and it is the quick start.
-MACHINE_CPM   = examples/cpm22/cpm22-buffered.toml
+MACHINE_CPM   = examples/cpm22/cpm22-console.toml
 DISK_CPM      = examples/cpm22/cpm22k-64k.dsk
 

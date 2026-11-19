@@ -12,7 +12,7 @@ using namespace altair;
 namespace {
 
 // An IO-4 on the bench with a scripted line on EACH of its two UART channels. A chip-backed
-// card, so unlike the gsio rig it needs a Clock -- a UART with no crystal cannot time a
+// card, so it needs a Clock -- a UART with no crystal cannot time a
 // character. Clock FIRST (a board holding a Clock deadline must outlive nothing that has
 // already fired -- and the destruction-order sanitizer trap on Windows wants it built first).
 // Each stream is bound through the REAL connect path, and the format straps live per unit

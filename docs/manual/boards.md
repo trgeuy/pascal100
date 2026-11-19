@@ -28,9 +28,9 @@ You can do everything by hand that a machine file does to a board.
 | `SET <id> <key>=<value>` | change one setting |
 
 ```
-pascal100> BOARDS ADD rtc100 rtc0
-pascal100> SET rtc0 port=E0
-pascal100> SHOW rtc0
+pascal100> BOARDS ADD io4 io40
+pascal100> SET io40 port=10
+pascal100> SHOW io40
 ```
 
 **The keys at the prompt are the keys in a machine file.** `SET cpu0 clock_hz=2000000` at the
@@ -136,7 +136,6 @@ The boards are in groups, in the same order as the sections below.
 | Type | What it is |
 |---|---|
 | `memory` | RAM and ROM, as a list of regions |
-| `bankmem` | bank-switched RAM: Vector Graphic, Cromemco 64KZ, North Star HRAM, ExpandoRAM II and III |
 
 **Processors**
 
@@ -151,15 +150,8 @@ The boards are in groups, in the same order as the sections below.
 | Type | What it is |
 |---|---|
 | `2sio` | MITS 88-2SIO: two serial ports |
-| `gsio` | a generic serial board with two channels, set up with straps |
 | `io4` | SSM IO-4: two serial ports and four parallel ports |
 | `interfacer1` | CompuPro Interfacer 1: two serial ports with a control port and interrupts. The console of the CompuPro machines |
-
-**Printers**
-
-| Type | What it is |
-|---|---|
-| `c700` | MITS 88-C700: the line-printer controller. Capture to a file |
 
 **Floppy and disk controllers**
 
@@ -176,19 +168,12 @@ The boards are in groups, in the same order as the sections below.
 | Type | What it is |
 |---|---|
 | `ss1` | CompuPro System Support 1: a real-time clock, a serial channel, an interval timer, two interrupt controllers and a math socket |
-| `rtc100` | SciTronics RTC-100: a battery-backed real-time clock, with an optional interrupt each second |
 
 **Host integration**
 
 | Type | What it is |
 |---|---|
 | `hostbridge` | file transfer to your computer. **Our own board, not a period board** |
-
-**PROM programmers**
-
-| Type | What it is |
-|---|---|
-| `pb1` | SSM PB1: program a 2708 or 2716 EPROM, and save it as a hex file |
 
 ## Memory
 
@@ -217,132 +202,7 @@ Whether a board obeys `PHANTOM*`, and whether it asserts it, are **jumpers** on 
 set them. If you set them wrong, the machine does not boot, and it does not tell you why. The
 bus view in the monitor shows you both boards on the same page.
 
-A plain `memory` board has no bank switching. Bank switching is a different board, `bankmem`.
-
-### `bankmem`: bank-switched RAM
-
-When 64K was not enough, S-100 makers put several planes of RAM at the same addresses. A
-write-only **select port** chose which plane the processor saw. Each maker did this in a
-different way, so `bankmem` is **one board with five decoders**. Its `card` property selects the
-decoder:
-
-| `card` | Real board | Select port | What a write does |
-|---|---|---|---|
-| `vector` | Vector Graphic 64K | `40` | **one bit for each bank**: `01`→bank 0, `02`→1, `04`→2 … `80`→7 |
-| `cromemco64kz` | Cromemco 64KZ / 64KZ-II | `40` | **8-bit mask**: bit *N* turns bank *N* on. **Several banks can be on** (`28`→banks 3 and 5) |
-| `northstar` | North Star HRAM | `C0` | bit 0 = on or off, bits 1–7 = which bank. Banks change **one at a time** |
-| `expandoram2` | SD Systems ExpandoRAM II | `FF` | the low four bits are a **page number** (see the note below) |
-| `expandoram3` | SD Systems ExpandoRAM III | `FF` | the low four bits are a **page number** (see *The ExpandoRAM III* below) |
-
-`banks` sets the number of planes on the board: up to 8 for `vector` and `cromemco64kz`, 6 for
-`northstar`, and 10 for `expandoram2` (11 with a partition). On `expandoram3`, `ram` sets the size instead. `fill` and `seed` work as they do on `memory`. The guest
-writes the select port. At the monitor, you can write it yourself with `OUT`, and `SHOW` lists
-every plane and which plane is on.
-
-On `vector`, a select of a bank that the board does not carry takes the live bank off the bus, and
-nothing answers until a bank that exists is selected. The `window_lo` and `window_hi` properties set
-the addresses of each plane on `vector`. The default is `0000` to `FFFF`. The real board ships with
-its last address at `DFFF`, which leaves room for a ROM and a video board.
-
-The package has no operating system that uses banks. The quickest way to see the board work is
-from the monitor:
-
-```
-$ pascal100 bankmem
-pascal100> OUT 40 01
-port 40 <- 01
-pascal100> DEPOSIT 1000 A0
-pascal100> OUT 40 08
-port 40 <- 08
-pascal100> DEPOSIT 1000 B3
-pascal100> OUT 40 01
-port 40 <- 01
-pascal100> DUMP 1000-1000
-1000  A0                                                .
-pascal100> OUT 40 08
-port 40 <- 08
-pascal100> DUMP 1000-1000
-1000  B3                                                .
-```
-
-`OUT 40 08` selects bank 3, because bit 3 is on. It does not select bank 8. The two `DUMP`
-commands read different bytes at the same address, because the plane changed.
-
-> **The `expandoram2` pages.** The board uses only the low four bits of the byte, so `OUT FF 13`
-> selects page 3. A PROM on the board makes each page from 16K banks on several boards.
-> `bankmem` shows the guest the same pages, but it does not model each board. The two stock
-> PROMs set a partition:
->
-> - `partition = "ex48"` gives 48K pages at `0000`–`BFFF` and 16K of common RAM at `C000`.
->   Page `A` is only 16K, at `8000`–`BFFF`.
-> - `partition = "ex32"` gives 32K pages at `0000`–`7FFF` and 32K of common RAM at `8000`.
->
-> `ram` sets the RAM, and the program calculates the number of pages from it. With a partition,
-> `ram` counts 64K boards of 16K chips, because the PROM maps are for those boards. For example,
-> `ram = 256` with `ex48` is four boards, with pages 0–4. `ram = 512` with `ex48` is eight
-> boards, with pages 0–9 and `A`. When the guest selects a page that has no RAM, nothing answers
-> in the addresses of the page, and the common RAM continues to answer.
->
-> With `partition = "none"` (the default), each page is a whole 64K plane. `ram = 256` is one
-> board of 64K chips, with four pages. The ExpandoRAM II manual gives no page map for that
-> board, so this setting is an approximation.
-> The `vector`, `cromemco64kz`, `northstar` and `expandoram3` cards are exact.
-
-#### The ExpandoRAM III
-
-`card = "expandoram3"` models the PROM map of the SD Systems ExpandoRAM III. The board uses only
-the low four bits of the byte that the guest writes to port `FF`. For example, `OUT FF 12`
-selects page 2. Each board holds 256K of RAM in 16K cells. For each page, the PROM on the board
-connects one cell to each 16K of the address space. These settings are the switches on the board:
-
-| Setting | Values | What it does |
-|---|---|---|
-| `ram` | `256`, `512` | `256` is one board, with pages 0–4. `512` is two boards, with pages 0–9. |
-| `config` | `cpm`, `oasis` | Switch 5 of S3. `cpm` (the default) puts 48K pages at `0000`–`BFFF` and 16K of common RAM at `C000`. `oasis` puts the common RAM at `0000` and the pages at `4000`–`FFFF`. |
-| `bank_enable` | `00`–`FF` | Switches 1–4 of S3 on each board. Bit *board* × 4 + *bank* is on when that bank is on. The default `FF` turns every bank on. A bank that is off answers nothing. |
-
-The common RAM answers for every page. A page that has no cells on the boards has no RAM. Page 7
-on one board and pages `A`–`F` are examples. When the guest selects such a page, nothing answers
-in the addresses of the page, and the common RAM continues to answer. `partition` is refused on this
-card, because the PROM sets the map.
-
-A banked CP/M BIOS for the ExpandoRAM II with `partition = "ex48"` also runs on the ExpandoRAM
-III with `config = "cpm"`. Both boards write the page number to port `FF`, and both put 48K pages
-under 16K of common RAM at `C000`.
-
-The ExpandoRAM III manual prints some cells of its page map incorrectly. `bankmem` corrects them.
-The corrections change what the guest sees only when a bank is off.
-
-```
-$ pascal100 bankmem --set "mem0 card=expandoram3"
-set> SET mem0 card=expandoram3
-mem0: card=expandoram3
-pascal100> OUT FF 01
-port FF <- 01
-pascal100> DEPOSIT 1000 A1
-pascal100> DEPOSIT C000 CC
-pascal100> OUT FF 12
-port FF <- 12
-pascal100> DEPOSIT 1000 A2
-pascal100> OUT FF 01
-port FF <- 01
-pascal100> DUMP 1000-1000
-1000  A1                                                .
-pascal100> DUMP C000-C000
-C000  CC                                                .
-pascal100> OUT FF 02
-port FF <- 02
-pascal100> DUMP 1000-1000
-1000  A2                                                .
-pascal100> DUMP C000-C000
-C000  CC                                                .
-pascal100> OUT FF 07
-port FF <- 07
-bank: page 7 has no RAM on expandoram3 (mem0, pages 0-4). Nothing answers 0000-BFFF; common still does.
-```
-
-`OUT FF 12` selects page 2, because the board ignores the high four bits. Address `1000` holds
-`A1` on page 1 and `A2` on page 2. Address `C000` is common RAM, so it holds `CC` on every page.
+A `memory` board has no bank switching.
 
 ## The processor boards
 
@@ -496,40 +356,9 @@ baud, and unit `b` a modem at 1200 baud. One can use interrupts while the other 
 The serial chapter tells you what you can connect a unit to: your terminal, a TCP socket, or a
 real serial port on your computer, with the modem control lines.
 
-### `gsio`: the generic serial board, set up with straps
-
-Most serial boards in this chapter model **one specific chip**, such as the 2SIO's 6850, the
-SBC's 8251 or the 88-SIO's COM2502. Software must be written for that chip. **`gsio`** is
-different. It models no specific chip. You **describe** the port with straps:
-
-- which port is status and control, and which port is data
-- which status bit means that a byte is waiting (`dav`)
-- which status bit means that the transmitter is ready (`tbmt`)
-- whether the shared **`inverter_gate`** inverts both bits
-
-Use it for any polled interface that reads a status bit and then a data byte.
-
-The board has **two independent serial channels**, units **`a`** and **`b`**. Each channel has
-its own straps, `baud` and `connect`, in its own `[board.unit.a]` or `[board.unit.b]` table. By
-default, `a` uses ports `0` and `1`, and `b` uses ports `2` and `3`.
-
-You seldom set the straps one at a time. A **profile** sets them to match a known board:
-
-- **`sior1`**: MITS SIO Rev 1. This is the default, and the SSM 8080 monitor expects it
-- `sior0`: MITS SIO Rev 0
-- `tuart`: Cromemco TU-ART
-- `imsai-sio2`: IMSAI SIO-2
-- `compupro-if2`: CompuPro Interfacer II
-- `compupro-ss1`: CompuPro System Support 1
-
-Select a profile for each channel, and then change any strap, as you would move a jumper. The
-board is polled, with no interrupts. It **only sends and receives bytes**. It does not model
-word length, parity or stop bits. A board that needs those is a separate board with a full
-model.
-
 ### `io4`: SSM IO-4 (2P + 2S)
 
-`gsio` describes a serial port with straps. **`io4`** is a specific board, the **SSM IO-4**. It
+**`io4`** is the **SSM IO-4**. It
 has **two full-duplex serial channels *and* four latched parallel ports**. Each serial channel
 is a real UART with **programmable word length (5 to 8 bits), parity, stop bits and baud**. The
 status byte can be strapped in many ways, as on the real board.
@@ -588,8 +417,7 @@ input sets its interrupt on the strobe, also when nothing reads the port. A Syst
 
 **`interfacer1`** is the **CompuPro Interfacer 1**, the two-channel serial board of an early
 CompuPro system. Each channel is a real UART with **word length, parity and stop bits that the
-guest can change**, the **RS-232 modem lines**, and **receive and transmit interrupts**. Use it
-in place of the `gsio` console when a program needs more than "send and receive a byte".
+guest can change**, the **RS-232 modem lines**, and **receive and transmit interrupts**.
 
 The two channels are units **`a`** and **`b`**, each with its own `[board.unit.a]` or
 `[board.unit.b]` table, its own `baud` and its own `connect`. Each channel has its own pair of
@@ -621,44 +449,6 @@ interrupt is on when the transmitter is idle and `tx_int_enable` is on. `rx_int`
 send each one to a vectored interrupt line, `vi0` to `vi7`, or to `none` (the default). The
 real board cannot reach the plain interrupt pin, so `int` is not a choice. A System Support 1
 (`ss1`) takes the vectored interrupt lines.
-
-## Printers
-
-Line-printer controllers. Each one sends its output to a file or to a print queue.
-
-### `c700`: MITS 88-C700
-
-The **line-printer controller**, an output-only board for an Altair C700 printer. It has unit
-`prn` and default port `02`, which is the MITS default: control and status at `02`, data at
-`03`.
-
-The package has no printer, so **`CONNECT` the `prn` line to where you want the output**:
-
-- a file: `CONNECT lpt0:prn out:printout.txt`
-- the `console`, to see it print while it runs
-- a `socket:`
-- a real `serial:` printer
-- a **real print queue on your computer**: `CONNECT lpt0:prn printer:linewriter`. This works
-  when your build found a print system. The serial chapter gives the options.
-
-The output is the exact bytes that the program sent, with the control codes. It is not a
-formatted page.
-
-You can use the board **polled or with interrupts**:
-
-- **Polled:** write a character to the data port (`03`). Before the next character, read the
-  status port (`02`) until bit 0, ACKNOWLEDGE, is set.
-- **Interrupts:** set control bit 1 to turn on its **single-level interrupt**. The printer then
-  interrupts the processor each time it takes a byte, and the handler sends the next byte.
-
-The `interrupt` strap selects the line: pin 73 (`int`, the default), a vectored interrupt level
-(`vi0` to `vi7`), or `none`. `interrupt_after` is switch SW2 #4 of the board. It sets whether
-the interrupt comes after every character, or only after a CR or LF.
-
-In the CompuPro machines, ports `02` and `03` belong to channel B of the Interfacer 1, so give
-the board another port when you add it: `BOARDS ADD c700 lpt0 port=04`. Its output starts on
-`null`. To capture it, type `CONNECT lpt0:prn out:printout.txt`. To see it, connect it to
-`console`, which takes the console from the terminal.
 
 ## Floppy and disk controllers
 
@@ -1083,29 +873,6 @@ A Disk 1A machine often has one, with its console on the serial channel of the b
 at `5A` (command) and `5B` (data). The board reference gives the
 digit map, the read and set sequences and the register layouts.
 
-### `rtc100`: SciTronics RTC-100
-
-A **battery-backed calendar clock**, and nothing else. SciTronics sold it in 1980 for machines
-that did not know the date. It has an OKI MSM5832 clock chip, the same chip as on the System
-Support 1, behind a 6821 parallel interface, on four ports in a row.
-
-It starts with **the date and time of your computer**, so a guest gets the real time. When a
-guest sets it, the clock keeps that setting through a RESET and a power cycle, as the lithium
-cell of the real board did. `SHOW <id>` prints a live `time` line with the time on the clock and
-how far it is from the time of your computer.
-
-The base address is the PORT switch of the board, and it **must be a multiple of 4**. The switch
-decodes only the top six address bits, and the bottom two bits select one of the four ports. The
-default is `F0`. A guest reads the clock one BCD digit at a time. It writes the number of the
-digit to the first port, and reads the digit back **in the top half of the byte**. For this
-reason, the period drivers for this board all mask and rotate the byte at the end.
-
-It can also **interrupt once a second**, to drive a clock display in the background. Set
-`interrupt` to `int`, and the board pulls the interrupt line of the machine. `restart` selects
-the `RST` that it gives the processor (0 to 7, the INT switch of the board). The manual of the
-board says that 0 and 7 are often used by other things. With `interrupt` set to `none`, the
-board never interrupts, and it still keeps the correct time.
-
 ## Host integration
 
 A board that connects the machine to your computer. It is not period hardware.
@@ -1127,155 +894,3 @@ their code.
 
 The file-transfer chapter describes this board. It is the fastest way to get your own code into
 CP/M. XMODEM also works, over an ordinary serial line, as it did on real machines.
-
-## PROM programmers
-
-A board that does not run software, but *programs* it into a chip. You load a period EPROM
-programmer routine and run it. The bytes that it programs go into a socket, and you can save the
-socket to a file.
-
-### `pb1`: SSM PB1
-
-The **SSM PB1** (Solid State Music) is a 2708 and 2716 EPROM programmer. It has a **4K window**
-in memory (default `D000`) for its two sockets: **U22** holds a 2708 (1K), and **U23** holds a
-2716 (2K). It has one **control port** (default `10`). Port `10` is free in the CompuPro
-machines, but their 64K of RAM covers the window, so a machine with a `pb1` needs less RAM, as in
-the example below.
-
-Software programs the chip:
-
-1. An `OUT` to the control port arms the board and selects the chip. Write `01` for the 2708, or
-   `02` for the 2716.
-2. After that, every byte that the guest **writes into the window** is programmed into the chip.
-3. A **read** of the window disarms the board again. The period routines end in this way, and it
-   turns the LED off.
-
-"Programming is a write, and disarming is a read" has two results:
-
-- **A socket starts erased**, with every byte `FF`. **Programming can only clear bits to 0.** It
-  cannot set them, as on a real EPROM. Program a *blank* chip. A second program over the first
-  gives the AND of the two.
-- The program is in the board, not on your computer. To keep it, **`SAVE` it to a file**
-  (below). A power cycle reads the sockets again from their mounts, so a program that you did
-  not save is lost.
-
-#### Programming an EPROM, and making a hex file
-
-You need this board, not only a write to memory, because you want to run the period *software*.
-The PB1 manual has SSM's programmer routines, one for the 2708 and one for the 2716. Each
-routine copies bytes from `4000` into the socket. The 2708 routine starts at `0100`. The package
-does not include these routines. Enter one from the manual, or `LOAD` it from a hex file of your
-own. After that, put the data at `4000`, run the routine, and save the result:
-
-```
-pascal100> FILL 4000-43FF E5
-pascal100> LOAD PROG2708.HEX
-pascal100> BREAK F021
-pascal100> RUN 100
-pascal100> SAVE eprom.hex D000-D3FF
-```
-
-- `FILL` puts the 1K that you want to program at `4000`. You can also `LOAD` your own data
-  there.
-- `LOAD PROG2708.HEX` loads the 2708 routine.
-- `BREAK F021` is needed because SSM's routine ends with a jump to SSM's own system monitor, at
-  `F021`. A machine without that monitor has nothing at `F021`. The breakpoint stops the
-  machine at that jump, after the chip is programmed. The next section shows a machine that
-  has the monitor, and needs no breakpoint.
-- `RUN 100` runs the routine. It arms the board and programs the 2708.
-- `SAVE` reads the socket window from the bus and writes it to a file. After it is programmed,
-  the socket reads like other memory. `eprom.hex` is an ordinary Intel HEX image of the chip.
-  You can give it to another tool, or `LOAD` it again later.
-
-Your own routine works in the same way. It writes `01` to port `10` (or `02` for a 2716), and
-then writes the data into the window. After it runs, `SAVE` the window.
-
-#### With the SSM monitor
-
-SSM wrote the routines for the **SSM 8080 System Monitor**. Each routine ends with a jump to
-the monitor at `F021`. The manual also has two check routines, which print `P` (pass) or `F`
-(fail) through the monitor's console-output routine at `F009`. The package has that monitor as
-the built-in ROM `ssm-8080mon`. Put it in the machine, and the routines run as SSM wrote them.
-
-The monitor has its console on a serial port at `00` and `01`, as an `io4` has by default. Thus
-this machine has an `io4` as its console, RAM below the window of the `pb1`, and the monitor at
-`F000`:
-
-```toml
-[machine]
-name = "pb1"
-
-[[board]]
-type = "z80"
-id   = "cpu0"
-
-[[board]]
-type = "io4"
-id   = "io40"
-
-  [board.unit.a]
-  connect = "console"
-
-[[board]]
-type   = "pb1"
-id     = "pb1"
-port   = 10
-window = D000
-
-[[board]]
-type = "memory"
-id   = "mem0"
-
-  [[board.region]]
-  type = "ram"
-  at   = 0000
-  size = "52K"
-
-  [[board.region]]
-  type  = "rom"
-  at    = F000
-  mount = "builtin:ssm-8080mon"
-```
-
-Put the data and the routine in memory as before, and then start the monitor:
-
-```
-pascal100> FILL 4000-43FF E5
-pascal100> LOAD PROG2708.HEX
-pascal100> RUN F000
-```
-
-The monitor prints its name and its prompt, which is a period:
-
-```
-MONITOR V1.0
-.
-```
-
-Type `G100` and press Enter. `G` is the monitor's command to run a program. The routine programs
-the chip and then jumps to `F021`, and the monitor prints its name and its prompt again:
-
-```
-.G100
-
-MONITOR V1.0
-.
-```
-
-Press `Ctrl-E` to go back to the `pascal100>` prompt, and `SAVE` the window as before.
-
-A check routine runs in the same way, with `G` and its start address. It prints its result
-before the monitor prints its name. This is the manual's copy-verify routine, which starts at
-`0180`, after a good burn:
-
-```
-.G180
-P
-MONITOR V1.0
-.
-```
-
-The board also has an optional **EPROM area on the board** (U11 to U14 on the real board). These
-are read-only chips that you mount above `8000` with `[[board.prom]]` (`at` and `mount`). Use
-them as the *source* when you copy one EPROM to another.
-

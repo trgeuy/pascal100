@@ -1,8 +1,6 @@
 #include "test.h"
 
 #include "boards/mits-2sio.h"
-#include "boards/mits-88c700.h"
-#include "boards/gsio.h"
 #include "boards/io4.h"
 #include "boards/compupro-interfacer1.h"
 #include "boards/compupro-interfacer3.h"
@@ -50,7 +48,6 @@ const struct {
     {"ieee696", test_ieee696},
     {"memory", test_memory},
     {"memory_segments", test_memory_segments},
-    {"bankmem", test_bankmem},
     {"readonly_props", test_readonly_props},
     {"save_is_a_read", test_save_is_a_read},
     {"phantom", test_phantom},
@@ -88,7 +85,6 @@ const struct {
     {"ddt", test_ddt},
     {"dma", test_dma},
     {"sio2", test_sio2},
-    {"gsio", test_gsio},
     {"io4", test_io4},
     {"interfacer1", test_interfacer1},
     {"interfacer3", test_interfacer3},
@@ -112,8 +108,6 @@ const struct {
     {"disk2", test_disk2},
     {"disk3", test_disk3},
     {"spindle", test_spindle},
-    {"c700", test_c700},
-    {"pb1", test_pb1},
     {"printer", test_printer},
     {"tee", test_tee},
     {"mirror", test_mirror},
@@ -122,7 +116,6 @@ const struct {
     {"multiwindow", test_multiwindow},
     {"framedump", test_framedump},
     {"ss1", test_ss1},
-    {"rtc100", test_rtc100},
     {"hostdir", test_hostdir},
     {"hostbridge", test_hostbridge},
     {"mcp", test_mcp},
@@ -148,8 +141,6 @@ int main(int argc, char** argv) {
     // machines/default.toml would be exercised here in a configuration that no
     // user will ever run, and the first thing to break would be the real one.
     altair::Sio2Board::setResolver(altair::resolveEndpoint);
-    altair::C700Board::setResolver(altair::resolveEndpoint);
-    altair::StrapSerialBoard::setResolver(altair::resolveEndpoint);
     altair::InterfacerOneBoard::setResolver(altair::resolveEndpoint);
     altair::InterfacerThreeBoard::setResolver(altair::resolveEndpoint);
     altair::InterfacerFourBoard::setResolver(altair::resolveEndpoint);

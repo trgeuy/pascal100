@@ -29,7 +29,6 @@ and within a group the boards are in **alphabetical order**.
 
 | Type | What it is |
 |---|---|
-| [`bankmem`](#bankmem) | Bank-switched RAM (Vector, Cromemco, North Star, ExpandoRAM) |
 | [`memory`](#memory) | RAM/ROM board: plain, unbanked memory regions |
 
 **Disk**
@@ -50,30 +49,16 @@ and within a group the boards are in **alphabetical order**.
 | Type | What it is |
 |---|---|
 | [`2sio`](#2sio) | MITS 88-2SIO: two 6850 serial ports |
-| [`gsio`](#gsio) | Generic SIO: two strap-configurable serial channels |
 | [`interfacer1`](#interfacer1) | CompuPro Interfacer 1: two serial channels |
 | [`interfacer3`](#interfacer3) | CompuPro Interfacer 3: eight serial channels |
 | [`interfacer4`](#interfacer4) | CompuPro Interfacer 4: three serial, Centronics, parallel |
 | [`io4`](#io4) | SSM IO-4: two serial + two parallel ports |
-
-**Parallel and printer**
-
-| Type | What it is |
-|---|---|
-| [`c700`](#c700) | MITS 88-C700: Centronics line-printer controller |
-
-**PROM programmer**
-
-| Type | What it is |
-|---|---|
-| [`pb1`](#pb1) | SSM PB1: 2708/2716 EPROM programmer |
 
 **Other**
 
 | Type | What it is |
 |---|---|
 | [`hostbridge`](#hostbridge) | Host Bridge: file transfer to the host (not a period board) |
-| [`rtc100`](#rtc100) | SciTronics RTC-100: battery-backed clock/calendar |
 | [`ss1`](#ss1) | CompuPro System Support 1: interrupts, timer, clock, serial |
 
 
@@ -154,32 +139,9 @@ Generic Z80 CPU board. Decodes nothing -- it drives the bus. The 88-CPU's twin, 
 
 ## Memory
 
-### `bankmem`
-
-S-100 bank-switched RAM. One card, five decoders (card=vector|cromemco64kz|northstar|expandoram2|expandoram3): a write-only select port swaps which RAM plane(s) drive the bus. Each card owns its own decode -- one-hot select (Vector 40), 8-bit bank mask (Cromemco 40), on/off+one-hot toggle (North Star C0), PROM page-select (ExpandoRAM II FF, low nibble), or the ExpandoRAM III PROM map (FF, low nibble)
-
-#### Board properties
-
-| Key | Kind | Default | Legal | Meaning |
-|---|---|---|---|---|
-| `card` | enum | `vector` | `vector` \| `cromemco64kz` \| `northstar` \| `expandoram2` \| `expandoram3` | which banked card this is -- each owns its own decode: vector \| cromemco64kz \| northstar \| expandoram2 \| expandoram3 |
-| `port` | int | `0x40` | `0x0` .. `0xFF` | the write-only bank-select port. Card default (vector/cromemco 40, northstar C0, expandoram2/expandoram3 FF); overridable, as the real boards relocate it |
-| `partition` | enum | `none` | `none` \| `ex48` \| `ex32` | ExpandoRAM II common-memory partition (the EX-48/EX-32 PROM): none \| ex48 \| ex32. ex48 = 48K banked (0000-BFFF) + 16K common (C000-FFFF); ex32 = 32K banked + 32K common (8000-FFFF). The common region is identical in every bank -- what a banked CP/M's resident OS and bank-switch routine live in. `none` (default) is a whole 64K plane |
-| `window_lo` | int | `0x0` | `0x0` .. `0xFFFF` | vector: the first address of each plane. A 64K board starts at 0000 |
-| `window_hi` | int | `0xFFFF` | `0x0` .. `0xFFFF` | vector: the last address of each plane, jumper area D on a 64K board: FFFF, DFFF (as shipped) or BFFF |
-| `banks` | int | `8` | `1` .. `11` | how many switchable banks/planes/pages this subsystem carries (one per board). Card-capped: vector/cromemco 8, northstar 6, expandoram2 10 (11 with a partition: page A). The common region (partition) is not a bank. Setting `ram` derives this. expandoram3 carries 5 pages per board, so it takes 5 or 10 |
-| `config` | enum | `cpm` | `cpm` \| `oasis` | ExpandoRAM III S3 switch 5, which PROM map is in force: cpm (ON, the factory setting) = pages in 0000-BFFF under a common 16K at C000; oasis (OFF) = pages in 4000-FFFF over a common 16K at 0000 |
-| `bank_enable` | int | `0xFF` | `0x0` .. `0xFF` | ExpandoRAM III S3 bank enables: bit = board x 4 + bank, set = enabled (factory FF). On each board, S3 switch 4 is bank 0 and switch 1 is bank 3. A switched-off bank answers nothing |
-| `ram` | int | `512` | `1` .. `640` | total board RAM in KB. Sets the bank count from the current partition: with ex48, 256 -> 5 banks; with none (whole plane), 256 -> 4 banks of 64K. The real ExpandoRAM II is 64K (16K chips) or 256K (64K chips); with ex48 or ex32, ram counts 64K boards of 16K chips (ex48 512 = 8 boards, pages 0-A). expandoram3: 256 (one board) or 512 (two boards) |
-| `honors_phantom` | enum | `none` | `none` \| `read` \| `all` | A JUMPER. Another board pulls PHANTOM* (a boot PROM shadowing the RAM this card sits under) -- do I switch off? none \| read \| all. `read` keeps answering writes so a cold-boot loader falls through to this RAM while the PROM shadows reads (an ExpandoRAM II under the SBC-200 boot PROM). Default none -- a plain banked-RAM machine has no PROM overlay |
-| `active` | string | — | — | the live bank(s) right now -- the guest sets this by writing the select port. Read-only here **(read-only — not a key you may set)** |
-| `fill` | enum | `random` | `zero` \| `random` | RAM contents at power-on: zero \| random (real RAM is not zeroed) |
-| `seed` | int | `1` | any | seed for fill=random -- the same seed fills RAM the same way at every POWER, so a run is repeatable |
-
-
 ### `memory`
 
-RAM/ROM board: a list of regions and PHANTOM* -- plain, unbanked memory (bank switching is its own board, `bankmem`)
+RAM/ROM board: a list of regions and PHANTOM* -- plain, unbanked memory
 
 #### `[[board.region]]` — a list you may add
 
@@ -456,45 +418,6 @@ MITS 88-2SIO: two 6850 ACIAs, units 'a' and 'b'. Four ports at BASE+0..3
 | `title` | string |  | text | The title of a terminal window on this unit. Empty = "MITS 88-2SIO b" |
 
 
-### `gsio`
-
-Generic SIO: a strap-configurable serial board with TWO independent channels, units 'a' and 'b' (configure each under [board.unit.a] / [board.unit.b]). Basic transmit/receive only -- no programmable word length, parity, stop bits or framing/overrun status; a specific card that needs those is a separate emulated board. Per channel you strap: a status/control port (status_port -- read synthesizes DAV/TBMT at bit positions you pick, write is discarded) and a data port (data_port); one inverter_gate knob inverts both status bits together. Built-in profiles preset the straps: profile=sior1 (MITS SIO Rev 1, the default) | sior0 (MITS SIO Rev 0) | tuart (Cromemco TU-ART) | imsai-sio2 | compupro-if2 (CompuPro Interfacer II) | compupro-ss1 (CompuPro System Support 1). Channel a defaults to ports 0/1, b to 2/3. Polled, no interrupts. CONNECT each channel to a file, socket, serial port, in:/out:
-
-**Units:** `a` (serial, CONNECT), `b` (serial, CONNECT)
-
-#### Board properties
-
-*No settable properties.*
-
-#### Unit `a` — `[board.unit.a]`
-
-| Key | Kind | Default | Legal | Meaning |
-|---|---|---|---|---|
-| `profile` | enum | `sior1` | `custom` \| `sior1` \| `sior0` \| `tuart` \| `imsai-sio2` \| `compupro-if2` \| `compupro-ss1` | Built-in card to preset the straps from: custom, or a named board. Selecting one sets status_port/data_port/bits/inverter_gate (still overridable) |
-| `status_port` | int | `0x0` | `0x0` .. `0xFF` | Status(read)/control(write) port. Control writes are discarded |
-| `data_port` | int | `0x1` | `0x0` .. `0xFF` | Data port: receive(read)/transmit(write) |
-| `dav` | int | `0` | `0` .. `7` | Status bit (0-7) carrying DAV, data available (a byte to receive) |
-| `tbmt` | int | `7` | `0` .. `7` | Status bit (0-7) carrying TBMT, transmit buffer empty (ready to send) |
-| `inverter_gate` | bool | `true` | `on` \| `off` | Route both status bits through the inverter gate -- asserted DAV/TBMT read 0 (active low) |
-| `baud` | int | `9600` | any | Line rate programmed onto a CONNECTed real serial port (8N1). Inert on a socket/file; does not pace the emulated line |
-| `connect` | string | `null` | text | The endpoint on the serial line (CONNECT sets this): a file, socket, serial port, in:/out: file, null, loopback |
-| `title` | string |  | text | The title of a terminal window on this unit. Empty = "Generic SIO a" |
-
-#### Unit `b` — `[board.unit.b]`
-
-| Key | Kind | Default | Legal | Meaning |
-|---|---|---|---|---|
-| `profile` | enum | `sior1` | `custom` \| `sior1` \| `sior0` \| `tuart` \| `imsai-sio2` \| `compupro-if2` \| `compupro-ss1` | Built-in card to preset the straps from: custom, or a named board. Selecting one sets status_port/data_port/bits/inverter_gate (still overridable) |
-| `status_port` | int | `0x2` | `0x0` .. `0xFF` | Status(read)/control(write) port. Control writes are discarded |
-| `data_port` | int | `0x3` | `0x0` .. `0xFF` | Data port: receive(read)/transmit(write) |
-| `dav` | int | `0` | `0` .. `7` | Status bit (0-7) carrying DAV, data available (a byte to receive) |
-| `tbmt` | int | `7` | `0` .. `7` | Status bit (0-7) carrying TBMT, transmit buffer empty (ready to send) |
-| `inverter_gate` | bool | `true` | `on` \| `off` | Route both status bits through the inverter gate -- asserted DAV/TBMT read 0 (active low) |
-| `baud` | int | `9600` | any | Line rate programmed onto a CONNECTed real serial port (8N1). Inert on a socket/file; does not pace the emulated line |
-| `connect` | string | `null` | text | The endpoint on the serial line (CONNECT sets this): a file, socket, serial port, in:/out: file, null, loopback |
-| `title` | string |  | text | The title of a terminal window on this unit. Empty = "Generic SIO b" |
-
-
 ### `interfacer1`
 
 CompuPro Interfacer 1 (Godbout 133H): two serial channels 'a' and 'b', each a real 1602-family UART at its own 2-port block (switch S2/S3: port, enabled; default A at 00-01, B at 02-03), data at the even address and status at the odd one unless J14 swaps them (swap_ports). An OUT to the status address writes a control latch: each 1 bit inverts that line from its power-up strap and each 0 returns it, for the word format (data_bits 7/8, parity_sense, parity, stop_bits), the RS-232 outputs ca (RTS) and cd (DTR), and the two interrupt enables; reset clears the latch. The status byte is TBMT D0, DAV D1, OPT D2 (opt = cf or eoc), PE D3, OR D4, FE D5, CC D6, CB D7; the RS-232 inputs read 0 when ON. Per channel, RxINT (DAV and the RX enable) and TxINT (TBMT and the TX enable) are jumpered on J11 to vi0..vi7 or none (rx_int/tx_int); J11 has no pin-73 position. Baud from switch S1, 50-19200. CONNECT each channel to a file, socket, serial port, in:/out:
@@ -723,7 +646,7 @@ CompuPro Interfacer 4 (board 187C): four users behind the Interfacer 3's 8-port 
 
 ### `io4`
 
-SSM IO-4 (2P+2S): the real Solid State Music board -- two full-duplex serial channels AND a four-port parallel section. Serial units 'a'/'b' are real 1602-family UARTs with programmable word length (data_bits 5-8), parity and stop bits (unlike the generic gsio), plus the full status-word strap-up (stat_* map, invert_status, port_reversal) and named profiles (default altair-rev1). A 4-port block set by switch S3 (default 0-3): Serial A status/data at BASE+0/+1, Serial B at BASE+2/+3. Parallel units 'pa'/'pb' are 8212 latched ports (input latch + service request, output latch) on their own 2-port block set by switch S4 (par_port, default 4-5): Parallel A at PAR+0, B at PAR+1; a byte the far end sends is strobed in, a write latches out, and the §3.2.2 status/data console flag is strappable (dav_bit/dav_source/dav_active_low). If the two blocks overlap, neither section answers the shared ports. Each serial channel's receive (DAV) and transmit (TBMT) and each parallel input (service request) can raise an interrupt, strapped on header W4 to a VI line, pin 73 (int), or none (rx_int/tx_int per serial channel, int per parallel port) -- there is no software enable, the strap is the enable, and a parallel input interrupt rises even when the port is not addressed. Configure each unit under [board.unit.a] / [board.unit.pa] etc.; CONNECT each to a file, socket, serial port, in:/out:
+SSM IO-4 (2P+2S): the real Solid State Music board -- two full-duplex serial channels AND a four-port parallel section. Serial units 'a'/'b' are real 1602-family UARTs with programmable word length (data_bits 5-8), parity and stop bits, plus the full status-word strap-up (stat_* map, invert_status, port_reversal) and named profiles (default altair-rev1). A 4-port block set by switch S3 (default 0-3): Serial A status/data at BASE+0/+1, Serial B at BASE+2/+3. Parallel units 'pa'/'pb' are 8212 latched ports (input latch + service request, output latch) on their own 2-port block set by switch S4 (par_port, default 4-5): Parallel A at PAR+0, B at PAR+1; a byte the far end sends is strobed in, a write latches out, and the §3.2.2 status/data console flag is strappable (dav_bit/dav_source/dav_active_low). If the two blocks overlap, neither section answers the shared ports. Each serial channel's receive (DAV) and transmit (TBMT) and each parallel input (service request) can raise an interrupt, strapped on header W4 to a VI line, pin 73 (int), or none (rx_int/tx_int per serial channel, int per parallel port) -- there is no software enable, the strap is the enable, and a parallel input interrupt rises even when the port is not addressed. Configure each unit under [board.unit.a] / [board.unit.pa] etc.; CONNECT each to a file, socket, serial port, in:/out:
 
 **Units:** `a` (serial, CONNECT), `b` (serial, CONNECT), `pa` (serial, CONNECT), `pb` (serial, CONNECT)
 
@@ -801,60 +724,6 @@ SSM IO-4 (2P+2S): the real Solid State Music board -- two full-duplex serial cha
 | `title` | string |  | text | The title of a terminal window on this unit. Empty = "SSM IO-4 pb" |
 
 
-## Parallel and printer
-
-### `c700`
-
-MITS 88-C700: Centronics line-printer controller, unit 'prn'. Two ports at BASE+0..1 (default 02). Output-only; CONNECT it to a file, a socket, or a real printer queue
-
-**Units:** `prn` (serial, CONNECT)
-
-#### Board properties
-
-| Key | Kind | Default | Legal | Meaning |
-|---|---|---|---|---|
-| `port` | int | `0x2` | `0x0` .. `0xFE` | Base address -- MUST BE EVEN. Control/status at BASE, data at BASE+1 |
-| `connect` | string | `null` | text | The endpoint on the other end of the line (CONNECT sets this) |
-| `interrupt` | enum | `int` | `none` \| `int` \| `vi0` \| `vi1` \| `vi2` \| `vi3` \| `vi4` \| `vi5` \| `vi6` \| `vi7` | Where the printer's interrupt is soldered: none \| int (pin 73) \| vi0..vi7 *(interrupt strap)* |
-| `interrupt_after` | enum | `char` | `char` \| `crlf` | SW2 #4: raise the interrupt after every 'char' or only after a 'crlf' |
-
-#### Unit `prn` — `[board.unit.prn]`
-
-| Key | Kind | Default | Legal | Meaning |
-|---|---|---|---|---|
-| `title` | string |  | text | The title of a terminal window on this unit. Empty = "MITS 88-C700 prn" |
-
-
-## PROM programmer
-
-### `pb1`
-
-SSM PB1: 2708/2716 EPROM programmer + on-board EPROM board. A 4K programming-socket window (default D000, sockets U22=2708/U23=2716) and one control port (default 10): OUT arms the board and picks the chip (D0=2708, D1=2716), then a window write burns a byte and a window read disarms it. Save the burn to a host hex file with `SAVE file window`. Optional read-only on-board EPROM area via [[board.prom]] (at + mount). The board ships no firmware -- run any 2708/2716 burner, such as SSM's own from the PB1 manual
-
-**Units:** `u22` (rom, MOUNT), `u23` (rom, MOUNT)
-
-#### `[[board.socket]]` — a list you may add
-
-| Key | Kind | Legal | Meaning |
-|---|---|---|---|
-| `chip` | enum | `2708` \| `2716` | Which programming socket: 2708 (U22, 1K) or 2716 (U23, 2K) |
-| `mount` | string | text | A source or erased chip image to put in the socket. Relative to THIS FILE. |
-
-#### `[[board.prom]]` — a list you may add
-
-| Key | Kind | Legal | Meaning |
-|---|---|---|---|
-| `at` | int | `0x8000` .. `0xFFFF` | Where the on-board EPROM sits. An address at or above 8000. |
-| `mount` | string | text | The firmware image: a file (relative to THIS FILE), or builtin:<name>. |
-
-#### Board properties
-
-| Key | Kind | Default | Legal | Meaning |
-|---|---|---|---|---|
-| `port` | int | `0x10` | `0x0` .. `0xF0` | Control port: an OUT here arms the board and picks 2708 (D0) or 2716 (D1). Only A4-A7 decode, so it must be an x0H address (00, 10, .. F0) |
-| `window` | int | `0xD000` | `0x0` .. `0xF000` | The 4K programming-socket window, on a 4K boundary (0000, 1000, .. F000). The guest writes bytes here to burn, and reads here to disarm |
-
-
 ## Other
 
 ### `hostbridge`
@@ -869,20 +738,6 @@ Host Bridge: guest <-> host file transfer, sandboxed. OUR OWN BOARD, not a perio
 | `hostdir` | string |  | text | The sandbox root. Guest names resolve here and CANNOT escape it. Empty = the shell's working directory |
 | `hostdir_root` | string | — | — | LIVE: the sandbox root as RESOLVED -- the actual directory the guest is fenced into. Read-only; `hostdir` is what was written. **(read-only — not a key you may set)** |
 | `readonly` | bool | `false` | `on` \| `off` | Refuse OPEN_WRITE and DELETE -- the guest may read the host, not change it |
-
-
-### `rtc100`
-
-SciTronics RTC-100: an S-100 battery-backed real-time clock/calendar (OKI MSM5832) behind a 6821 PIA. Four consecutive ports from a base that must be a multiple of 4 (port A data/direction at base+0 -- digit address in the low nibble, digit data in the HIGH nibble on a read; port A control at base+1 -- CA2 is the clock's Hold, low = stopped; port B at base+2 -- bit 0 is the Write strobe; port B control at base+3 -- CB2 is the Read line). Keeps time from the host, battery-backed across RESET, and settable by the guest. Optional once-a-second interrupt on pin 73, vectored by the card itself with RST 0-7 (the `restart` switch)
-
-#### Board properties
-
-| Key | Kind | Default | Legal | Meaning |
-|---|---|---|---|---|
-| `port` | int | `0xF0` | `0x0` .. `0xFC` | Base address -- MUST BE A MULTIPLE OF 4. Four consecutive ports |
-| `interrupt` | enum | `none` | `none` \| `int` | The once-a-second interrupt: none \| int (pin 73, vectored by `restart`) |
-| `restart` | int | `7` | `0` .. `7` | INT switch: which RST the card jams on acknowledge, 0-7 (vector 8n). 0 and 7 are legal but commonly taken by other devices |
-| `time` | string | — | — | LIVE: the date/time the MSM5832 is showing, and its offset from host time **(read-only — not a key you may set)** |
 
 
 ### `ss1`

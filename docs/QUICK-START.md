@@ -3,13 +3,13 @@
 **Boot CP/M with one command.** Type this in the folder where you unzipped the package:
 
 ```
-$ ./pascal100 examples/cpm22/cpm22-buffered.toml
+$ ./pascal100 examples/cpm22/cpm22-console.toml
 ```
 
 On **Windows**, the program is `pascal100.exe`, and the path uses backslashes:
 
 ```
-> pascal100.exe examples\cpm\cpm22-buffered.toml
+> pascal100.exe examples\cpm\cpm22-console.toml
 ```
 
 On **macOS**, start the program from a terminal. Do not double-click it: Finder opens a plain
@@ -68,7 +68,7 @@ on your computer.
 
   ```
   $ cp -R examples/cpm22 my-cpm
-  $ ./pascal100 my-cpm/cpm22-buffered.toml
+  $ ./pascal100 my-cpm/cpm22-console.toml
   ```
 
 Go back to the `A>` prompt before you quit. Then CP/M has written everything to the disk image.

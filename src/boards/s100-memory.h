@@ -49,13 +49,13 @@ enum class PhantomAssert { None, Read, All };
 enum class PhantomHonor { None, Read, All };
 enum class Fill { Zero, Random };
 
-// BANK SWITCHING LIVES ON ITS OWN BOARD NOW -- `bankmem` (src/boards/bankmem.h).
-// This board used to carry a `bank_type=` strap with one SIMH-derived encoding for
-// all five real cards; docs/devguide/banked-ram.md audited that against the period
+// NO BANK SWITCHING HERE. This board used to carry a `bank_type=` strap with one
+// SIMH-derived encoding for all five real cards; an audit against the period
 // manuals and found it wrong for four of them, because they are genuinely different
 // decoders (DESIGN.md 4.3). So `memory` is purely plain RAM/ROM again -- which is
 // also the honest model of the SD Systems ExpandoRAM I, a static-strapped board with
-// no I/O port at all.
+// no I/O port at all. (Banking then lived on a board of its own, `bankmem`, removed in
+// 2026-11. A real banked card, if one is added, gets its own board.)
 
 struct Region {
     RegionKind kind = RegionKind::Ram;
@@ -198,7 +198,7 @@ public:
     }
 
     std::vector<MapEntry> memMap() const override;
-    // No ioMap() override: this board claims no I/O port (banking moved to `bankmem`).
+    // No ioMap() override: this board claims no I/O port.
 
     std::vector<std::string> subUnitTables() const override { return {"region"}; }
     std::vector<Property>    subUnitProperties(const std::string& table) const override;

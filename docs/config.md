@@ -47,7 +47,7 @@ a disk you mount by hand are found in the same place. (A **built-in** machine ha
 of its own, so its base is the directory you launched from — the only anchor it has.)
 
 That a machine file's own paths point at its own directory is what makes it portable.
-`examples/cpm22/cpm22-buffered.toml` says:
+`examples/cpm22/cpm22-console.toml` says:
 
 ```toml
 [[board]]
@@ -61,8 +61,8 @@ id = "fd0"
 …and means the disk in its own directory. So both of these work, and mean the same machine:
 
 ```sh
-cd examples/cpm22 && pascal100 cpm22-buffered.toml  # the way you will actually run it
-pascal100 examples/cpm22/cpm22-buffered.toml         # ...and from anywhere else
+cd examples/cpm22 && pascal100 cpm22-console.toml  # the way you will actually run it
+pascal100 examples/cpm22/cpm22-console.toml         # ...and from anywhere else
 ```
 
 That matters because **a machine file ships with its media beside it.** A user gets the binary and the `examples/` tree, each example a folder holding a machine file and the disk it mounts — not this repository. A machine file that only resolved from the repository root would be a machine file that only worked for us, and every example in this tree used to be exactly that.
@@ -229,7 +229,7 @@ port = 14
 ## Example — a CP/M machine
 
 This is the `default` machine, as `CONFIG SAVE` writes it, with a disk and a `startup` added.
-`examples/cpm22/cpm22-buffered.toml` is the same machine, written out with only the settings that are not defaults.
+`examples/cpm22/cpm22-console.toml` is the same machine, written out with only the settings that are not defaults.
 
 ```toml
 [machine]

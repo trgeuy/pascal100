@@ -27,10 +27,8 @@ Clock& deadCard() {
 // two port addresses are reversed.
 //
 // These recipes come straight from the IO-4 manual's applications section -- they are the
-// strap tables SSM published for imitating specific cards. The names are io4-native
-// (deliberately NOT shared with gsio's `sior0`/`sior1`): a profile here is a richer bundle
-// (map + polarity + port order) than a gsio strap preset, and naming them for the host each
-// imitates keeps the two boards from implying a false equivalence.
+// strap tables SSM published for imitating specific cards. The names are io4-native: a
+// profile here is a bundle (map + polarity + port order), named for the host each imitates.
 //
 // `stat[]` is indexed by Io4Board::StatSig -- {Dav, Ror, Rpe, Rfe, Teoc, Tbmt} -- and -1
 // means "not jumpered" (that signal drives no data bit). To add a personality, add a row:

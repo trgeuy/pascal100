@@ -3,9 +3,8 @@
 // SSM IO-4 (2P + 2S) -- the real, fully-emulated Solid State Music I/O board.
 // See docs/boards/ssm-io4.md, docs/manual/boards.md and reference/SSM IO-4 2P+2S IO Board.md.
 //
-// THIS IS NOT THE gsio STRAP BOARD. `gsio` (src/boards/gsio.h) is the generic
-// chip-LESS strap-serial engine -- "describe a status bit, read/write a data byte".
-// THIS card is the opposite: a specific 1970s product modeled register- and
+// THIS IS THE REAL CARD, not a chip-less strap board (altairsim's `gsio`, removed here in
+// 2026-11): a specific 1970s product modeled register- and
 // pin-for-pin, built on the real 1602-family UART (src/chips/uart1602.h) the board
 // actually carried (U9 = Serial A, U8 = Serial B; a TMS6011 / AY5-1013 / TR-1602).
 //

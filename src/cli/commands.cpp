@@ -783,11 +783,11 @@ static const std::vector<CommandDef> kCommands = {
      "  CONN if1:b serial:/dev/tty.usbserial-AL009KFH   ; a real cable, real hardware\n"
      "  CONN if1:b serial:COM3                          ; ...the same, on Windows\n"
      "  CONN if1:b pty                                  ; `screen /tmp/pascal1000` now reaches the guest\n"
-     "  CONN lpt0:prn out:printout.txt                  ; capture a printer to a file\n"
+     "  CONN if4:centronics out:printout.txt            ; capture a printer to a file\n"
      "  CONN if1:b in:TAPE.TAP?cps=300                  ; a paper-tape reader on a serial line\n"
      "  CONN if1:b out:TAPE.PUN                         ; a paper-tape punch\n"
      "  CONN if1:a terminal?emulation=adm3a             ; a windowed ADM-3A of its own\n"
-     "  CONN lpt0:prn printer:linewriter                ; print to a real host queue\n"
+     "  CONN if4:centronics printer:linewriter          ; print to a real host queue\n"
      "  CONN if1:b socket:2323|bbs.hex?fmt=cols         ; telnet in, and TAP it to a log\n"
      "\n"
      "DISCONNECT takes the cable out again; SHOW CONSOLE says which unit holds it."},
