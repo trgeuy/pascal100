@@ -392,7 +392,7 @@ struct SliceWork {
     uint64_t steps    = 0;  // instructions retired
     uint64_t wrote    = 0;  // bytes the guest SAID -- on any line
     uint64_t received = 0;  // bytes that ARRIVED for it -- on any line
-    uint64_t hungry   = 0;  // times it went looking for a byte and found none
+    uint64_t hungry   = 0;  // status reads that found no byte -- on any line (Board::emptyPolls)
 };
 
 // IS THE GUEST WAITING FOR A HUMAN, or is it working?
@@ -403,6 +403,23 @@ struct SliceWork {
 // never does. Receiving ANYTHING disqualifies it outright -- that is what tells a transfer
 // from a prompt, and it is the only thing that does.
 bool guestIsWaiting(const SliceWork& w, uint64_t ratio = 32);
+
+// THE BYTES SENT, ASKED FOR ONLY WHEN THEY CAN MATTER. A slice whose empty polls are under the
+// bar is work whatever it sent, so Machine::txBytes(), the costly half of the signal, is not
+// read for it. For a slice over the bar, the result is the bytes sent since the last time it
+// was read: that includes this slice, and any earlier slice that was not a candidate. A byte
+// sent there only makes the slice look busy, so the nap starts one slice later. The first
+// candidate after a machine is loaded also looks busy, which is the safe answer.
+struct SentBytes {
+    uint64_t last = 0;
+    uint64_t since(Machine& m, uint64_t steps, uint64_t empty, uint64_t ratio) {
+        if (empty * ratio < steps) return 0;
+        const uint64_t now  = m.txBytes();
+        const uint64_t sent = now - last;
+        last = now;
+        return sent;
+    }
+};
 
 // SHOW CLOCK's `pacing` row. A CRYSTAL IS ALWAYS KEPT (#731): a run is paced when the CPU
 // card has one (`!free`) and flat out when it has not, from a terminal, a pipe, `-x`, `-s`
@@ -420,12 +437,17 @@ bool unitHoldsDevice(const std::string& state, const std::string& device);
 
 // MAY THE RUN LOOP NAP at an idle prompt this run?
 //
-// Only when the CPU card allows it (`idle`), only on an interactive console, and only when
-// the throttle is NOT pacing. A paced run already sleeps for most of every slice, so a nap
-// saves nothing there -- and a nap taken IN PLACE of the throttle leaves the slice before it
-// unpaced: at 2 MHz a 2,000-instruction slice is about 8 ms of guest time and it got a 4 ms
-// nap, so a guest at a prompt ran 1.3 times its crystal (#606).
-bool mayNap(bool idle, bool anyConsole, bool tty, bool paced);
+// Only when the CPU card allows it (`idle`) and only when the throttle is NOT pacing. A paced
+// run already sleeps for most of every slice, so a nap saves nothing there -- and a nap taken
+// IN PLACE of the throttle leaves the slice before it unpaced: at 2 MHz a 2,000-instruction
+// slice is about 8 ms of guest time and it got a 4 ms nap, so a guest at a prompt ran 1.3
+// times its crystal (#606).
+//
+// WHERE THE CONSOLE IS DOES NOT MATTER (#948). A console on a serial port, a socket or a
+// terminal window waits at a prompt as a console on the host terminal does, and guestIsWaiting
+// reads every line. The one exception: the host console wired to a stdin that is NOT a
+// terminal. That is a script. It has a byte ready or it is at its end, and it runs flat out.
+bool mayNap(bool idle, bool stdioConsole, bool tty, bool paced);
 
 // THE ACHIEVED CRYSTAL: T-states per real second, published to the CPU card for SHOW
 // (`achieved_hz`). Every loop that runs the guest keeps one -- the monitor's RUN, the MCP

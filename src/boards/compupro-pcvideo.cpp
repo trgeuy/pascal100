@@ -251,6 +251,8 @@ uint8_t PcVideoBoard::read(const BusCycle& c) {
             crtc_.readData(v);
             return v;
         }
+        // Not counted as the guest waiting for a key (Board::emptyPolls): the raster bits are
+        // on this port too, and a guest polls them to time the display (altairsim #976).
         case 10: return status();
         case 12: return kbData_;
         default: return 0xFF;                // no strobe behind it (sheet 4)

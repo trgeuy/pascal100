@@ -111,9 +111,10 @@ LineWiring lineWiring(const Machine& m) {
 }
 } // namespace
 
-bool mayNap(bool idle, bool anyConsole, bool tty, bool paced) {
+bool mayNap(bool idle, bool stdioConsole, bool tty, bool paced) {
     if (paced) return false;  // the throttle is this run's sleep, and it keeps the time (#606)
-    return idle && anyConsole && tty;
+    if (stdioConsole && !tty) return false;  // a piped console is a script: never idle
+    return idle;
 }
 
 bool AchievedHzMeter::sample(CpuCard* card, uint64_t t, clk::time_point now) {
@@ -1912,6 +1913,7 @@ void Monitor::runMachine(std::ostream& out, bool stepOver) {
     // something" -- and it has to persist in doing nothing before we believe it (see the
     // nap, at the bottom of the loop).
     clk::time_point idleSince{};
+    SentBytes       sent;  // the bytes sent on every line, for the same judgement
 
     // #933: PUMP BEFORE THE FIRST SLICE. A listening line answers its caller only in
     // pump(), and nothing pumps at the prompt. Without this, a caller who dialed before
@@ -1929,11 +1931,13 @@ void Monitor::runMachine(std::ostream& out, bool stepOver) {
         }
 
         // What the guest did with its slice: did it SAY anything, did it RECEIVE
-        // anything, and how often did it come to the keyboard and find nothing there.
+        // anything, and how often did it read a line's status and find no byte there.
         // Those three are the whole of the idle judgement at the bottom of the loop.
-        const uint64_t wasWritten  = con.written();
-        const uint64_t wasReceived = m_.rxBytes();  // the WHOLE backplane, not just the console
-        const uint64_t wasHungry   = con.hungry();
+        // Every count is the WHOLE backplane's, not the console's (#948): a guest waiting on
+        // port B, or with its console on a socket, waits as one at the host terminal does.
+        const uint64_t              wasWritten  = con.written();
+        const uint64_t              wasReceived = m_.rxBytes();
+        const uint64_t wasEmpty = m_.emptyPolls();
 
         // A slice, then a look around. Short enough that ATTN feels instant and a
         // keystroke is picked up promptly; long enough that the per-slice overhead
@@ -2067,8 +2071,11 @@ void Monitor::runMachine(std::ostream& out, bool stepOver) {
         static constexpr auto     kIdleWarmup = std::chrono::milliseconds(20);
         static constexpr auto     kIdleNap    = std::chrono::milliseconds(4);
 
-        const SliceWork work{r.steps, con.written() - wasWritten, m_.rxBytes() - wasReceived,
-                             con.hungry() - wasHungry};
+        const uint64_t  empty = m_.emptyPolls() - wasEmpty;
+        const SliceWork work{r.steps,
+                             (con.written() - wasWritten) +
+                                 sent.since(m_, r.steps, empty, kIdleRatio),
+                             m_.rxBytes() - wasReceived, empty};
 
         // Does the throttle pace this run? The reasoning is at the throttle, below.
         const bool pace = !m_.clock.free();

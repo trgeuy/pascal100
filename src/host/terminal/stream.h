@@ -58,7 +58,7 @@ public:
     std::string doDescribe() const override { return spec_; }
 
     size_t read(uint8_t* buf, size_t n) override;   // guest <- reports + keystrokes
-    size_t write(const uint8_t* buf, size_t n) override;  // guest -> screen
+    size_t doWrite(const uint8_t* buf, size_t n) override;  // guest -> screen
     bool   readable() const override;
     bool   writable() const override { return true; }  // the terminal never stalls the guest
 

@@ -67,6 +67,9 @@ public:
     void deserialize(StateReader& r) override;
 
     uint64_t rxBytes() const override;
+    // The guest found no byte on a status read, on any user, or on the RxRDY port with no
+    // user ready (Board::emptyPolls, altairsim #948).
+    uint64_t emptyPolls() const override;
     std::vector<std::string> drainLog() override;
 
     std::vector<Property> properties() override;
@@ -112,6 +115,7 @@ private:
     int     boardSel_ = 0;     // S1-7/S1-8: users 0-7, 8-15, 16-23 or 24-31
     int     waits_    = 0;     // J17: 0, 1 or 2 wait states on a USART access
     uint8_t latch_    = 0;     // U34: D0-D4 of the last user select write
+    uint64_t emptyPolls_ = 0;  // RxRDY port reads that found nothing (host bookkeeping)
     uint8_t txMask_   = 0;     // U38/U41: TxINTEN0-7
     uint8_t rxMask_   = 0;     // U52/U55: RxINTEN0-7
 

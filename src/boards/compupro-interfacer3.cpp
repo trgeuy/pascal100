@@ -101,6 +101,7 @@ uint8_t InterfacerThreeBoard::read(const BusCycle& c) {
             u.poll(clk);
             if (rel == 4 ? u.txReady(clk) : u.rxReady()) v |= (uint8_t)(1u << i);
         }
+        if (rel == 5 && v == 0) ++emptyPolls_;  // no user has a byte: the guest is waiting
     }
     refresh();  // a data read can drop RxINT
     return v;
@@ -229,6 +230,12 @@ void InterfacerThreeBoard::deserialize(StateReader& r) {
     }
     decodeChanged();  // USEL may differ from before the restore
     refresh();
+}
+
+uint64_t InterfacerThreeBoard::emptyPolls() const {
+    uint64_t n = emptyPolls_;
+    for (const auto& u : users_) n += u->uart.emptyPolls();
+    return n;
 }
 
 uint64_t InterfacerThreeBoard::rxBytes() const {

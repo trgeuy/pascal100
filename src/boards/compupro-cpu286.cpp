@@ -293,7 +293,8 @@ std::vector<Property> CompuProCpu286Board::properties() {
     {
         Property x;
         x.name = "idle";
-        x.help = "Stand down when the guest is only polling an empty keyboard. On by default.";
+        x.help = "At full speed, rest while the guest reads an empty serial line, on "
+                 "any port. On by default. The guest cannot see the rest.";
         x.kind = Kind::Bool;
         x.get = [this] { return Value::ofBool(idle_); };
         x.set = [this](const Value& v, std::string&) {

@@ -95,6 +95,23 @@ uint64_t Machine::rxBytes() const {
     return n;
 }
 
+Machine::LineActivity Machine::lineActivity() { return {emptyPolls(), txBytes()}; }
+
+uint64_t Machine::emptyPolls() const {
+    uint64_t n = 0;
+    for (const auto& b : boards_) n += b->emptyPolls();
+    return n;
+}
+
+uint64_t Machine::txBytes() {
+    uint64_t n = 0;
+    for (auto& b : boards_)
+        for (const auto& u : b->units())
+            if (u.kind == UnitKind::Serial)
+                if (const ByteStream* s = b->unitStream(u.name)) n += s->txBytes();
+    return n;
+}
+
 bool Machine::burn(uint32_t phys, uint8_t v, std::string& why) {
     phys &= bus.addrMask();
     const uint16_t addr = (uint16_t)phys;
