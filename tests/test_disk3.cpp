@@ -271,6 +271,25 @@ void test_disk3() {
         CHECK(k.word(IOPB + ARG1 + 1) == 10 && k.word(IOPB + ARG1 + 3) == 0, "...and the IOPB keeps the absolute form");
     }
 
+    SECTION("disk3: the reset bit restores the firmware's defaults");
+    {
+        // p. 17-18: "Reset the board by pulsing the reset bit in the attention port" ... "the
+        // DISK 3 firmware defaults to ST506 parameters and absolute sector mode after a reset".
+        // A boot EPROM leaves GLOBAL mode 0 and a SPECIFY behind; the OS's own reset must undo
+        // them, or its read of absolute sector 0 (the label) lands on logical track 0.
+        withDisk(kBytes);
+        Rig k;
+        k.ready();
+        k.specifyBlock(PARM, 3);
+        CHECK(k.command(SPECIFY, 0, {}, PARM) == 0xFF, "GLOBAL mode 0, then SPECIFY 3 reserved tracks");
+        CHECK(k.rw(true, 0, 0, 0, 1) == 0xFF && k.sectorAt(BUF, 4, 0), "...sector 0 track 0 is physical track 4");
+        k.resetAndWarmUp();
+        CHECK(k.command(RW, 0, {1, 0, 0, 0, 0, 1, 0}, BUF) == 0xFF && k.sectorAt(BUF, 0, 0),
+              "after the reset bit: ARG2-5 is absolute sector 0 again, physical track 0");
+        CHECK(k.command(RW, 0, {1, 10, 0, 0, 0, 1, 0}, BUF) == 0xFF && k.sectorAt(BUF, 1, 1),
+              "...absolute sector 10 is track 1 sector 1: no reserved tracks either");
+    }
+
     SECTION("disk3: WRITE, then read it back; write-protect");
     {
         withDisk(kBytes);

@@ -25,12 +25,19 @@ const CompuProDiskBoard::Traits kTraits = {
     "The boot EPROM: builtin:DISK1A (default), or a 2764 image file (Intel HEX, S-records or "
     "binary)",
     "S3-2..7",
-    "Boot routine (S1-2..5): the 512-byte page of the EPROM at 0000. 0-3 are 8080/Z80 code",
-    "Boot EPROM enable (S3-8). On (default): the ROM answers reads at 0000-01FF over PHANTOM* "
-    "after a reset. Off: a plain disk controller",
+    "Boot routine (S1-2..5): the 512-byte page of the EPROM. In builtin:DISK1A, 0-3 are "
+    "8080/8085/Z80 code and 4-7 are 8086/286 code",
+    "Boot EPROM enable (S3-8). On (default): after a reset the ROM answers every memory read "
+    "(A0-A8 pick the byte) over PHANTOM*, until OUT BASE+3 with D0 = 0. Off: a plain disk "
+    "controller",
     0,
     "S2-4..7",
-    false,  // not checked against the Disk 1A manual: the window at 0000 only
+    // Disk 1A manual (1984), theory of operation p. 18: "when MEMR* goes low, BOOT and PROM EN*
+    // are generated ... whenever a memory read occurs", and PHANTOM* "whenever BOOT is asserted
+    // and a DMA bus cycle (BC*) is not occurring"; S1-7 brings A8 from the bus. So it answers
+    // every read, as the Disk 1 does: an 8086 reads routine 4-7 at FFFF0 (offset 1F0), and
+    // routine 5's JMP FAR 0000:0002 there runs on in the same ROM.
+    true,
 };
 
 } // namespace

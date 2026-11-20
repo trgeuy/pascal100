@@ -429,7 +429,8 @@ void test_disk1a() {
         CHECK(k.fdc->romEnabled(), "the ROM is on after power-up");
         CHECK(k.m.bus.memRead(0x0000) == 0x00 && k.m.bus.memRead(0x01FF) == 0x0F,
               "0000-01FF read routine 0");
-        CHECK(k.m.bus.memRead(0x0201) == 0x00, "0200 up is RAM (zero fill; the ROM would read 01)");
+        CHECK(k.m.bus.memRead(0x0201) == 0x01 && k.m.bus.memRead(0xFFFF) == 0x0F,
+              "...and every other address too, A0-A8 (manual p. 18): 0201 = byte 001, FFFF = 1FF");
         k.m.bus.memWrite(0x005D, 0xAA);
         CHECK(k.m.bus.memRead(0x005D) == 0x0D, "a write under the ROM does not show through");
         std::string err;
@@ -593,6 +594,7 @@ void test_disk1a() {
         Rig a(true);
         std::string err;
         a.fdc->mount("drive0", "a.dsk", false, err);
+        a.out(MOTOR, 0x00);  // the ROM off first: while on, it answers the rig's fetches at 8000
         a.home();
         a.command({0x0F, 0x00, 5});
         a.out(DSR, 0x20);

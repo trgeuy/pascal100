@@ -156,6 +156,9 @@ private:
     };
 
     void attention();
+    // The firmware's defaults after its 8085 restarts (RESET* or the J10 bit): the first
+    // attention again, absolute sector mode, the drive's own shape, no map (p. 17-18).
+    void firmwareDefaults();
     StepResult stepOne(Bus& bus);
     void execute();
     void finish(uint8_t status);

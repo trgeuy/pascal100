@@ -71,13 +71,17 @@ void CompuProDisk3Board::write(const BusCycle& c) {
     const uint8_t v = c.data;
     if (v & (1u << resetBit_)) {
         // RESET: the 8085 stops where it is. A command in flight is lost, the interrupt
-        // drops, and the next attention is the first one again.
+        // drops, and the next attention is the first one again. The firmware restarts with
+        // its defaults: "Reset the board by pulsing the reset bit in the attention port ...
+        // the DISK 3 firmware defaults to ST506 parameters and absolute sector mode after a
+        // reset" (p. 17-18). So a host that resets the board can read absolute sectors 0
+        // and 1 even after another program (a boot EPROM) set GLOBAL mode 0 and a SPECIFY.
         if (job_.phase != Phase::Idle) {
             job_.phase = Phase::Idle;
             holdChanged();
         }
-        held_      = true;
-        firstAttn_ = true;
+        firmwareDefaults();
+        held_ = true;
         if (intOut_) {
             intOut_ = false;
             intChanged();
@@ -621,8 +625,16 @@ void CompuProDisk3Board::reset(Reset r) {
         job_.phase = Phase::Idle;
         holdChanged();
     }
-    job_       = Job{};
-    held_      = false;
+    job_  = Job{};
+    held_ = false;
+    firmwareDefaults();
+    if (r == Reset::PowerOn)
+        for (Drive& d : drive_) d.pos = 0;
+    intOut_ = false;
+    intChanged();
+}
+
+void CompuProDisk3Board::firmwareDefaults() {
     firstAttn_ = true;
     link_      = kDefIopb;
     mode_      = 0xFF;  // "absolute sector mode after a reset" (p. 18)
@@ -630,10 +642,7 @@ void CompuProDisk3Board::reset(Reset r) {
     for (Drive& d : drive_) {
         d.spec = Spec{d.sectorSize, d.sectors, d.heads, d.cylinders, 0};
         d.map.fill(0);
-        if (r == Reset::PowerOn) d.pos = 0;
     }
-    intOut_ = false;
-    intChanged();
 }
 
 void CompuProDisk3Board::power() { reset(Reset::PowerOn); }

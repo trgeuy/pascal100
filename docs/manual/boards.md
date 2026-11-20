@@ -659,7 +659,8 @@ that fit the image.
 These things are not part of the board:
 
 - **A 5.25″ disk boots from unit 2.** Routines 2 and 3 of the EPROM read it.
-- **Only routines 0–3 run.** The other routines are for the 8086, 68000 and 32016 processors.
+- **Routines 8–15 do not run.** They are for the 68000 and 32016 processors. Routines 4–7 are
+  for an 8086 or 80286 (the CPU 86/87 or the CPU 286). Routines 4 and 5 can boot a DISK 3 hard disk.
 - **CompuPro CP/M 2.2Q does not run.** Its BIOS needs the 8088 of the CompuPro CPU 8085/88
   board.
 
@@ -683,7 +684,7 @@ passes a different console code to the loaded system:
 | 6 | The serial channel of the System Support 1 |
 | 7 | An Interfacer 3 or 4 at `10` |
 
-Routines 0–3 are for the 8086 and do not run here.
+Routines 0–3 are for the 8086. Use them with the CPU 86/87 (`cpu8687`).
 
 The built-in `default` machine has this board, a Z80 processor, 64K of RAM and an Interfacer 1
 console. The console is the first serial port of the Interfacer 1, at ports `00` and `01`, as

@@ -68,7 +68,8 @@ public:
         // boot EPROM whenever a memory read occurs", and PHANTOM* "whenever BOOT is asserted
         // and a DMA bus cycle (BC*) is not occurring" (Disk 1 manual, theory of operation).
         // So while it boots the ROM answers EVERY memory read, ROM[A0-A7], at any address:
-        // an 8086 reads it at FFFF0 and then at 0000:0006. false = only the window at 0000.
+        // an 8086 reads it at FFFF0 and then at 0000:0006. The Disk 1A works the same way
+        // (A0-A8). false = only the window at 0000.
         bool        romEveryRead;
     };
 

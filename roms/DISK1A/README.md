@@ -3,8 +3,8 @@
 The boot EPROM of the **CompuPro Disk 1A** floppy disk controller. The part is a 2764 (8 KB).
 It holds sixteen boot routines of 512 bytes each.
 
-- **Run address:** `0000h`. The board shows one routine at `0000`–`01FF` until the guest
-  turns the EPROM off.
+- **Run address:** `0000h` for an 8080, `FFFF0h` for an 8086 or 80286. While the board boots,
+  every memory read gets a byte of one routine (A0–A8), until the guest turns the EPROM off.
 - **Decoded image:** `0000`–`1FFF`, 8192 bytes, CRC32 `93DBAEF4`.
 - **Part number:** the 1985 Viasyn *Disk 1A Technical Manual* (board 203 Rev F) gives EPROM
   Version 1.6 as Part #291B. The name of this dump is `291B_1.HEX`. The image holds no version
@@ -25,9 +25,9 @@ that switch.
 | 8–11 | 68000 | The same four orders |
 | 12–15 | 32016 | The same four orders |
 
-Only routines 0–3 run in pascal100. Routines 4–7 are for a board that starts as an 8086 (the
-CompuPro CPU 86/87 or CPU 286); pascal100 has none, and no 68000 or 32016 board. The CPU 8085/88
-(`cpu8588`) starts with its 8085, so it uses routines 0–3 too.
+Routines 0–3 run on an 8080, 8085 or Z80. The CPU 8085/88 (`cpu8588`) starts with its 8085, so
+it uses routines 0–3 too. Routines 4–7 run on the CPU 86/87 (`cpu8687`) and the CPU 286
+(`cpu286`). pascal100 has no 68000 or 32016 board, so routines 8–15 do not run.
 
 ## What routine 0 does
 

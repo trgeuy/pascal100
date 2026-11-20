@@ -16,8 +16,9 @@ controller. It has three parts:
   5.25″ drives, in single and double density.
 - a **DMA engine** with a 24-bit address counter. The board takes the bus and moves each byte
   between the 765 and memory. There is no byte count and no terminal count.
-- a **boot EPROM** (a 2764 of 8 KB). Switches pick one 512-byte routine of the sixteen. The
-  routine answers memory reads at `0000`–`01FF` over `PHANTOM*`.
+- a **boot EPROM** (a 2764 of 8 KB). Switches pick one 512-byte routine of the sixteen. While
+  the board boots, the routine answers every memory read over `PHANTOM*`, with A0–A8 picking the
+  byte: an 8080 finds it at `0000`, an 8086 or 80286 at `FFFF0`.
 
 The board decodes four ports at a base that is a multiple of four. The CompuPro base is `C0`.
 The Disk 1 has a bit-banged serial port on its port 3. The Disk 1A has a Drive Select Register
@@ -86,7 +87,12 @@ time. The 8″ motors always follow their bits and the timer.
 - **DMA.** The board has a `Mover`, a `BusMaster`, as the Tarbell DD does. The 765's DRQ asks
   for the bus. Each grant moves one byte in one three-state memory cycle, and the counter counts
   up.
-- **The boot EPROM** answers memory reads at `0000`–`01FF` and asserts `PHANTOM*`. Memory
+- **The boot EPROM** answers every memory read, at any address, and asserts `PHANTOM*`, until
+  `OUT C3` with D0 = 0. A0–A8 pick the byte of the 512-byte routine. The 1984 manual, p. 18
+  (Boot Circuitry): "when MEMR* goes low, BOOT and PROM EN* are generated ... whenever a memory
+  read occurs", and `PHANTOM*` comes "whenever BOOT is asserted and a DMA bus cycle (BC*) is not
+  occurring"; S1-7 brings A8 from the bus. Routine 5 needs this: its `JMP FAR 0000:0002` is at
+  offset `1F0`, where an 8086's first fetch at `FFFF0` lands. Memory
   writes go to the RAM below it. Because of this, the RAM of the machine must be set
   `honors_phantom = "read"`. Routine 0 writes a vector at `005D` while the EPROM is on, and
   reads it back after the EPROM is off.
@@ -219,11 +225,12 @@ The `[[board.drive]]` table takes these keys:
   that is not modeled.
 - **The data rate does not check the media.** On the board, a 5.25″ disk read at the 8″ rate
   fails. Here, Drive Select bit 5 changes only the Specify timing of the 765.
-- **Only routines 0–3 can run.** Routines 4–7 are 8086 code, 8–11 are 68000 code and 12–15 are
-  32016 code, for boards that start as those processors. pascal100 has none of them (the CPU
-  8085/88, `cpu8588`, starts with its 8085). Routine 1 boots only the DISK 3 hard
-  disk, which is not emulated. Routine 2 tries 8″ drive 0 and then the 5.25″ drive in unit 2.
-  Routine 3 tries the 5.25″ drive in unit 2 and then the DISK 3. Routines 0, 2 and 3 are tested.
+- **Routines 8–15 cannot run.** They are 68000 and 32016 code, and pascal100 has no board with
+  those processors. Routines 0–3 run on an 8080, 8085 or Z80 (the CPU 8085/88, `cpu8588`,
+  starts with its 8085); routines 4–7 run on the CPU 86/87 or the CPU 286. Routine 2 tries 8″
+  drive 0 and then the 5.25″ drive in unit 2. Routine 3 tries the 5.25″ drive in unit 2 and
+  then the DISK 3. Routines 0, 2 and 3 are tested here; the start of routine 5 (the DISK 3 only)
+  is tested in `tests/test_cpu286.cpp`.
 - **No Disk 2 or DISK 3.** CP/M 2.2NZ, which boots from a Disk 2 hard disk, does not boot.
 - **The CompuPro CP/M 2.2Q master disk needs the 8088 of the CPU 8085/88 board.** Its BIOS, as
   shipped, moves records with the 8088 (`IN FD`). Without the 8088, its `DIR` repeats

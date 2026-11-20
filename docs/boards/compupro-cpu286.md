@@ -35,7 +35,8 @@ The 80286 starts at F000:FFF0 with a hidden CS base of FF0000. Its first fetch i
 linear FFFFF0. Jumpers J3-J6 decide which address reaches the bus:
 
 - **A-C (as shipped, `mm_lines = F`).** The memory manager drives A20-A23. RESET clears it,
-  so the first fetch is at **0FFFF0**. The Disk 1 boot ROM answers there under PHANTOM*.
+  so the first fetch is at **0FFFF0**. The Disk 1 or Disk 1A boot ROM answers there under
+  PHANTOM*. The Disk 1A's routines 4 and 5 boot from a DISK 3 hard disk.
 - **B-C (`mm_lines = 0`).** The 80286 drives A20-A23. The first fetch is at **FFFFF0**, in the
   sockets when J7 is fitted. A20-A23 stay high until the first far jump loads CS.
 
@@ -94,4 +95,4 @@ cycle.
 
 `tests/test_cpu80286.cpp` runs the hardware sample and the 80286's reset, 24-bit and fault
 checks. `tests/test_cpu286.cpp` covers the board: the reset through J3-J6, the memory manager,
-J2, the sockets, J1, RESET, the snapshot and the Disk 1 boot.
+J2, the sockets, J1, RESET, the snapshot and the starts of the Disk 1 and Disk 1A boots.

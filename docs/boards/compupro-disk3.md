@@ -31,6 +31,13 @@ J9 the completion interrupt (VI0-VI7 or INT).
 |---|---|---|
 | 90 or 91 | 00 = attention. A byte with the J10 bit set (default bit 0) = reset. Other bytes: another board's reset. | Nothing (the board does not drive the bus). |
 
+A reset (RESET\* on the bus, or the J10 bit at the port) restarts the firmware with its defaults:
+absolute sector mode, the drive's own shape with no reserved tracks, no map (manual p. 17-18:
+"Reset the board by pulsing the reset bit in the attention port", and "the DISK 3 firmware
+defaults to ST506 parameters and absolute sector mode after a reset"). So an operating system
+that resets the board can read absolute sectors 0 and 1, even after a boot EPROM left GLOBAL
+mode 0 and a SPECIFY behind.
+
 The first attention after a reset only fetches the LINK (bytes 13-15) of the IOPB at 0:50h.
 Each later attention fetches the IOPB at the last LINK and runs it. STATUS (byte 1) is written
 last: 0 = busy, FF = done, 01-08 = an error (manual p. 12).

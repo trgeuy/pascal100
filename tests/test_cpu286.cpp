@@ -241,4 +241,32 @@ void test_cpu286() {
         cpu->i80286()->pcSegOff(cs, ip);
         CHECK(cs == 0x0000 && ip == 0x0008, "...and the next came from the ROM at 0006 (XOR AX,AX)");
     }
+
+    SECTION("cpu286: the 80286 boots through the Disk 1A's EPROM at 0FFFF0 (routine 5, Disk 3)");
+    {
+        // The Disk 1A also answers every memory read while it boots (manual p. 18), A0-A8 into
+        // a 512-byte routine: offset 1F0 of routine 5 = JMPF 0000:0002, then XOR AX,AX at 0002.
+        Machine m;
+        std::string err;
+        auto* mem = dynamic_cast<MemoryBoard*>(m.add("memory", "mem0", err));
+        Region rg;
+        rg.kind = RegionKind::Ram;
+        rg.at = 0;
+        rg.size = 0x100000;
+        mem->addRegion(rg, err);
+        setProperty(*mem, "honors_phantom", "read", err);
+        auto* fd = m.add("disk1a", "fd0", err);
+        CHECK(fd && setProperty(*fd, "routine", "5", err), ("routine 5: " + err).c_str());
+        auto* cpu = dynamic_cast<CompuProCpu286Board*>(m.add("cpu286", "cpu", err));
+        m.power();
+        CHECK(m.bus.peekX(0x0FFFF0) == 0xEA && m.bus.peekX(0x000002) == 0x33,
+              "the ROM shows at 0FFFF0 and at 0000 alike");
+        m.debug.run(1);
+        uint16_t cs = 0, ip = 0;
+        cpu->i80286()->pcSegOff(cs, ip);
+        CHECK(cs == 0x0000 && ip == 0x0002, "the first instruction was JMPF 0000:0002");
+        m.debug.run(1);
+        cpu->i80286()->pcSegOff(cs, ip);
+        CHECK(cs == 0x0000 && ip == 0x0004, "...and the next came from the ROM at 0002 (XOR AX,AX)");
+    }
 }
