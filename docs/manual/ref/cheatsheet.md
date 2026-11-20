@@ -123,6 +123,7 @@ Type the part before the bracket.
 | Type | What it is |
 |---|---|
 | `8085` | Generic 8085 CPU board |
+| `cpu286` | CompuPro CPU 286: an 80286 on a 16-bit bus |
 | `cpu8588` | CompuPro CPU 8085/88: 8085 + 8088, one on line |
 | `cpu8687` | CompuPro CPU 86/87: an 8086 on a 16-bit bus |
 | `pascal100` | Digicomp Pascal-100: Z80 + WD MicroEngine, one active |

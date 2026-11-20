@@ -5896,9 +5896,10 @@ bool Monitor::exec(const std::string& line, std::ostream& out) {
             uint32_t at;
             if (!addrSym(a[1], at, out)) return true;
             if (at > cpu->pcMask()) {
-                // "address is 16 bits: 0000-FFFF", or 20 bits on the 8088
-                out << (cpu->pcMask() > 0xFFFF ? "address is 20 bits: 00000-FFFFF\n"
-                                               : "address is 16 bits: 0000-FFFF\n");
+                // "address is 16 bits: 0000-FFFF", 20 bits on the 8088, 24 on the 80286
+                out << (cpu->pcMask() > 0xFFFFF  ? "address is 24 bits: 000000-FFFFFF\n"
+                        : cpu->pcMask() > 0xFFFF ? "address is 20 bits: 00000-FFFFF\n"
+                                                 : "address is 16 bits: 0000-FFFF\n");
                 failed_ = true;
                 return true;
             }

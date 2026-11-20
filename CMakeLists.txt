@@ -345,6 +345,7 @@ add_library(altair_core STATIC
   src/isa/isa8088.cpp
   src/cpu/cpu8085.cpp
   src/cpu/cpu8088.cpp
+  src/cpu/cpu80286.cpp
   src/cpu/cpuZ80.cpp
   src/cpu/pcodeOps.cpp
   src/cpu/cpuPmachine.cpp
@@ -464,6 +465,7 @@ add_library(altair_core STATIC
   src/boards/digicomp-pascal100.cpp
   src/boards/compupro-cpu8588.cpp
   src/boards/compupro-cpu8687.cpp
+  src/boards/compupro-cpu286.cpp
   src/boards/mits-8085cpu.cpp
   # The CompuPro System Support 1 -- a multifunction card. Being brought up in phases
   # (issue #392); today the OKI MSM5832 real-time clock. See src/boards/compupro-ss1.h.
@@ -717,6 +719,7 @@ add_executable(altair_tests
   tests/test_coreswitch.cpp
   tests/test_cpu8588.cpp
   tests/test_cpu8687.cpp
+  tests/test_cpu286.cpp
   tests/test_pascal100.cpp
   tests/test_ddt.cpp
   tests/test_dma.cpp
@@ -746,6 +749,7 @@ add_executable(altair_tests
   tests/test_tarbell.cpp
   tests/test_jadedd.cpp
   tests/test_cpu8088.cpp
+  tests/test_cpu80286.cpp
   tests/test_disk1.cpp
   tests/test_disk1a.cpp
   tests/test_disk2.cpp

@@ -61,6 +61,13 @@ void lea(
 	write_t<IntT> destination,
 	ContextT &context
 ) {
+	// pascal100: LEA with a register operand (mod = 11) has no address to load; from the
+	// 80286 on it is an invalid opcode (80286 hardware tests, 8D: INT 6).
+	if constexpr (ContextT::model >= Model::i80286) {
+		if(!is_address(instruction.source().source())) {
+			throw Exception::exception<Vector::InvalidOpcode>();
+		}
+	}
 	// TODO: address size.
 	destination = IntT(address<uint16_t, AccessType::Read, type>(instruction, instruction.source(), context));
 }

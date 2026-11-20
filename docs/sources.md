@@ -260,6 +260,20 @@ maintainer).** The terms:
   and the REP string formulas were fitted to them; MAME's CMPS, LODS and SCAS counts, and its
   PUSH/POP/RET values, were wrong for the 8088 and are corrected. The method and the results
   are in the project folder (`Pascal100-Altairsim/clk-8088-spike/README.md`).
+- **The 80286** (`src/cpu/cpu80286.cpp`, CLK model `i80286`, real mode only). The fact source
+  is the **SingleStepTests 80286 v1_real_mode** suite (Daniel Balsom, MIT,
+  github.com/SingleStepTests/80286). It has about 1.48 M tests, recorded from a real Harris
+  80C286-12. CLK, with our two 80286 fixes (LEA with a register operand, the bus order of a
+  real-mode interrupt), gives the real chip's registers and RAM in 99.997% of them. Its memory
+  and I/O cycles come in the same order in 98%. The suite does not test the prefetch queue,
+  IF or TF.
+- **80286 timing** (`src/cpu/timing80286.h`). The counts and rules are from Intel's *80286 and
+  80287 Programmer's Reference Manual* (210498-005, 1987), chapter 8 and section 8.2. The bus
+  cycle of two clocks is from Intel's *80286 Hardware Reference Manual* (210760-002, 1987),
+  p. 3-15. The suite's cycle counts check them: 97% of 32,600 tests are within 2 clocks, after
+  the suite's own overhead of about 11 clocks. The suite decided three counts that the book
+  does not give or gets wrong: ESC with no 80287, REP STOSW to an odd address, and the shift
+  count of C0/C1.
 - **When sources disagree, the hardware recording wins**, then Intel's documents, then CLK
   and MAME. A disagreement found later is fixed in our copy and listed in
   `third_party/clk/README.pascal100.md`.

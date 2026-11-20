@@ -99,7 +99,7 @@ public:
     virtual const char* isa() const = 0;
     // The 8086 and the 8088 run one instruction set; only the bus differs. Every place that
     // treats a core as x86 (CS:IP, the 8088 disassembler) asks this, not for one name.
-    static bool isX86(const std::string& isa) { return isa == "8088" || isa == "8086"; }
+    static bool isX86(const std::string& isa) { return isa == "8088" || isa == "8086" || isa == "80286"; }
 
     // The LONGEST instruction in that set, in bytes: opcode, prefixes and operands. CPU
     // HISTORY peeks this many code bytes before EVERY instruction, so it is the exact

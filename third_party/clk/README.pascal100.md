@@ -25,5 +25,20 @@ every test gives the real chip's registers and RAM. Not yet offered upstream.
 4. Missing standard includes: `<array>` and `<functional>` in `Descriptors.hpp`, `<limits>`
    in `Arithmetic.hpp`.
 
+The 80286 (`src/cpu/cpu80286.*`, model `i80286`) was checked against the SingleStepTests
+80286 v1_real_mode suite (about 1.48 M tests from a real Harris 80C286-12). These two changes
+apply to the 80286 model only. With them, 99.997% of the tests give the real chip's
+registers and RAM.
+
+5. `Implementation/LoadStore.hpp`, LEA: a register operand (mod 11) is an invalid opcode
+   (INT 6) from the 80286 on.
+6. `Implementation/PerformImplementation.hpp`, `interrupt()` in real mode: the 80286 pushes
+   FLAGS, CS and IP first, then reads the vector. Upstream read the vector first (the
+   values were right, the bus order wrong).
+
+The 49 tests that still fail are corner cases: an instruction longer than 10 bytes (2),
+ENTER with a large level (1), AAM 0 (9), the IDIV quotient limit (4), and ESC with no 80287
+(33).
+
 The spike that chose this core, with its results, is outside the repository
 (`Pascal100-Altairsim/clk-8088-spike/` in the project folder).

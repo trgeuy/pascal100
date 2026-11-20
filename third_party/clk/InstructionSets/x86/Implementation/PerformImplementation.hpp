@@ -831,14 +831,28 @@ void interrupt(
 		}
 	}
 
-	const uint32_t address = static_cast<uint32_t>(table_pointer.base + exception.vector) << 2;
+	// pascal100: the entry is at base + vector * 4 (a real-mode LIDT moves the table on the
+	// 80286); upstream had (base + vector) * 4, which differs only for a non-zero base.
+	const uint32_t address = table_pointer.base + (static_cast<uint32_t>(exception.vector) << 2);
 	context.linear_memory.preauthorise_read(address, sizeof(uint16_t) * 2);
 
-	// TODO: I think (?) these are always physical addresses, not linear ones.
-	// Indicate that when fetching.
-	const uint16_t ip = context.linear_memory.template read<uint16_t>(address);
-	const uint16_t cs = context.linear_memory.template read<uint16_t>(address + 2);
-	far_call(cs, ip);
+	// pascal100: the 80286 pushes FLAGS, CS and IP before it reads the vector (80286
+	// hardware tests: INT, INTO, faults); the 8086 reads the vector first.
+	if constexpr (ContextT::model >= Model::i80286) {
+		context.memory.preauthorise_stack_write(sizeof(uint16_t) * 3, sizeof(uint16_t));
+		Primitive::push<uint16_t, true>(context.flags.get(), context);
+		Primitive::push<uint16_t, true>(context.registers.cs(), context);
+		Primitive::push<uint16_t, true>(context.registers.ip(), context);
+		const uint16_t ip = context.linear_memory.template read<uint16_t>(address);
+		const uint16_t cs = context.linear_memory.template read<uint16_t>(address + 2);
+		context.flow_controller.jump(cs, ip);
+	} else {
+		// TODO: I think (?) these are always physical addresses, not linear ones.
+		// Indicate that when fetching.
+		const uint16_t ip = context.linear_memory.template read<uint16_t>(address);
+		const uint16_t cs = context.linear_memory.template read<uint16_t>(address + 2);
+		far_call(cs, ip);
+	}
 	context.flags.template set_from<Flag::Interrupt, Flag::Trap>(0);
 }
 
