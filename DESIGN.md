@@ -314,6 +314,158 @@ Two label collisions are real, and both are DDT's own: `S=` on the line is the *
 
 So the debugger lives in `Machine`, drives `cpu->step(bus)`, and asks only generic questions. **An 8085 card inherits the entire debugger for free.**
 
+### 3.0.4 A processor on a board's private bus is not a bus master (the SPUZ)
+
+**pascal100: DECIDED 2026-11-20** (reviewed by the maintainer; the decisions are marked below). Sources: `reference/CompuPro SPUZ.md`
+(the Viasyn manual, board 257E, July 1985) and the disassembly of CompuPro's `SPZ.CMD` and
+`SW!SPUZ.CMD` (Concurrent DOS 8-16 3.1 DM).
+
+**The rule.** Some boards carry a processor that never drives the S-100 bus. It runs on the
+board's own bus, and the host reaches it only through a memory window and ports. Such a processor
+is not a `BusMaster` (§3), not a unit of a `CpuCard` (§3.0.1), and it never takes pHOLD (§4.5).
+The board owns the processor, a private `Bus` and a private `Clock`, and runs the processor on
+the board's own time. The Jade Double D (`docs/boards/jade-doubled.md`) is the first such board
+and is built. The CompuPro SPUZ is the second.
+
+**Why not a second bus master.** The SPUZ manual says so (p. 8): "It does not become a temporary
+master". Its Z80H runs on the board's internal bus. A host access requests that internal bus with
+BUSREQ and waits for BUSACK (pp. 12-13). Nothing the SPUZ Z80 does is an S-100 cycle. A model
+that made it a bus master would put cycles on the bus that the real board never makes.
+
+#### One thread, and the board catches up
+
+The run loop stays single-threaded (§7.5, "No threads"). The board runs its Z80 lazily, as the
+Jade DD does (`JadeDdBoard::catchUp`, `runTo`):
+
+1. The board keeps `anchorH`, the host T-state it has caught up to, and its own clock in board
+   T-states.
+2. Before any host-visible event, the board converts host time to board time and runs its Z80 to
+   that point. The conversion is board T = host T x board crystal / host `hz()`, with the
+   remainder carried. A host-visible event is a host cycle that the board decodes, or a host
+   deadline.
+3. Host `hz()` is never 0 (§8). Flat out, the host still counts T-states at its nominal crystal.
+   So flat out gives the same ratio of board time to host time as a paced run.
+4. While the board can raise its VI line, a host deadline catches it up once each 1 ms of host
+   time. The SPUZ can always raise VI0, so this deadline runs while its Z80 runs.
+
+The result is deterministic: the same machine and input give the same interleave on every host.
+`RECORD`/`REPLAY` (§13) still works, because the board's state is serialized with its anchor.
+
+**What one host-visible event can be late by.** A Z80 BDOS request reaches VI0 at the latest
+1 ms of host time after the Z80 asks. On the real board the request is immediate. Concurrent DOS
+does not time the request, so the delay is invisible to the guest. Each board pays its own
+deadline, so the cost grows with the number of boards (see *The maximum number of slaves*).
+
+#### The SPUZ board
+
+Ports (on the S-100 bus, decoded on A0-A15, manual p. 9):
+
+| Port | Name | Who decodes it |
+|---|---|---|
+| FC30h-FC3Fh | 2681 registers 0-F | The selected board only |
+| FC40h | SLAVESEL (write) | Every SPUZ: each compares D3-D0 with its SW1 select |
+| FC41h | PTLATCH (write) | The selected board only |
+
+- **Shared ports.** Up to 16 boards share FC30h-FC41h. They use `Board::sharesPort` (§4.6). A
+  write to FC40h reaches every board. A read of FC30h-FC3Fh is driven only by the selected board.
+- **The memory window** is the 64K page set by SW2 (CompuPro standard 0E0000h). Only the
+  selected board decodes it. A select change is a decode change (`decodeChanged()`). `SPZ.CMD`
+  selects each board in turn on every request, so the cost of that rebuild must be measured.
+  If it is too high, the window takes the exact path, as a shared port does (§4.6). That is a
+  bus change and comes back for review.
+- **Banks.** A 256K board has four 64K banks. PTLATCH D1-D0 select the host's bank. 2681
+  outputs OP5/OP4 select the Z80's bank. The Z80 starts in bank 3 (p. 12).
+- **Reset.** PTLATCH D3 = 0 holds the Z80 and the 2681 in reset (p. 13). Power-on is reset.
+- **Wait states.** Every host access holds READY for the J1 count (`holdReady`, §7.5). The
+  manual standard is 2.
+- **VI line.** 2681 OP6 drives transistor Q3, which pulls the J2 VI line (VI0 standard). The
+  OPR is 0 at reset, so **the board pulls its VI line from power-on** until software sets OPR
+  bit 6 (p. 12, logic sheet 4). `SPZ.CMD` does this. Concurrent DOS keeps the SS-1 master IR0
+  masked until `SPZ.CMD` unmasks it.
+- **The Z80's interrupt** is the 2681 INTRN only. The ECO 138 addendum removes OP7 from ZINT\* on
+  boards 257D and 257E. NMI is tied high.
+- **Interrupt mode 2.** CompuPro's scheduler runs the Z80 in IM 2 with I = FBh. Nothing drives
+  the internal data bus in the acknowledge cycle, so the private bus floats to FFh (§4.6.1) and
+  the vector is at FBFFh. The private bus already does this.
+
+#### Host access while the Z80 is in reset
+
+On the real board this hangs the S-100 bus. The board asserts pRDY and waits for a BUSACK that
+a reset Z80 never gives (manual pp. 9, 29). A model that hangs the host is useless, and a model that answers is wrong. **Decided 2026-11-20:** the access floats (reads FFh, writes go nowhere), and the board logs the port or
+address and the PC. The run stops at the instruction boundary with a new `StopReason::BusHang`.
+This is the same shape as `SET BUS UNCLAIMED=HALT` (§4.6.1). It is the only change to the run
+loop.
+
+#### The 2681 is a chip, from its data sheet
+
+The 2681 DUART goes in `src/chips/scn2681.{h,cpp}` (§7.8). Its facts come from
+`reference/Signetics 2681 DUART.md`, converted 2026-11-20 from the Signetics data sheet that the
+SPUZ manual reprints (printed pp. 15-27) and Philips' 1998 SCN2681 Product specification. The
+model includes the two test registers (reads of 2 and A), which RESET clears. The sheets disagree
+on the counter after reset; the model takes the pin table's reading, stopped. The reference file
+lists what no sheet says.
+
+**Decided 2026-11-20: the whole chip.** CompuPro's software uses the output port, the input port,
+the ACR, the counter in counter mode, the IMR and the ISR. It does not use the serial channels.
+§7.8 forbids a chip that implements only what one BIOS uses, so the model has both channels, each
+with a `ByteStream`: `CONNECT spuz0:a` and `spuz0:b` reach the SPUZ's RS-232 ports. The channels
+include the FIFO, the error modes, auto echo, the loopback modes, multidrop and break.
+
+The 2681's counter runs from crystal X2 (3.6864 MHz) on the board. It drives only the board Z80,
+so it counts board time (X2 / Z80 crystal x board T-states), not host time. This follows the
+Jade DD: a processor tied to its board's devices stays on emulated time.
+
+#### Not modelled, by decision
+
+- **VDMA and DMA banks** (PTLATCH D2, OP3/OP2). CompuPro's software does not use them. The bits
+  are stored and have no effect.
+- **The J3 hold-off and the 8-cycle refresh rule.** Host accesses take no time from the board Z80.
+  The manual gives no cycle count to charge.
+- **Contention between two boards with VDMA set.** The manual warns of damage (p. 11). The model
+  refuses it at load and at the write.
+
+#### The debugger reaches the board Z80
+
+The Jade DD does not do this (its Limitations). The SPUZ needs it, because a bug in a slave task is otherwise invisible. **Decided 2026-11-20:
+all of it, as its own stage (4), after the board works:**
+
+- A board can publish its private processors as units: `spuz0:z80`. `REGS`, `STEP`, `DISASM`,
+  `BREAK` and `HISTORY CPU` take that form, as `BREAK p100:me 1F8D` does (§3.0.1, rule 4).
+  `DUMP spuz0:z80 <addr>` reads the bank that the Z80 sees, through the private bus.
+- **A breakpoint on a private processor stops the board, then the run.** The hit happens inside
+  `catchUp`, which can run inside a host instruction. The board Z80 stops at the breakpoint and
+  its clock stops. The run stops at the next host instruction boundary with `Breakpoint`, and
+  names `spuz0:z80`. The host can be at most one instruction past the hit.
+- **`STEP spuz0:z80`** runs the board Z80 one instruction and the host none. The board is then
+  ahead of the host. `runTo` already allows this: it does nothing until the host catches up.
+- A MEM or IO breakpoint stays on the S-100 bus (§3.0.1 rule 4). A breakpoint on the private
+  bus is a later step.
+
+#### The maximum number of slaves
+
+| Limit | Value | From |
+|---|---|---|
+| Hardware | 16 boards | SW1 positions 5-8, the 4-bit SLAVESEL (manual p. 4) |
+| CompuPro software | 16 boards x 4 banks = 64 8-bit tasks | `SPZ.CMD`'s table of 16 entries; a 256K board runs a task in each bank |
+| The simulator | **To measure** | Each running board Z80 is a full Z80 at 8 MHz on the host thread |
+
+**Decided 2026-11-20:** the model takes 16 boards, the hardware limit. The loader refuses two boards with
+the same select, and a select outside 0-15. The first build measures the practical limit. It records
+the host speed at `0A>` and under a compute-bound 8-bit task, with 1, 2, 4, 8 and 16 boards. The board's `.md` records the result. **A cost to expect:** CompuPro's scheduler never
+halts the Z80. With no task, it loops at FD00h. So an idle SPUZ costs as much as a busy one, and
+`runTo` cannot skip time as it does for a halted Jade DD.
+
+#### Stages
+
+1. Convert the 2681 data sheet into `reference/Signetics 2681 DUART.md` and the SPUZ manual
+   into `reference/CompuPro SPUZ.md` (DONE 2026-11-20).
+2. `src/chips/scn2681` and its unit tests, from the data sheet.
+3. The `spuz` board: window, ports, banks, reset, VI, catch-up, `StopReason::BusHang`;
+   `docs/boards/compupro-spuz.md` (§14); unit tests from the manual's `HLT.CMD` sequence.
+4. The debugger units (`spuz0:z80`).
+5. Concurrent DOS: `SPZ`, `SW!SPUZ` as `SW!.CMD`, HELLO and MBASIC on one board; then the
+   measurement of the slave limit.
+
 ### 3.1 Core semantics
 
 - **Dispatch:** 256-entry table of function pointers or a `switch`. *Not* a bit-pattern if/elif chain (the Python prototype's linear scan).
