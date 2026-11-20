@@ -272,8 +272,8 @@ CompuPro Disk 1A: an NEC uPD765A floppy controller for 8" and 5.25" drives, sing
 |---|---|---|---|---|
 | `port` | int | `0xC0` | `0x0` .. `0xFC` | Base address (S3-2..7). The board decodes four ports: BASE+0 .. BASE+3 (default C0) |
 | `rom` | string | `builtin:DISK1A` | text | The boot EPROM: builtin:DISK1A (default), or a 2764 image file (Intel HEX, S-records or binary) |
-| `routine` | int | `0` | `0` .. `15` | Boot routine (S1-2..5): the 512-byte page of the EPROM at 0000. 0-3 are 8080/Z80 code |
-| `boot` | bool | `true` | `on` \| `off` | Boot EPROM enable (S3-8). On (default): the ROM answers reads at 0000-01FF over PHANTOM* after a reset. Off: a plain disk controller |
+| `routine` | int | `0` | `0` .. `15` | Boot routine (S1-2..5): the 512-byte page of the EPROM. In builtin:DISK1A, 0-3 are 8080/8085/Z80 code and 4-7 are 8086/286 code |
+| `boot` | bool | `true` | `on` \| `off` | Boot EPROM enable (S3-8). On (default): after a reset the ROM answers every memory read (A0-A8 pick the byte) over PHANTOM*, until OUT BASE+3 with D0 = 0. Off: a plain disk controller |
 | `dma_priority` | int | `15` | `0` .. `15` | DMA priority (S2-4..7): the TMA bus-arbitration priority, 0-15; the higher one gets the bus first. All four switches OFF = 15 (default, CompuPro's setting). Two bus masters must not share a priority |
 | `sense_switch` | bool | `true` | `on` \| `off` | S3-1, read in status bit 2. On (default, reads 0): the CompuPro ROM tells the OS to use a System Support 1 console. Off: an Interfacer 3/4 |
 | `mini_motor_control` | bool | `true` | `on` \| `off` | Jumper J11, in the 5.25" MTR ON line. On (default, J11 installed): bit 7 of the Motor Control Register runs the 5.25" motors, and they stop about 15 seconds after the last access. Off: the 5.25" motors run all the time. The 8" motors always follow bits 4-7 |

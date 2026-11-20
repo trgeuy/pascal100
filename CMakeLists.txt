@@ -512,7 +512,7 @@ target_include_directories(altair_core PUBLIC src "${CMAKE_BINARY_DIR}/generated
 # The 8088's instruction set: the x86 core of Clock Signal (CLK), MIT, vendored in
 # third_party/clk (README.pascal100.md there). Its own library, and a SYSTEM include
 # directory, so CLK's warnings do not fail our warnings-as-errors build; only
-# src/cpu/cpu8088.cpp includes it.
+# src/cpu/cpu8088.cpp and src/cpu/cpu80286.cpp include it (through src/cpu/x86_impl.h).
 add_library(clk_x86 STATIC
   third_party/clk/InstructionSets/x86/Decoder.cpp
   third_party/clk/InstructionSets/x86/Instruction.cpp)
@@ -524,11 +524,13 @@ else()
 endif()
 target_link_libraries(altair_core PUBLIC clk_x86)
 # MSVC reports two back-end warnings inside CLK's header templates, which a SYSTEM include
-# does not hide because cpu8088.cpp instantiates them: C4715 ("not all control paths return
-# a value": a switch that returns on every enum case) and C4702 (unreachable code, from
-# `if constexpr` branches). Neither is a defect. They are turned off for that one file only.
+# does not hide because cpu8088.cpp and cpu80286.cpp instantiate them: C4715 ("not all
+# control paths return a value": a switch that returns on every enum case) and C4702
+# (unreachable code, from `if constexpr` branches). Neither is a defect. They are turned off
+# for those two files only.
 if(MSVC)
-  set_source_files_properties(src/cpu/cpu8088.cpp PROPERTIES COMPILE_OPTIONS "/wd4715;/wd4702")
+  set_source_files_properties(src/cpu/cpu8088.cpp src/cpu/cpu80286.cpp
+                              PROPERTIES COMPILE_OPTIONS "/wd4715;/wd4702")
 endif()
 
 # ---------------------------------------------------------------------------
