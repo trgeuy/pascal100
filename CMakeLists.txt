@@ -444,6 +444,9 @@ add_library(altair_core STATIC
   # The CompuPro System Support 1 carries one (src/chips/msm5832.h).
   src/chips/msm5832.cpp
   src/chips/sig2651.cpp
+  # The Signetics SCN2681 DUART -- two UART channels, a counter/timer, a 7-bit input and an
+  # 8-bit output port. The CompuPro SPUZ carries one (src/chips/scn2681.h).
+  src/chips/scn2681.cpp
   # The Intel 8253 -- a three-channel programmable interval timer, counts computed from
   # the clock rather than stepped. The CompuPro System Support 1 carries one.
   src/chips/intel8253.cpp
@@ -746,6 +749,7 @@ add_executable(altair_tests
   tests/test_upd765.cpp
   tests/test_bitserial.cpp
   tests/test_i8257.cpp
+  tests/test_scn2681.cpp
   tests/test_am9511a.cpp
   tests/test_am9512.cpp
   tests/test_tarbell.cpp

@@ -100,6 +100,7 @@ const struct {
     {"upd765", test_upd765},
     {"bitserial", test_bitserial},
     {"i8257", test_i8257},
+    {"scn2681", test_scn2681},
     {"am9511a", test_am9511a},
     {"am9512", test_am9512},
     {"tarbell", test_tarbell},

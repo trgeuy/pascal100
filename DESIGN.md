@@ -459,7 +459,8 @@ halts the Z80. With no task, it loops at FD00h. So an idle SPUZ costs as much as
 
 1. Convert the 2681 data sheet into `reference/Signetics 2681 DUART.md` and the SPUZ manual
    into `reference/CompuPro SPUZ.md` (DONE 2026-11-20).
-2. `src/chips/scn2681` and its unit tests, from the data sheet.
+2. `src/chips/scn2681` and its unit tests, from the data sheet (DONE 2026-11-20:
+   `tests/test_scn2681.cpp`, 83 checks).
 3. The `spuz` board: window, ports, banks, reset, VI, catch-up, `StopReason::BusHang`;
    `docs/boards/compupro-spuz.md` (§14); unit tests from the manual's `HLT.CMD` sequence.
 4. The debugger units (`spuz0:z80`).

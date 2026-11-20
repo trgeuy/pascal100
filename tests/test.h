@@ -94,6 +94,7 @@ void test_wd17xx();
 void test_upd765();
 void test_bitserial();
 void test_i8257();
+void test_scn2681();
 void test_am9511a();
 void test_am9512();
 void test_tarbell();

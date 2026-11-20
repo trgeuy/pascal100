@@ -507,6 +507,16 @@ write-only.
 - With CTS enabled (MR2x[4]), CTSN must be low for a character to start. If CTSN goes high during
   a character, the character is finished and TxD then stays at mark until CTSN goes low.
 - See MR2x[5] for the automatic negation of RTSN.
+- **TxRDY comes back at the end of the start bit** (1998 p. 21): "It is during the start bit that
+  the data in the transmit holding register is transferred to the transmit shift register."
+- **TxEMT and TxRDY are both set when the transmitter is enabled** (1998 p. 14), and again at any
+  re-enable after a reset or after the transmitter has gone to the disabled state. TxEMT is reset
+  when THR is loaded, a pending disable is done, the transmitter is reset, or it is disabled
+  while underrun. Both set = "underrun".
+- **The transmitter disable note** (1998 p. 21): enable, load THR, disable sends nothing if the
+  disable comes less than 3/16 bit time (16X clock) or one bit time (1X) after the load. An
+  underrun transmitter that is disabled at once after one character is loaded does not send it.
+  Wait for TxRDY after the last character before you disable.
 
 ### Receiver (p. 19)
 
