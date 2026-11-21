@@ -269,4 +269,28 @@ void test_cpu286() {
         cpu->i80286()->pcSegOff(cs, ip);
         CHECK(cs == 0x0000 && ip == 0x0004, "...and the next came from the ROM at 0002 (XOR AX,AX)");
     }
+
+    SECTION("cpu286: BREAK IO on a 16-bit port -- FC3E stops on OUT DX to FC3E, 3E still matches the low byte");
+    {
+        // The 80286 puts all 16 bits of DX on A0-A15 for OUT DX. A breakpoint above FF names
+        // a 16-bit port and compares all 16 bits; one at FF or below compares the low byte,
+        // as for an 8080, whose OUT puts the port on both halves of the address.
+        auto stopsAt = [](uint32_t lo) {
+            Rig286b g;
+            g.m.bus.setUnclaimedPolicy(Unclaimed::Silent);
+            g.load(0x0FFFF0, {OUTDX286(0xFC3E, 0x40), 0xF4});
+            int bp = g.m.debug.add(BreakKind::IoWrite, lo, lo);
+            RunResult r = g.run(10);
+            return r.why == StopReason::Breakpoint && r.bp == bp;
+        };
+        CHECK(stopsAt(0xFC3E), "BREAK IO W FC3E stops on OUT DX,AL with DX = FC3E");
+        CHECK(stopsAt(0x3E), "BREAK IO W 3E still stops on it (the low byte)");
+        CHECK(!stopsAt(0xFD3E), "BREAK IO W FD3E does not: the high byte differs");
+        Rig286b g;
+        int bp = g.m.debug.add(BreakKind::IoWrite, 0xFC3E, 0xFC3E);
+        bool listed = false;
+        for (const auto& b : g.m.debug.breakpoints())
+            if (b.id == bp) listed = b.describe().find("FC3E") != std::string::npos;
+        CHECK(listed, "BREAK lists it with all four digits");
+    }
 }
