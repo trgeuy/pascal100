@@ -136,11 +136,18 @@ public:
     // T-states -- the tape's TIMING is intact and the ACR is none the wiser. Those
     // T-states simply elapse as fast as the host can retire them, which is the whole
     // point: the tape is period-correct, the WAIT is not.
+    //
+    // FLAT OUT DIVIDES BY THE CARD'S AS-SOLD CRYSTAL (`nominal`, 2026-11-20). A card sold at
+    // 8 MHz that runs flat out is still an 8 MHz part to every board that converts real time:
+    // a 9600-baud character, a disk revolution, a slave processor's clock. Before this, every
+    // flat-out card divided by 2 MHz, so a flat-out CPU 286 counted as a 2 MHz 80286 and a
+    // CompuPro SPUZ's Z80 got four T-states per 80286 clock. A card with no product behind it
+    // (the 88-CPU and its generic twins) keeps the 88-CPU's 2 MHz.
     long long hz() const { return hz_; }
     bool      free() const { return free_; }
-    void      setHz(long long hz) {
+    void      setHz(long long hz, long long nominal = 2000000) {
         bool      f = (hz <= 0);
-        long long h = hz > 0 ? hz : 2000000;
+        long long h = hz > 0 ? hz : (nominal > 0 ? nominal : 2000000);
         if (f != free_ || h != hz_) rateAt_ = t_;
         free_ = f;
         hz_   = h;

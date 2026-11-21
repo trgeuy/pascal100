@@ -269,4 +269,13 @@ void test_cpu286() {
         cpu->i80286()->pcSegOff(cs, ip);
         CHECK(cs == 0x0000 && ip == 0x0004, "...and the next came from the ROM at 0002 (XOR AX,AX)");
     }
+
+    SECTION("cpu286: flat out, the clock divides by 8 MHz (the slowest crystal sold); clock_hz paces");
+    {
+        Rig286b g;
+        CHECK(g.m.clock.free() && g.m.clock.hz() == 8000000, "clock_hz 0: flat out at 8 MHz");
+        std::string err;
+        CHECK(setProperty(*g.card, "clock_hz", "12500000", err), err.c_str());
+        CHECK(!g.m.clock.free() && g.m.clock.hz() == 12500000, "clock_hz 12500000: paced at it");
+    }
 }

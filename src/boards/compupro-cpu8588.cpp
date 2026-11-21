@@ -38,7 +38,7 @@ void Cpu8588Board::settleSwitch() {
 void Cpu8588Board::publishPolicy() {
     publishedFor88_ = on88_;
     if (!clock_) return;
-    clock_->setHz(on88_ ? hz88_ : hz85_);
+    clock_->setHz(on88_ ? hz88_ : hz85_, on88_ ? kNominal88Hz : kNominal85Hz);
     clock_->setIdle(idle_);
 }
 
@@ -228,10 +228,10 @@ std::vector<Property> Cpu8588Board::properties() {
                        "8088 is reset only at power-on",
          reset88_);
     hz("clock_hz_8085", "The 8085's clock (switch S4: 6000000 or 2000000; 5000000 with the "
-                        "parts-list crystal). 0 runs flat out",
+                        "parts-list crystal). 0 runs flat out, timed as 6000000",
        hz85_);
     hz("clock_hz_8088", "The 8088's clock (X2/3: 8000000; 5000000 with the parts-list "
-                        "crystal). 0 runs flat out",
+                        "crystal). 0 runs flat out, timed as 8000000",
        hz88_);
     {
         Property x;

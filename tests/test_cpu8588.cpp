@@ -189,4 +189,14 @@ void test_cpu8588() {
         CHECK(s.find("\nAX=") != std::string::npos && s.find("\nCS=") != std::string::npos,
               "the general registers and the segments each start a new line");
     }
+
+    SECTION("cpu8588: flat out, the clock divides by the running processor's crystal: 6 MHz, then 8");
+    {
+        Rig g;
+        CHECK(g.m.clock.free() && g.m.clock.hz() == 6000000, "the 8085 on line: 6 MHz");
+        g.load(0x0000, {0xDB, 0xFD, 0x76});   // IN FD (to the 8088)  HLT
+        g.load(0xFFFF0, {0xF4});              // the 8088: HLT
+        g.run();
+        CHECK(g.card->on8088() && g.m.clock.hz() == 8000000, "the 8088 on line: 8 MHz");
+    }
 }

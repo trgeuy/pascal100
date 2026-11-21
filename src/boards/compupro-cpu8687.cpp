@@ -25,7 +25,7 @@ StepResult CompuProCpu8687Board::step(Bus& bus) {
 
 void CompuProCpu8687Board::publishPolicy() {
     if (!clock_) return;
-    clock_->setHz(hz_);
+    clock_->setHz(hz_, kNominalHz);
     clock_->setIdle(idle_);
 }
 
@@ -246,7 +246,7 @@ std::vector<Property> CompuProCpu8687Board::properties() {
         Property x;
         x.name = "clock_hz";
         x.help = "The 8086's clock: 8000000 or 10000000 as shipped, 5000000 with an 8087. "
-                 "0 runs flat out";
+                 "0 runs flat out, timed as 8000000";
         x.kind = Kind::Int;
         x.radix = 10;
         x.unit = "Hz";

@@ -65,7 +65,7 @@ the S-100 bus, and the memory manager cannot be written.
 | `sockets` | J7 | `false` | Page FF (FF0000-FFFFFF) comes from the sockets, not the S-100 bus. |
 | `rom` | U37/U38 | empty | The EPROM pair as one 16-bit image: HEX, S-records, binary or `builtin:<name>`. |
 | `waits` | J1 | `B` | The J1 positions fitted. The wait states add together. |
-| `clock_hz` | | `0` | The CPU clock. 0 runs flat out. |
+| `clock_hz` | | `0` | The CPU clock. 0 runs flat out, and boards time it as 8 MHz. |
 | `idle` | | `true` | Stand down when the guest only polls an empty keyboard. |
 
 The `rom` image starts at FF0000. The board rounds it up to 16K (two 2764s), 32K (two 27128s)
