@@ -157,7 +157,7 @@ RUN       ; carry on from wherever the PC is
 ### STEP — `S[TEP]`
 
 ```
-STEP [n]
+STEP [<board>:<unit>] [n]
 ```
 One instruction, with REAL bus cycles through the real decode. Prints one line
 per instruction; past 32 it runs quietly and reports. `n` is a count, so it is
@@ -189,6 +189,11 @@ line for the MVI that loaded it, and the last line is the HLT waiting, not yet
 run. The flags are the 8080's own five -- Carry, Zero, Minus, Even parity,
 Interdigit carry -- then V and K, two the 8085 has that Intel never
 documented. E goes to 1 on the ADD because 0F has an even number of bits set.
+
+A core first (<board>:<unit>): a processor on a board's own bus, such as the
+SPUZ's Z80 (spuz0:z80), steps ALONE -- the host and every other board stand still.
+A host core steps only while it is the active one; the board's processor select,
+not the monitor, decides which processor runs.
 
 
 ### TYPE — `TY[PE]`
@@ -283,7 +288,7 @@ DE 76            ; HLT at the PC (0103)
 ### DUMP — `D[UMP]`
 
 ```
-DUMP [<addr>|<range>] [WIDTH=16]
+DUMP [<board>:<unit>] [<addr>|<range>] [WIDTH=16]
 ```
 Hex and ASCII. A bare address runs to the END OF ITS PAGE, and a bare DUMP
 continues from there -- so the rows and the columns both stay page-aligned
@@ -296,6 +301,13 @@ D            ; the next page
 D 0-F        ; an explicit range means exactly what it says
 D 100/20     ; 0100-011F (LEN is part of the address expression: hex)
 D 0 WIDTH=8  ; eight bytes per line
+```
+
+A core first (<board>:<unit>) reads memory as that core fetches it, with a peek:
+through its board's own bus and bank for a processor such as the SPUZ's Z80.
+
+```
+D spuz0:z80 0  ; page 0 of the bank the SPUZ's Z80 runs in
 ```
 
 
@@ -475,7 +487,7 @@ O 10 41
 ### REGS — `RE[GS]`
 
 ```
-REGS | SET REG <r>=<v>
+REGS [<board>:<unit>] | SET REG <r>=<v>
 ```
 The flags are registers too, so SET REG CY=1 works. A register value is on
 the wire, so it is HEX.
@@ -492,6 +504,13 @@ REGS
 SET REG A=3F
 SET REG PC=0100
 SET REG IX=8000  ; Z80 only
+```
+
+REGS <board>:<unit> shows any core: one that is not active now (p100:me), or a
+processor on a board's own bus (spuz0:z80). SET REG still sets the active core.
+
+```
+REGS spuz0:z80
 ```
 
 
@@ -551,7 +570,11 @@ BREAK FF13       ; stop when PC gets there
 BREAK 2C00-2CFF  ; ...anywhere in a range
 BREAK MEM W 100  ; stop when anything WRITES 0100
 BREAK IO R 10    ; stop on an IN from port 10
+BREAK IO W FC3E  ; stop on an OUT to the 16-bit port FC3E (8086/80286 OUT DX)
 ```
+
+A port above FF compares all 16 bits of the port. A port of FF or below compares
+the low byte: an 8080 or Z80 puts its 8-bit port on both halves of the address.
 
 A PC breakpoint can name one core as <board>:<unit>. SHOW <board> lists the
 cores of a board. This is for a board with two processors, where the active
@@ -617,7 +640,7 @@ unconfigured tracepoint traces to the console.
 ### DISASM — `DI[SASM]`
 
 ```
-DISASM [<addr>|<seg:off>|<range>] [n] [CPU=8080]
+DISASM [<board>:<unit>] [<addr>|<seg:off>|<range>] [n] [CPU=8080]
 ```
 It needs an INSTRUCTION SET, not a CPU -- so it works on an empty backplane.
 You normally never type CPU=: the active core says what it speaks, and DISASM
@@ -641,11 +664,19 @@ DI 0 CPU=z80     ; decode as Z80 when nothing in the machine can say
 DI 1759:019F     ; the 8088: sixteen instructions at segment 1759, offset 019F
 ```
 
+A core first (<board>:<unit>) decodes as that core fetches -- its instruction set,
+its map or its board's own bus -- from its PC when no address follows. A bare DI
+after it continues in the same core.
+
+```
+DI spuz0:z80      ; at the SPUZ Z80's PC, in the bank it runs in
+```
+
 
 ### HISTORY — `H[ISTORY]`
 
 ```
-HISTORY [BUS|CPU] [n]
+HISTORY [BUS|CPU] [<board>:<unit>] [n]
 ```
 The last n INSTRUCTIONS the machine ran, oldest first -- a flight recorder that
 is always running while the machine runs, so it already holds the run-up to a
@@ -675,6 +706,15 @@ HISTORY          ; the last 16 instructions
 HISTORY 100      ; the last hundred instructions
 HISTORY BUS      ; the last 16 bus cycles
 HISTORY BUS 100  ; the last hundred cycles
+```
+
+A core (<board>:<unit>) shows only that core's instructions. A processor on a
+board's own bus, such as the SPUZ's Z80, has its own ring, and records only
+while its board's `history` setting is on (it costs time on every instruction).
+
+```
+SET spuz0 history=on
+HISTORY CPU spuz0:z80 20
 ```
 
 

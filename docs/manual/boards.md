@@ -150,6 +150,7 @@ The boards are in groups, in the same order as the sections below.
 | `z80` | a Z80 processor board. The same bus, with a different instruction set |
 | `pascal100` | Digicomp Research Pascal-100: a Z80 and the Western Digital MicroEngine, one active at a time |
 | `cpu8687` | CompuPro CPU 86/87: an 8086 on a 16-bit bus. Boots CompuPro CP/M-86 and MP/M 8-16 from their Disk #2 |
+| `spuz` | CompuPro SPUZ: a slave processor with its own Z80, RAM and two serial ports. Up to 16 boards. Not a bus master |
 
 **Serial ports and consoles**
 
@@ -404,6 +405,107 @@ The board has two functions of its own:
 Not modeled: the 8087 math chip (the socket is empty), the 80130's ROM, and the jumpers that send
 the 80130's interrupt and timer outputs to the bus. With those jumpers open, as in CompuPro's
 standard system, the 80130 interrupts nothing.
+
+### `spuz`: CompuPro SPUZ
+
+The **SPUZ** (Viasyn, 1985) is a slave processor board for the CompuPro 816 and 286 systems. It
+has an 8 MHz **Z80**, 64K or 256K of RAM, and a **2681** with two serial channels. Under
+Concurrent DOS 8-16, each board runs 8-bit programs for one user while the host runs 16-bit
+programs.
+
+The SPUZ is not a bus master. Its Z80 runs on the board's own bus, and it runs only while the
+host processor runs. The host sees the board as a 64K memory window and ports `FC30`-`FC41`.
+The board decodes all 16 bits of the port address, so it does not answer port `0030`.
+
+| Port | What it does |
+|---|---|
+| `FC30`-`FC3F` | The registers of the selected board's 2681. |
+| `FC40` | SLAVESEL (write only). Every board compares bits D3-D0 with its `select`. The board that matches is selected. |
+| `FC41` | PTLATCH (write only), on the selected board. D3: `1` lets the Z80 run, `0` resets the Z80 and the 2681. D1-D0: the 64K bank that the host sees. |
+
+Up to 16 boards share the window and the ports. Only the selected board answers the window,
+the 2681 ports and PTLATCH. Give each board its own `select`. A machine with two boards on one
+select does not load or run.
+
+| Setting | Values | What it does |
+|---|---|---|
+| `select` | `0`-`15` | The board select. The default is `0`. |
+| `window` | `00`-`FF` | Address bits A23-A16 of the window. The default is `0E`, the CompuPro standard (`0E0000`-`0EFFFF`). |
+| `memory` | `256k`, `64k` | The RAM. A 256K board has four 64K banks. The default is `256k`. |
+| `waits` | `1`-`3` | The wait states on each host access to the window or the 2681. The default is `2`. |
+| `m1_wait` | `true`, `false` | One wait state in each opcode fetch of the board's Z80. The default is `true`. |
+| `interrupt` | `none`, `vi0`-`vi7` | The vectored interrupt line that the board pulls. The default is `vi0`. |
+| `history` | `true`, `false` | Record the board Z80's instructions for `HISTORY CPU`. The default is `false`. |
+
+The units `a` and `b` are the two serial channels. Connect them as any serial unit, for example
+`CONNECT spuz0:a socket:2325`.
+
+After power-on or a bus reset, no board is selected, and every Z80 is in reset. The 2681 output
+OP6 is high after a reset, so **the board pulls its interrupt line** until software sets bit 6
+of the 2681's output port.
+
+**Do not read or write the window or ports `FC30`-`FC3F` while the board's Z80 is in reset.** On
+the real board, this access stops the S-100 bus forever. `pascal100` lets the access go nowhere
+(a read gives `FF`), prints the address and the PC, and stops the run with **bus-hang**. Select
+the board, write `08` to `FC41`, and then access the board. To load a program, halt the Z80
+first: put a `HLT` (`76`) at address 0, reset the Z80, and let it run again.
+
+**Leave a hole in the RAM for the window.** CompuPro's `SPZ.CMD` finds each board by writing
+`E0000` and reading it back. RAM under the window answers for a select that has no board, so every
+select looks like a board. With the window at `0E` and 1 MB of RAM:
+
+```toml
+[[board]]
+type = "memory"
+id   = "mem0"
+ext  = true
+honors_phantom = "read"   # for the Disk 1A boot ROM, as in the other Concurrent DOS machines
+  [[board.region]]
+  type = "ram"
+  at   = 000000
+  size = "896K"
+  [[board.region]]
+  type = "ram"
+  at   = 0F0000
+  size = "64K"
+```
+
+Concurrent DOS 8-16 then reports 896K. To run 8-bit programs on the board, install CompuPro's
+switch and start the SPUZ manager:
+
+1. Copy `SW!SPUZ.CMD` to `A:SW!.CMD`. Mark it with `SET A:SW?.CMD [SYS RO F1=ON F3=ON]` (CompuPro's
+   `SPUZ.BAT`; `!` separates commands on the command line, so `SW?` names the file).
+2. Put `SPZ` in `A:AUTO.BAT`, or type `SPZ` once after each boot.
+3. Mark each 8-bit program: `SET NAME.COM [F1=ON F2=ON F3=ON F4=ON SYS RO]` (CompuPro's `8BIT.SUB`).
+   Then type its name.
+
+Each board runs one task in each 64K bank: four on a 256K board. Concurrent DOS gives the next task
+to the board with the most free banks.
+
+`SHOW` gives the PC of the board's Z80, its state, the two banks and the interrupt line:
+
+```
+  board Z80  PC 0001  halted  Z80 bank 3  host bank 3  selected  VI pulled
+```
+
+**The board's Z80 is a core for the monitor: `spuz0:z80`.** `REGS spuz0:z80`,
+`DISASM spuz0:z80`, `DUMP spuz0:z80 <addr>` and `STEP spuz0:z80` work on it. `DISASM` and
+`DUMP` read the bank that the Z80 runs in. `STEP` runs only the board's Z80, and the host does
+not run. `BREAK spuz0:z80 <addr>` stops the board's Z80 at that address. The host then stops
+after its next instruction, and `RUN` lets both go on. A breakpoint on the board's Z80 takes no
+`IF` and no `TRACE`.
+
+The board records the Z80's instructions only when you ask, because the recording costs time
+on every instruction:
+
+```
+pascal100> SET spuz0 history=on
+pascal100> RUN
+pascal100> HISTORY CPU spuz0:z80 20
+```
+
+Not modeled: DMA into SPUZ memory (VDMA), and the time that host accesses take from the
+board's Z80.
 
 ## Serial ports and consoles
 
@@ -990,6 +1092,61 @@ math = "9511a"
 A Disk 1A machine often has one, with its console on the serial channel of the board. The clock is
 at `5A` (command) and `5B` (data). The board reference gives the
 digit map, the read and set sequences and the register layouts.
+
+## Video
+
+### `pcvideo`: CompuPro PC Video
+
+The CompuPro PC Video is a color display board with a keyboard port. It answers at the
+addresses of IBM's Color Graphics Adapter: 16K of screen RAM at `0B8000` and 16 ports at
+`03D0`, decoded on all 16 address bits. Its picture opens in a window: 80x25 or 40x25 text, or
+320x200 or 640x200 graphics, in 16 colors. Only the color half of the board is built.
+
+The screen RAM must not belong to a RAM board as well. Leave a hole in the RAM at
+`0B8000`-`0BBFFF`:
+
+```toml
+[[board]]
+type = "memory"
+id   = "mem0"
+ext  = true
+honors_phantom = "read"
+  [[board.region]]
+  type = "ram"
+  at   = 000000
+  size = "736K"
+  [[board.region]]
+  type = "ram"
+  at   = 0BC000
+  size = "272K"
+
+[[board]]
+type = "pcvideo"
+id   = "pcv0"
+  [board.unit.kbd]
+  connect = "null"
+```
+
+**The keyboard.** The board's window is an IBM PC keyboard: click the window and type. Each
+key down and each key up reaches the guest, Shift, Ctrl and Alt (Option on a Mac) alone
+included. The keyboard is the 83-key PC/XT keyboard, so the arrows, Home, End, PgUp, PgDn,
+Insert and Delete send the keypad's codes, and F11, F12 and Cmd send nothing. A paste (Cmd-V,
+or Ctrl-Shift-V) is typed as characters. Ctrl-E in the window goes to the guest: use the
+terminal's Ctrl-E or the window's close box to stop it.
+
+The unit `kbd` is a second keyboard, for a script. With `keys = ascii` (the default), each byte
+that reaches `kbd` is a character, and the board types it as the keyboard would, with Shift or
+Ctrl. With `keys = scancodes`, each byte is a scan code. Send them with the MCP `send` tool or
+through an endpoint such as `connect = "socket:2400"`.
+
+**The light pen.** `SET pcv0 lightpen=mouse` makes the mouse a light pen: hold the left button
+over the window. The pen sees only lit dots.
+
+**The window** has a title bar, as a terminal window has. `title` sets its text (empty:
+`CompuPro PC Video (pcv0)`), and `titlebar = false` takes it away.
+
+**The character generator** is `builtin:pcvideo`, a public-domain font in the layout of the
+board's PROM. To use a dump of a real PROM, give its file in `font`.
 
 ## Host integration
 

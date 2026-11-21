@@ -25,6 +25,7 @@ and within a group the boards are in **alphabetical order**.
 | [`cpu8588`](#cpu8588) | CompuPro CPU 8085/88: 8085 + 8088, one on line |
 | [`cpu8687`](#cpu8687) | CompuPro CPU 86/87: an 8086 on a 16-bit bus |
 | [`pascal100`](#pascal100) | Digicomp Pascal-100: Z80 + WD MicroEngine, one active |
+| [`spuz`](#spuz) | CompuPro SPUZ: slave processor, own Z80H |
 | [`z80`](#z80) | Generic Z80 CPU board |
 
 **Memory**
@@ -56,6 +57,12 @@ and within a group the boards are in **alphabetical order**.
 | [`interfacer3`](#interfacer3) | CompuPro Interfacer 3: eight serial channels |
 | [`interfacer4`](#interfacer4) | CompuPro Interfacer 4: three serial, Centronics, parallel |
 | [`io4`](#io4) | SSM IO-4: two serial + two parallel ports |
+
+**Video**
+
+| Type | What it is |
+|---|---|
+| [`pcvideo`](#pcvideo) | CompuPro PC Video: 6845 color display, PC keyboard |
 
 **Other**
 
@@ -165,6 +172,39 @@ Digicomp Research Pascal-100: a Z80 (unit z80) and the Western Digital MicroEngi
 | `clock_hz` | int | `0` | `0` .. `100000000` | The clock of both processors (header U102: 2 or 2.5 MHz in the manual, 3 MHz measured on a real box). 0 runs flat out -- as fast as the host can. |
 | `idle` | bool | `true` | `on` \| `off` | Stand down when the guest is only polling an empty keyboard. On by default. |
 | `achieved_hz` | int | — | — | LIVE: T-states per real second the run loop last reached. Read-only; 0 until it has run. **(read-only — not a key you may set)** |
+
+
+### `spuz`
+
+CompuPro (Viasyn) SPUZ (board 257E): a slave processor with its own 8 MHz Z80H, 64K or 256K of RAM (memory) and a 2681 DUART with two RS-232 channels (units a and b). Not a bus master. To the host it is a 64K window (window = A23-A16, default 0E: 0E0000h) and ports FC30-FC41, decoded on A0-A15: FC30-FC3F the 2681, FC40 SLAVESEL (every board), FC41 PTLATCH (D3 ZRST*, D1-D0 host bank). Up to 16 boards share both; SLAVESEL against `select` (0-15) picks the one that answers. 2681 OP6 pulls a VI line (interrupt, default vi0) from reset until software sets OPR bit 6. An access while the Z80 is in reset hangs a real bus: here it floats and the run stops (bus-hang). waits: jumper J1
+
+**Units:** `z80` (cpu), `a` (serial, CONNECT), `b` (serial, CONNECT)
+
+#### Board properties
+
+| Key | Kind | Default | Legal | Meaning |
+|---|---|---|---|---|
+| `select` | int | `0` | `0` .. `15` | The board select, SW1 positions 5-8: 0-15 (default 0). Each SPUZ in a machine needs its own; SLAVESEL (FC40h) D3-D0 picks the board that answers |
+| `window` | int | `0xE` | `0x0` .. `0xFF` | Address bits A23-A16 of the 64K window, SW2: 00-FF (default 0E, the CompuPro standard: 0E0000h-0EFFFFh) |
+| `memory` | enum | `256k` | `256k` \| `64k` | 256k (eight 41256s, four 64K banks; default) or 64k (eight 4164s, one bank) |
+| `waits` | int | `2` | `1` .. `3` | J1: the S-100 wait states on each access to the window or the 2681: 1 (A), 2 (B, as shipped) or 3 (C) |
+| `m1_wait` | bool | `true` | `on` \| `off` | SW1 position 4: one wait state in each Z80 M1 cycle (on, as shipped; needed at 6 MHz and above) |
+| `history` | bool | `false` | `on` \| `off` | Record the board Z80's instructions for HISTORY CPU <id>:z80 (off by default: it costs time on every Z80 instruction) |
+| `interrupt` | enum | `vi0` | `none` \| `vi0` \| `vi1` \| `vi2` \| `vi3` \| `vi4` \| `vi5` \| `vi6` \| `vi7` | J2: the VI line that 2681 OP6 pulls through Q3 (vi0, as shipped) *(interrupt strap)* |
+
+#### Unit `a` — `[board.unit.a]`
+
+| Key | Kind | Default | Legal | Meaning |
+|---|---|---|---|---|
+| `connect` | string | `null` | text | The endpoint on the other end of this channel's line (CONNECT sets this) |
+| `title` | string |  | text | The title of a terminal window on this unit. Empty = "CompuPro SPUZ a" |
+
+#### Unit `b` — `[board.unit.b]`
+
+| Key | Kind | Default | Legal | Meaning |
+|---|---|---|---|---|
+| `connect` | string | `null` | text | The endpoint on the other end of this channel's line (CONNECT sets this) |
+| `title` | string |  | text | The title of a terminal window on this unit. Empty = "CompuPro SPUZ b" |
 
 
 ### `z80`
@@ -781,6 +821,42 @@ SSM IO-4 (2P+2S): the real Solid State Music board -- two full-duplex serial cha
 | `dav_active_low` | bool | `false` | `on` \| `off` | Present the data-available flag active-low -- the dav_bit reads 0 when a byte is waiting (§3.2.2 "D0 going low"). Off = active-high |
 | `int` | enum | `none` | `none` \| `int` \| `vi0` \| `vi1` \| `vi2` \| `vi3` \| `vi4` \| `vi5` \| `vi6` \| `vi7` | Where this parallel input's interrupt (a byte latched in, service request) is strapped on header W4: none \| int \| vi0..vi7. Canonical: vi6 (Parallel A) / vi5 (Parallel B) *(interrupt strap)* |
 | `title` | string |  | text | The title of a terminal window on this unit. Empty = "SSM IO-4 pb" |
+
+
+## Video
+
+### `pcvideo`
+
+CompuPro (Viasyn) PC Video (board 229D): 16K of screen RAM, a Motorola 6845, an IBM PC keyboard port (unit kbd) and a light pen port, at the IBM Color Graphics Adapter's addresses: memory (default 0B8000, a 16K block) and ports (default 03D0, decoded on A0-A15). Port 0 enables the board (select, J3), port 1 moves it to the monochrome addresses (flip, J2), ports 4-5 the 6845, 8 the mode, 9 the color, 10 the status, 11-12 the keyboard. The keyboard and light pen pull a VI line (interrupt, default vi5). 80x25 and 40x25 text, 320x200 and 640x200 graphics in a window. Color mode only. font: the character generator (default builtin:pcvideo). lightpen: off or mouse
+
+**Units:** `kbd` (serial, CONNECT)
+
+#### Board properties
+
+| Key | Kind | Default | Legal | Meaning |
+|---|---|---|---|---|
+| `memory` | int | `0xB8000` | `0x0` .. `0x3FC000` | S1-2..9: the 16K block of screen RAM, A21-A14 (default 0B8000, IBM's color address). A multiple of 4000 below 400000 |
+| `ports` | int | `0x3D0` | `0x0` .. `0xFF0` | S2-1..8: the 16 ports, A11-A4 (default 03D0, IBM's color ports). A multiple of 10 below 1000 |
+| `wom` | bool | `false` | `on` \| `off` | S1-1 OFF: write-only memory. The board takes writes; another RAM board at the same address answers reads (off: read and write) |
+| `phantom` | bool | `false` | `on` \| `off` | S2-10 ON: pull PHANTOM* while the screen RAM is addressed (off, as normally set) |
+| `monitor` | enum | `color` | `color` \| `mono` | S2-9: color (OFF: 14.31818 MHz, RGBI) or mono (ON: 16.257 MHz, 9x14 characters, underline and reverse, a green monitor) |
+| `select` | int | `0` | `0` .. `7` | J3: the bit of port 0 that enables this board, 0-7 (default 0) |
+| `flip` | bool | `true` | `on` \| `off` | J2 A-C: port 1 can move the board to the monochrome addresses (on). Off is J2 B-C |
+| `interrupt` | enum | `vi5` | `none` \| `int` \| `vi0` \| `vi1` \| `vi2` \| `vi3` \| `vi4` \| `vi5` \| `vi6` \| `vi7` | J4: the VI line the keyboard and light pen pull (vi5, CompuPro's standard) *(interrupt strap)* |
+| `cursor_blink` | bool | `true` | `on` \| `off` | J5 installed: the cursor blinks at the board's rate (on). Off: a steady cursor |
+| `font` | string | `builtin:pcvideo` | text | The character generator, U6 (a 2764): builtin:pcvideo (default), or a file (binary, Intel HEX or S-records) in the same layout |
+| `lightpen` | enum | `off` | `off` \| `mouse` | The light pen: off (default), or mouse (the left button over the window is the pen and its switch) |
+| `title` | string |  | text | The text on the window's title bar. Empty = "CompuPro PC Video" |
+| `titlebar` | bool | `true` | `on` \| `off` | Show the title on a bar at the top of the window, in the board's own font |
+| `width` | string | `auto` | text | Video window width in pixels: 'auto' (default) opens about half the screen wide, or a number like 1024. The height follows the board's own aspect, and the picture is a whole multiple of its pixels so it stays crisp |
+
+#### Unit `kbd` — `[board.unit.kbd]`
+
+| Key | Kind | Default | Legal | Meaning |
+|---|---|---|---|---|
+| `connect` | string | `null` | text | The endpoint the keyboard's codes come from (CONNECT sets this) |
+| `keys` | enum | `ascii` | `ascii` \| `scancodes` | What the endpoint's bytes are: ascii (characters, typed as a PC keyboard would; default) or scancodes (as the keyboard sends them) |
+| `title` | string |  | text | The title of a terminal window on this unit. Empty = "CompuPro PC Video kbd" |
 
 
 ## Other

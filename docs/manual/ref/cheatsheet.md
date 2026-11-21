@@ -77,15 +77,15 @@ Type the part before the bracket.
 | `CONN[ECT]` | Attach a serial unit to an endpoint (console, socket, file, ...). | `CONNECT <id>:<u> <endpoint>` |
 | `CONS[OLE]` | Shortcut for SHOW CONSOLE and SET CONSOLE. | `CONSOLE [<k>=<v>...]` |
 | `DE[POSIT]` | Write bytes into memory at an address. | `DEPOSIT <byte> \| DEPOSIT NEXT <bytes...> \| DEPOSIT <addr> <bytes...>` |
-| `DI[SASM]` | Disassemble memory into instructions. | `DISASM [<addr>\|<seg:off>\|<range>] [n] [CPU=8080]` |
+| `DI[SASM]` | Disassemble memory into instructions. | `DISASM [<board>:<unit>] [<addr>\|<seg:off>\|<range>] [n] [CPU=8080]` |
 | `DISC[ONNECT]` | Shortcut for CONNECT <id>:<u> null: unplug the endpoint. | `DISCONNECT <id>:<u>` |
 | `DO` | Run a file of monitor commands, one per line, as if typed. | `DO <file>` |
-| `D[UMP]` | Show memory as hex and ASCII. | `DUMP [<addr>\|<range>] [WIDTH=16]` |
+| `D[UMP]` | Show memory as hex and ASCII. | `DUMP [<board>:<unit>] [<addr>\|<range>] [WIDTH=16]` |
 | `E[DIT]` | Enter bytes into memory interactively from an address. | `EDIT <addr> [ROM]` |
 | `EX[AMINE]` | Load an address into the program counter, and show that byte. | `EXAMINE [<addr>]` |
 | `F[ILL]` | Fill a range of memory with a byte. | `FILL <range> <byte>` |
 | `HE[LP]` | Show help for a command. | `HELP [<command>]` |
-| `H[ISTORY]` | Replay the recent instruction (or bus-cycle) history. | `HISTORY [BUS\|CPU] [n]` |
+| `H[ISTORY]` | Replay the recent instruction (or bus-cycle) history. | `HISTORY [BUS\|CPU] [<board>:<unit>] [n]` |
 | `I[N]` | Read a byte from an I/O port. | `IN <port>` |
 | `L[OAD]` | Load a file into memory (binary, Intel hex or S-record). | `LOAD <file> [AT <addr>] [FORMAT=BIN\|HEX\|SREC] [ROM]` |
 | `MA[CHINE]` | Load a built-in machine by name (MACHINE none empties the backplane). | `MACHINE <name> \| MACHINE none` |
@@ -99,7 +99,7 @@ Type the part before the bracket.
 | `P[OWER]` | Power-cycle the machine -- the only thing that clears RAM. | `POWER` |
 | `Q[UIT]` | Leave the simulator. | `QUIT` |
 | `REGI[ON]` | Add a RAM or ROM region to a memory board. | `REGION ADD <id> type=ram\|rom at=<addr> [size=\|mount=]` |
-| `RE[GS]` | Show the CPU registers (SET REG changes one). | `REGS \| SET REG <r>=<v>` |
+| `RE[GS]` | Show the CPU registers (SET REG changes one). | `REGS [<board>:<unit>] \| SET REG <r>=<v>` |
 | `RES[ET]` | Reset the machine, keeping RAM (RESET CPU resets just the processor). | `RESET [CPU]` |
 | `REST[ORE]` | Load machine state back from a snapshot. | `RESTORE <file>` |
 | `R[UN]` | Start or resume the machine, optionally at an address. | `RUN [addr]` |
@@ -109,7 +109,7 @@ Type the part before the bracket.
 | `SH[OW]` | Display the state of a board, the bus, or the machine. | `SHOW <id>\|BOARDS\|BOARD <type> [UNITS]\|MACHINES\|MACHINE [<name>]\|BUS [MAP\|IO\|IRQ\|DMA\|CONTENTION]\|ROMS\|MOUNTS\|PATHS\|CONSOLE\|DISPLAY\|TERMINAL\|SERIAL\|DEBUG\|SYMBOLS\|CLOCK\|VERSION` |
 | `SN[APSHOT]` | Save the whole machine state to a file. | `SNAPSHOT <file>` |
 | `STA[RTUP]` | Edit the machine's boot list (the commands CONFIG SAVE saves as startup = [...]). | `STARTUP [ADD <command> \| REMOVE <n> \| CLEAR]` |
-| `S[TEP]` | Run one instruction (or n), showing the registers after each. | `STEP [n]` |
+| `S[TEP]` | Run one instruction (or n), showing the registers after each. | `STEP [<board>:<unit>] [n]` |
 | `SY[MBOLS]` | Load or clear a symbol table for disassembly. | `SYMBOLS LOAD <file> [REPLACE] \| SYMBOLS CLEAR` |
 | `T[RACE]` | Log every bus cycle while the machine runs. | `TRACE ON\|OFF [file] [MASK=IN,OUT,IRQ,DMA,CONTENTION]` |
 | `TY[PE]` | Feed text to the guest as if typed at its keyboard. | `TYPE "text"` |
@@ -127,6 +127,7 @@ Type the part before the bracket.
 | `cpu8588` | CompuPro CPU 8085/88: 8085 + 8088, one on line |
 | `cpu8687` | CompuPro CPU 86/87: an 8086 on a 16-bit bus |
 | `pascal100` | Digicomp Pascal-100: Z80 + WD MicroEngine, one active |
+| `spuz` | CompuPro SPUZ: slave processor, own Z80H |
 | `z80` | Generic Z80 CPU board |
 
 **Memory**
@@ -158,6 +159,12 @@ Type the part before the bracket.
 | `interfacer3` | CompuPro Interfacer 3: eight serial channels |
 | `interfacer4` | CompuPro Interfacer 4: three serial, Centronics, parallel |
 | `io4` | SSM IO-4: two serial + two parallel ports |
+
+**Video**
+
+| Type | What it is |
+|---|---|
+| `pcvideo` | CompuPro PC Video: 6845 color display, PC keyboard |
 
 **Other**
 

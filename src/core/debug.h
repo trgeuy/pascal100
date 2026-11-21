@@ -20,6 +20,8 @@
 
 #include "core/bus.h"
 #include "core/expr.h"
+#include "core/insnrec.h"
+#include "core/privatecpu.h"
 
 #include <array>
 #include <csignal>
@@ -133,6 +135,9 @@ enum class StopReason {
                   // decodes. Stopped at the boundary, like a cycle breakpoint (4.6.1).
     TmaConflict,  // the run did not start: two DMA boards cannot be arbitrated (same TMA
                   // priority, or one with no TMA lines). Machine::tmaConflict() says why.
+    BusHang,      // a cycle that hangs the real S-100 bus forever (the SPUZ accessed while
+                  // its Z80 is in reset). The cycle floated, the board logged it, and the run
+                  // stopped at the boundary (Bus::requestBusHang, DESIGN.md 3.0.4).
 };
 
 struct RunResult {
@@ -141,6 +146,9 @@ struct RunResult {
     uint64_t tStates = 0;
     uint32_t pc = 0;
     int bp = 0;   // which breakpoint, when why == Breakpoint
+    // The core the breakpoint stopped, when it is a processor on a board's own bus
+    // (PrivateCpu, DESIGN.md 3.0.4); null for the host's. Its PC is that core's, not `pc`.
+    CpuCore* bpCore = nullptr;
     uint8_t port = 0;    // which port, when why == Unclaimed
     bool write = false;  // OUT (true) or IN, when why == Unclaimed
 };
@@ -276,26 +284,10 @@ public:
     // lamps and what they are called; this only carries their numbers, so it never learns
     // what an 8080 is. Formatting lives in the monitor (it needs the disassembler, the
     // symbol table and the operator's number base), so there is no formatInsn() here.
-    // The most code bytes one history record holds (InsnRec::bytes).
-    static constexpr size_t kInsnBytes = 16;
-
-    struct InsnRec {
-        // THE CORE THAT RAN IT. On a board with two processors (DESIGN.md 3.0.1; the
-        // Pascal-100) the active core changes during a run, so the record must say whose
-        // registers `regs` holds and whose instruction set decodes `bytes` -- the core that
-        // is active when you LOOK may not be the one that ran it. Never dangling: the ring
-        // is cleared whenever a CPU board leaves the machine (Machine::remove/clear/replaceWith).
-        CpuCore* core = nullptr;
-        uint32_t pc = 0;
-        std::vector<uint32_t> regs;      // one value per RegDef, in registers() order
-        // The opcode and its operands at pc: the core's maxInsnLen() bytes (3 for the
-        // 8080/8085, 4 for the Z80 and P-code), so a 4-byte Z80 instruction shows its last
-        // byte (altairsim records 3 for every core). The array is sized for the cores on
-        // the roadmap: the 8088 (6 bytes plus prefixes) and maybe the 68000 (10 bytes).
-        // Its size costs ring memory only; the time cost is nbytes peeks per instruction.
-        std::array<uint8_t, kInsnBytes> bytes{};
-        uint8_t nbytes = 0;
-    };
+    // One recorded instruction: core/insnrec.h (a board with its own processor records
+    // them too, PrivateCpu).
+    static constexpr size_t kInsnBytes = altair::kInsnBytes;
+    using InsnRec = altair::InsnRec;
 
     // The last `n` instructions, OLDEST FIRST -- the CPU counterpart of history().
     std::vector<InsnRec> insnHistory(size_t n) const;
@@ -464,6 +456,10 @@ private:
     // executes, so a record is the machine STEP would have shown for it.
     static constexpr size_t kInsnHistoryCap = 8192;
     std::vector<InsnRec> insnRing_;
+
+    // The processors on boards' own buses that carry a breakpoint this run (PrivateCpu).
+    // Empty in nearly every machine, so the boundary check costs one test.
+    std::vector<PrivateCpu*> privArmed_;
     size_t insnRingHead_ = 0;
 
     // STEP-OVER's internal one-shot PC target, or -1 for none. See setStepTarget.

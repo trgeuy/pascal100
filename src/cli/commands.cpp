@@ -31,7 +31,7 @@ namespace altair {
 // ---------------------------------------------------------------------------
 static const std::vector<CommandDef> kCommands = {
     // ---- the nine that win their prefix ----
-    {"DUMP", true, nullptr, "DUMP [<addr>|<range>] [WIDTH=16]",
+    {"DUMP", true, nullptr, "DUMP [<board>:<unit>] [<addr>|<range>] [WIDTH=16]",
      "Hex and ASCII. A bare address runs to the END OF ITS PAGE, and a bare DUMP\n"
      "continues from there -- so the rows and the columns both stay page-aligned\n"
      "however you first landed. WIDTH is a count, so it is decimal.\n"
@@ -41,8 +41,13 @@ static const std::vector<CommandDef> kCommands = {
      "  D            ; the next page\n"
      "  D 0-F        ; an explicit range means exactly what it says\n"
      "  D 100/20     ; 0100-011F (LEN is part of the address expression: hex)\n"
-     "  D 0 WIDTH=8  ; eight bytes per line"},
-    {"STEP", true, nullptr, "STEP [n]",
+     "  D 0 WIDTH=8  ; eight bytes per line\n"
+     "\n"
+     "A core first (<board>:<unit>) reads memory as that core fetches it, with a peek:\n"
+     "through its board's own bus and bank for a processor such as the SPUZ's Z80.\n"
+     "\n"
+     "  D spuz0:z80 0  ; page 0 of the bank the SPUZ's Z80 runs in"},
+    {"STEP", true, nullptr, "STEP [<board>:<unit>] [n]",
      "One instruction, with REAL bus cycles through the real decode. Prints one line\n"
      "per instruction; past 32 it runs quietly and reports. `n` is a count, so it is\n"
      "decimal. On a HLT that nothing can end, STEP does nothing. RESET ends the halt.\n"
@@ -68,7 +73,12 @@ static const std::vector<CommandDef> kCommands = {
      "line for the MVI that loaded it, and the last line is the HLT waiting, not yet\n"
      "run. The flags are the 8080's own five -- Carry, Zero, Minus, Even parity,\n"
      "Interdigit carry -- then V and K, two the 8085 has that Intel never\n"
-     "documented. E goes to 1 on the ADD because 0F has an even number of bits set."},
+     "documented. E goes to 1 on the ADD because 0F has an even number of bits set.\n"
+     "\n"
+     "A core first (<board>:<unit>): a processor on a board's own bus, such as the\n"
+     "SPUZ's Z80 (spuz0:z80), steps ALONE -- the host and every other board stand still.\n"
+     "A host core steps only while it is the active one; the board's processor select,\n"
+     "not the monitor, decides which processor runs."},
     // NEXT sits above NOBREAK so `N` -- the letter you reach for between two steps --
     // is NEXT, not NOBREAK. STEP took `S` and RUN took `R` for the same reason: the
     // command you type every few seconds wins the single letter. NOBREAK pays `NO`.
@@ -127,7 +137,7 @@ static const std::vector<CommandDef> kCommands = {
      "\n"
      "  RUN 0     ; boot: the Disk 1 boot ROM answers at 0000\n"
      "  RUN       ; carry on from wherever the PC is"},
-    {"HISTORY", true, nullptr, "HISTORY [BUS|CPU] [n]",
+    {"HISTORY", true, nullptr, "HISTORY [BUS|CPU] [<board>:<unit>] [n]",
      "The last n INSTRUCTIONS the machine ran, oldest first -- a flight recorder that\n"
      "is always running while the machine runs, so it already holds the run-up to a\n"
      "breakpoint or a crash when you ask. Each line is exactly what STEP prints: the\n"
@@ -154,7 +164,14 @@ static const std::vector<CommandDef> kCommands = {
      "  HISTORY          ; the last 16 instructions\n"
      "  HISTORY 100      ; the last hundred instructions\n"
      "  HISTORY BUS      ; the last 16 bus cycles\n"
-     "  HISTORY BUS 100  ; the last hundred cycles"},
+     "  HISTORY BUS 100  ; the last hundred cycles\n"
+     "\n"
+     "A core (<board>:<unit>) shows only that core's instructions. A processor on a\n"
+     "board's own bus, such as the SPUZ's Z80, has its own ring, and records only\n"
+     "while its board's `history` setting is on (it costs time on every instruction).\n"
+     "\n"
+     "  SET spuz0 history=on\n"
+     "  HISTORY CPU spuz0:z80 20"},
     {"MOUNT", true, nullptr, "MOUNT <id>[:<u>] <file>|tnfs://<host>[:<port>]/<path> [WP] [CREATE] [k=v...]",
      "Put a disk in a drive, or an image in a ROM socket.\n"
      "WP write-protects it: the guest may read it and may not write it.\n"
@@ -203,6 +220,10 @@ static const std::vector<CommandDef> kCommands = {
      "  BREAK 2C00-2CFF  ; ...anywhere in a range\n"
      "  BREAK MEM W 100  ; stop when anything WRITES 0100\n"
      "  BREAK IO R 10    ; stop on an IN from port 10\n"
+     "  BREAK IO W FC3E  ; stop on an OUT to the 16-bit port FC3E (8086/80286 OUT DX)\n"
+     "\n"
+     "A port above FF compares all 16 bits of the port. A port of FF or below compares\n"
+     "the low byte: an 8080 or Z80 puts its 8-bit port on both halves of the address.\n"
      "\n"
      "A PC breakpoint can name one core as <board>:<unit>. SHOW <board> lists the\n"
      "cores of a board. This is for a board with two processors, where the active\n"
@@ -576,7 +597,7 @@ static const std::vector<CommandDef> kCommands = {
      "  BOARDS REMOVE mem0      ; pull one out"},
     // REGS is the first RE- word in the table, so it takes RE outright -- and it is
     // the one you type between two STEPs, which is as often as anything here.
-    {"REGS", true, nullptr, "REGS | SET REG <r>=<v>",  // RE (beats RECORD, REPLAY, RESET, REGION)
+    {"REGS", true, nullptr, "REGS [<board>:<unit>] | SET REG <r>=<v>",  // RE (beats RECORD, REPLAY, RESET, REGION)
      "The flags are registers too, so SET REG CY=1 works. A register value is on\n"
      "the wire, so it is HEX.\n"
      "\n"
@@ -590,7 +611,12 @@ static const std::vector<CommandDef> kCommands = {
      "  REGS\n"
      "  SET REG A=3F\n"
      "  SET REG PC=0100\n"
-     "  SET REG IX=8000  ; Z80 only"},
+     "  SET REG IX=8000  ; Z80 only\n"
+     "\n"
+     "REGS <board>:<unit> shows any core: one that is not active now (p100:me), or a\n"
+     "processor on a board's own bus (spuz0:z80). SET REG still sets the active core.\n"
+     "\n"
+     "  REGS spuz0:z80"},
     {"REGION", true, nullptr, "REGION ADD <id> type=ram|rom at=<addr> [size=|mount=]",  // REGI
      "A region is a POPULATED part of a board. What is not covered by one is an\n"
      "empty socket: it decodes nothing and floats to FF. `at` is an address, so it\n"
@@ -598,7 +624,7 @@ static const std::vector<CommandDef> kCommands = {
      "\n"
      "  REGI ADD mem0 type=ram at=0 size=48K\n"
      "  REGI ADD mem0 type=rom at=F000 mount=builtin:ssm-8080mon"},
-    {"DISASM", true, nullptr, "DISASM [<addr>|<seg:off>|<range>] [n] [CPU=8080]",  // DI
+    {"DISASM", true, nullptr, "DISASM [<board>:<unit>] [<addr>|<seg:off>|<range>] [n] [CPU=8080]",  // DI
      "It needs an INSTRUCTION SET, not a CPU -- so it works on an empty backplane.\n"
      "You normally never type CPU=: the active core says what it speaks, and DISASM\n"
      "asks it. It PEEKS, so it cannot consume a byte from a UART in the range.\n"
@@ -617,7 +643,13 @@ static const std::vector<CommandDef> kCommands = {
      "  DI               ; carry on from there\n"
      "  DI 0-2F          ; exactly that range\n"
      "  DI 0 CPU=z80     ; decode as Z80 when nothing in the machine can say\n"
-     "  DI 1759:019F     ; the 8088: sixteen instructions at segment 1759, offset 019F"},
+     "  DI 1759:019F     ; the 8088: sixteen instructions at segment 1759, offset 019F\n"
+     "\n"
+     "A core first (<board>:<unit>) decodes as that core fetches -- its instruction set,\n"
+     "its map or its board's own bus -- from its PC when no address follows. A bare DI\n"
+     "after it continues in the same core.\n"
+     "\n"
+     "  DI spuz0:z80      ; at the SPUZ Z80's PC, in the bank it runs in"},
     // SYMBOLS is not LOAD. LOAD is memory all the way down (every format it takes
     // becomes bytes in the address space); a symbol table has no address space to land
     // in -- it is the debugger's NAMES for one, host-side like a breakpoint, surviving

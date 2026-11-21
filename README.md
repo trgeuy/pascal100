@@ -20,7 +20,7 @@ bus in pascal100.
 
 | Group | Boards |
 |---|---|
-| Processors | `pascal100` (Z80 and MicroEngine), `cpu8588` (CompuPro CPU 8085/88: 8085 and 8088), `z80`, `8085` |
+| Processors | `pascal100` (Z80 and MicroEngine), `cpu8588` (CompuPro CPU 8085/88: 8085 and 8088), `cpu8687` (CompuPro CPU 86/87), `cpu286` (CompuPro CPU 286), `spuz` (CompuPro SPUZ slave processor), `z80`, `8085` |
 | Disk controllers | `disk1` (CompuPro Disk 1), `disk1a` (CompuPro Disk 1A), `disk2` (CompuPro Disk 2 hard disk) with `selch` (Selector Channel), `disk3` (CompuPro Disk 3 hard disk), `tarbell`, `tarbelldd`, `jadedd` |
 | Serial and parallel | `interfacer1`, `interfacer3`, `interfacer4` (CompuPro Interfacers), `2sio`, `io4` |
 | System support | `ss1` (CompuPro System Support 1: interrupts, timer, clock, serial, 4K RAM) |

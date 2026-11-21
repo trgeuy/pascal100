@@ -197,7 +197,8 @@ void schemaTable(std::ostream& o, std::vector<Property>& props) {
 // A board's functional group. Every board type must name one (see die()).
 const char* boardCategory(const std::string& n) {
     if (n == "8080" || n == "z80" || n == "8085" || n == "6800" || n == "vgzcb" ||
-        n == "pascal100" || n == "cpu8588" || n == "cpu8687" || n == "cpu286") return "CPU";
+        n == "pascal100" || n == "cpu8588" || n == "cpu8687" || n == "cpu286" ||
+        n == "spuz") return "CPU";  // the SPUZ: a slave processor, not a bus master
     if (n == "memory" || n == "v2z80rom") return "Memory";
     if (n == "dcdd" || n == "mds" || n == "fdcplus" || n == "hdsk" || n == "versafloppy" ||
         n == "tarbell" || n == "tarbelldd" || n == "jadedd" || n == "disk1" || n == "disk1a" || n == "disk2" || n == "disk3" || n == "mdriveh" || n == "selch" || n == "16fdc" ||
@@ -209,7 +210,7 @@ const char* boardCategory(const std::string& n) {
         n == "lpc")
         return "Parallel and printer";
     if (n == "vdm1" || n == "dazzler" || n == "dazzler2" || n == "vdb8024" || n == "vgfwii" ||
-        n == "cadzilla")
+        n == "cadzilla" || n == "pcvideo")
         return "Video";
     if (n == "sol") return "Systems";  // a whole machine's I/O on one card -- more will come
     if (n == "fp" || n == "virtc" || n == "hostbridge" || n == "ss1")

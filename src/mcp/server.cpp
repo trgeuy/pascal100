@@ -126,6 +126,9 @@ Json toolList() {
         Json p = Json::obj();
         p["lo"] = intSchema("First address");
         p["hi"] = intSchema("Last address (inclusive)");
+        p["unit"] = strSchema("Optional core as <board>:<unit> (\"spuz0:z80\"): read memory as that "
+                              "core fetches it, through its own bus or map, with a peek (no cycle). "
+                              "Addresses are then the core's own.");
         list.push(tool("mem_dump",
                        "Read memory through the bus -- exactly what a CPU would see: live bank, "
                        "PHANTOM* overlays applied, unmapped addresses reading 0xFF. A ROM reads "
@@ -275,10 +278,15 @@ Json toolList() {
                        "nobody read them.",
                        p, {}));
     }
-    list.push(tool("regs",
-                   "The CPU registers right now: every register the active core declares, plus "
-                   "pc, halted and interrupts. Does not run the guest.",
-                   Json::obj(), {}));
+    {
+        Json p = Json::obj();
+        p["unit"] = strSchema("Optional core as <board>:<unit>: a processor board's core (\"p100:me\") or "
+                              "one on a board's own bus (\"spuz0:z80\"). Default: the active core.");
+        list.push(tool("regs",
+                       "The CPU registers right now: every register the active core declares, plus "
+                       "pc, halted and interrupts. Does not run the guest. `unit` names another core.",
+                       p, {}));
+    }
     {
         Json p = Json::obj();
         p["command"] = strSchema("A monitor command line");
@@ -294,6 +302,9 @@ Json toolList() {
     {
         Json p = Json::obj();
         p["count"] = intSchema("How many instructions to execute (default 1).");
+        p["unit"]  = strSchema("Optional core as <board>:<unit>. A core on a board's own bus "
+                               "(\"spuz0:z80\") steps alone: the host does not run. A host core "
+                               "steps only while it is the active one.");
         list.push(tool("step",
                        "Execute N instructions through the real decode and real bus cycles, then "
                        "report where the CPU came to rest. Unlike `run` this types nothing and "
@@ -310,6 +321,8 @@ Json toolList() {
                                "instead of a fixed count.");
         p["cpu"]   = strSchema("Instruction set, e.g. 8080, z80 or 8088. Defaults to the "
                                "machine's active CPU; required if the backplane has no processor.");
+        p["unit"]    = strSchema("Optional core as <board>:<unit> (\"spuz0:z80\"): decode with its "
+                                 "instruction set, as it fetches (its own bus or map).");
         p["segment"] = intSchema("8088 only: the segment; `addr` and `hi` are then offsets in "
                                  "it (an 8086 listing is in seg:off terms). Defaults to CS when "
                                  "the 8088 is the active core, else 0.");
@@ -362,7 +375,8 @@ Json toolList() {
         p["action"] = strSchema("list (default) | add | remove | clear.");
         p["kind"]   = strSchema("For add: pc | memread | memwrite | ioread | iowrite.");
         p["lo"]     = intSchema("For add: the address (a port, for io kinds), or the low end of "
-                                "a range.");
+                                "a range. A port above 0xFF compares all 16 bits (an 80286 "
+                                "OUT DX to 0xFC3E); 0xFF or below compares the low byte.");
         p["hi"]     = intSchema("For add: the high end of an address range (defaults to `lo`).");
         p["id"]     = intSchema("For remove: which breakpoint (from the list).");
         p["unit"]   = strSchema("For add, kind pc only: the core it watches, as <board>:<unit> "
@@ -689,6 +703,7 @@ const char* stopReasonName(StopReason w) {
     case StopReason::StepTarget:   return "step-target";
     case StopReason::Unclaimed:    return "unclaimed";
     case StopReason::TmaConflict:  return "tma-conflict";
+    case StopReason::BusHang:      return "bus-hang";
     }
     return "?";
 }
@@ -727,6 +742,35 @@ bool breakKindFromName(const std::string& s, BreakKind& out) {
 
 // The register file as {name: value}, plus a "H=xxxx " text rendering appended to
 // `text`. Shared by the regs and step tools so the two cannot disagree about the shape.
+// The core an optional `unit` argument names (Machine::coreByRef), or null with no `unit`.
+// False, with the reason in `err`, for a name that is no core.
+bool unitCore(Machine& m, const Json& args, CpuCore*& c, std::string& err) {
+    c = nullptr;
+    if (!args.has("unit") || args.at("unit").str().empty()) return true;
+    c = m.coreByRef(args.at("unit").str());
+    if (!c) err = "no core '" + args.at("unit").str() + "'. Name one as <board>:<unit>, for "
+                  "example p100:me or spuz0:z80.";
+    return c != nullptr;
+}
+
+// A breakpoint stop on a core on a board's own bus (RunResult::bpCore, DESIGN.md 3.0.4):
+// name the core and its PC in the result, since `pc` is the host's.
+void privateHit(Machine& m, const RunResult& r, Json& d, std::string& text) {
+    if (r.why != StopReason::Breakpoint || !r.bpCore) return;
+    Board* owner = nullptr;
+    PrivateCpu* p = m.privateOf(r.bpCore, &owner);
+    if (!p) return;
+    const std::string name = owner->id + ":" + p->unit();
+    d["breakpoint_core"] = Json(name);
+    d["breakpoint_pc"]   = Json((long long)r.bpCore->pc());
+    char b[96];
+    std::snprintf(b, sizeof b, "breakpoint %d: %s stopped at %04X; the host stopped at the next "
+                  "boundary.", r.bp, name.c_str(), (unsigned)r.bpCore->pc());
+    if (!text.empty() && text.back() != '\n') text += '\n';
+    text += b;
+    text += '\n';
+}
+
 Json regsObject(CpuCore* c, std::string& text) {
     Json regs = Json::obj();
     char buf[64];
@@ -1145,6 +1189,7 @@ bool sliceStops(StopReason w) {
     case StopReason::TmaConflict:
     case StopReason::StopRequested:
     case StopReason::Unclaimed:
+    case StopReason::BusHang:
     case StopReason::StepTarget:  // the run tool's `stop_at`; a free run never sets one
         return true;
     default:
@@ -1492,10 +1537,14 @@ Json callTool(Machine& m, McpSession& sess, const std::string& name, const Json&
         uint32_t hi = (uint32_t)args.at("hi").integer();
         if (std::string e = spanErr(lo, hi); !e.empty()) return textResult(e, true);
 
+        CpuCore* view = nullptr;
+        std::string uerr;
+        if (!unitCore(m, args, view, uerr)) return textResult(uerr, true);
+        const uint32_t lim = view ? view->pcMask() : amax;
         Json bytes = Json::arr();
         std::string text;
-        for (uint32_t A = lo; A <= hi && A <= amax; ++A) {
-            uint8_t v = m.bus.memReadX(A);
+        for (uint32_t A = lo; A <= hi && A <= lim; ++A) {
+            uint8_t v = view ? m.peekCode(view, A) : m.bus.memReadX(A);
             bytes.push(Json((long long)v));
             std::snprintf(buf, sizeof buf, "%02X ", v);
             text += buf;
@@ -1738,7 +1787,10 @@ Json callTool(Machine& m, McpSession& sess, const std::string& name, const Json&
     }
 
     if (name == "regs") {
-        CpuCore* c = m.cpu();
+        CpuCore* c = nullptr;
+        std::string uerr;
+        if (!unitCore(m, args, c, uerr)) return textResult(uerr, true);
+        if (!c) c = m.cpu();
         if (!c) return textResult("no CPU in this machine", true);
         Json d = Json::obj();
         std::string text;
@@ -1990,6 +2042,7 @@ Json callTool(Machine& m, McpSession& sess, const std::string& name, const Json&
             if (!text.empty() && text.back() != '\n') text += '\n';
             text += tmaConflictLine(m);
         }
+        privateHit(m, last, d, text);
         d["warnings"] = drainWarnings(m, text);
         if (!text.empty() && text.back() != '\n') text += '\n';
         text += "[stopped: " + stopped + "]";
@@ -2036,8 +2089,42 @@ Json callTool(Machine& m, McpSession& sess, const std::string& name, const Json&
     }
 
     if (name == "step") {
+        CpuCore* named = nullptr;
+        std::string uerr;
+        if (!unitCore(m, args, named, uerr)) return textResult(uerr, true);
+        Board* owner = nullptr;
+        if (PrivateCpu* p = named ? m.privateOf(named, &owner) : nullptr) {
+            // A core on a board's own bus steps alone; the host does not run (DESIGN.md 3.0.4).
+            uint64_t n = args.has("count") ? (uint64_t)args.at("count").integer() : 1;
+            if (n == 0) n = 1;
+            uint64_t done = 0;
+            std::string serr;
+            for (; done < n; ++done)
+                if (!p->step(serr)) break;
+            Json d = Json::obj();
+            std::string text;
+            d["registers"] = regsObject(named, text);
+            d["core"]      = Json(owner->id + ":" + p->unit());
+            text = m.coreTag(named) + text;
+            d["warnings"] = drainWarnings(m, text);
+            if (!text.empty() && text.back() != '\n') text += '\n';
+            d["steps"]  = Json((long long)done);
+            d["pc"]     = Json((long long)named->pc());
+            d["halted"] = Json(named->halted());
+            if (!serr.empty()) {
+                d["error"] = Json(serr);
+                text += serr + "\n";
+            }
+            text += "[" + std::to_string(done) + " insn on " + owner->id + ":" + p->unit() +
+                    "; the host did not run]";
+            return dataResult(d, text);
+        }
         CpuCore* c = m.cpu();
         if (!c) return textResult("no CPU in this machine", true);
+        if (named && named != c)
+            return textResult(args.at("unit").str() + " is not the processor that runs now. Only "
+                              "the active core steps: the board's processor select decides "
+                              "which one runs.", true);
         if (std::string h = haltRefusal(m, c, false); !h.empty()) return textResult(h, true);
         uint64_t n = args.has("count") ? (uint64_t)args.at("count").integer() : 1;
         if (n == 0) n = 1;
@@ -2068,13 +2155,17 @@ Json callTool(Machine& m, McpSession& sess, const std::string& name, const Json&
         d["halted"]   = Json(c->halted());
         d["stopped"]  = Json(stopReasonName(r.why));
         if (r.why == StopReason::TmaConflict) text += tmaConflictLine(m) + "\n";
+        privateHit(m, r, d, text);
         text += "[" + std::to_string(steps) + " insn, " + std::to_string(tStates) +
                 " T; stopped: " + stopReasonName(r.why) + "]";
         return dataResult(d, text);
     }
 
     if (name == "disasm") {
-        std::string isa = args.has("cpu") ? args.at("cpu").str() : m.isa();
+        CpuCore* view = nullptr;
+        std::string uerr;
+        if (!unitCore(m, args, view, uerr)) return textResult(uerr, true);
+        std::string isa = args.has("cpu") ? args.at("cpu").str() : view ? view->isa() : m.isa();
         if (isa.empty())
             return textResult("no CPU in this machine -- pass cpu (e.g. 8080) to say how to "
                               "decode these bytes.", true);
@@ -2089,7 +2180,7 @@ Json callTool(Machine& m, McpSession& sess, const std::string& name, const Json&
         // reads (the CPU 8085/88 adds its A20-A23 latch); else straight off the bus.
         const bool x86 = std::string(dis->name()) == "8088";
         CpuCore* x86core = nullptr;
-        if (CpuCore* c = m.cpu(); c && CpuCore::isX86(c->isa())) x86core = c;
+        if (CpuCore* c = view ? view : m.cpu(); c && CpuCore::isX86(c->isa())) x86core = c;
         uint32_t segBase = 0;
         if (x86) {
             uint32_t seg = 0;
@@ -2106,7 +2197,7 @@ Json callTool(Machine& m, McpSession& sess, const std::string& name, const Json&
         }
         CpuCard* card = m.cpuCard();
         auto peek = [&](uint16_t a) {
-            if (!x86) return m.bus.peek(a);
+            if (!x86) return view ? m.peekCode(view, a) : m.bus.peek(a);
             const uint32_t lin = (segBase + a) & 0xFFFFF;
             return card && x86core ? card->peekCodeByte(x86core, m.bus, lin) : m.bus.peekX(lin);
         };
