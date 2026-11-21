@@ -232,6 +232,66 @@ void test_pcvideo() {
         CHECK(got == want, "a; Shift-A; Ctrl-C, each key down then up");
     }
 
+    SECTION("pcvideo: the window's keys -- HID usages to XT scan codes, down and up");
+    {
+        CHECK(PcVideoBoard::scanCodeFor(0x04) == 30 && PcVideoBoard::scanCodeFor(0x1D) == 44,
+              "A = 30, Z = 44");
+        CHECK(PcVideoBoard::scanCodeFor(0x1E) == 2 && PcVideoBoard::scanCodeFor(0x27) == 11,
+              "1 = 2, 0 = 11");
+        CHECK(PcVideoBoard::scanCodeFor(0x3A) == 59 && PcVideoBoard::scanCodeFor(0x43) == 68,
+              "F1 = 59, F10 = 68");
+        CHECK(PcVideoBoard::scanCodeFor(0x52) == 72 && PcVideoBoard::scanCodeFor(0x50) == 75 &&
+                  PcVideoBoard::scanCodeFor(0x4F) == 77 && PcVideoBoard::scanCodeFor(0x51) == 80,
+              "the arrows are the keypad's 8, 4, 6, 2");
+        CHECK(PcVideoBoard::scanCodeFor(0x4C) == 83 && PcVideoBoard::scanCodeFor(0x49) == 82,
+              "Delete = keypad . Del, Insert = keypad 0 Ins");
+        CHECK(PcVideoBoard::scanCodeFor(0xE0) == 29 && PcVideoBoard::scanCodeFor(0xE4) == 29 &&
+                  PcVideoBoard::scanCodeFor(0xE1) == 42 && PcVideoBoard::scanCodeFor(0xE5) == 54 &&
+                  PcVideoBoard::scanCodeFor(0xE2) == 56,
+              "both Ctrls 29, left Shift 42, right Shift 54, Alt 56");
+        CHECK(PcVideoBoard::scanCodeFor(0x44) == 0 && PcVideoBoard::scanCodeFor(0xE3) == 0,
+              "F11 and the GUI key: no code on an 83-key keyboard");
+        bool inRange = true;
+        for (int u = 0; u < 0x100; ++u) inRange = inRange && PcVideoBoard::scanCodeFor((uint16_t)u) <= 83;
+        CHECK(inRange, "every code is 1-83: CompuPro's driver takes no more");
+
+        // The plumbing, as src/main.cpp wires it: the board claims its window's keys, and the
+        // sink finds the board by its window.
+        NullDisplay own;
+        Display* before = PcVideoBoard::display();
+        PcVideoBoard::setDisplay(&own);
+        {
+            Rig g;
+            CHECK(own.rawKeys(g.pv) && own.keysToGuest(g.pv), "the board claims physical keys");
+            own.setRawKeySink([](Display::Owner from, uint16_t u, bool down) {
+                if (PcVideoBoard* b = PcVideoBoard::forOwner(from)) b->hostKey(u, down);
+            });
+            own.emitRawKey(g.pv, 0xE1, true);       // left Shift down
+            own.emitRawKey(g.pv, 0x04, true);       // A down
+            own.emitRawKey(g.pv, 0x04, false);
+            own.emitRawKey(g.pv, 0xE1, false);
+            own.emitRawKey(g.pv, 0x44, true);       // F11: nothing
+            std::vector<uint8_t> got;
+            for (int i = 0; i < 10 && (g.pv->ready() || g.pv->keysQueued()); ++i) {
+                g.run(g.hz() / 500);
+                if (g.pv->ready()) {
+                    got.push_back(g.in(12));
+                    g.out(11, 0);
+                }
+            }
+            CHECK(got == std::vector<uint8_t>({0x2A, 0x1E, 0x9E, 0xAA}),
+                  "Shift down, A down, A up, Shift up; F11 sends nothing");
+            const uint8_t paste[] = {'h', 'i'};
+            g.pv->typeText(paste, 2);
+            g.run(g.hz() / 500);                    // past the 1 ms after the last port 11
+            CHECK(g.pv->ready() && g.in(12) == 0x23 && g.pv->keysQueued() == 3,
+                  "a paste is typed: H down first, 3 codes to come");
+            CHECK(PcVideoBoard::forOwner(&own) == nullptr, "another owner is not a PC Video");
+        }
+        CHECK(!own.rawKeys(nullptr), "no claim for a null owner");
+        PcVideoBoard::setDisplay(before);
+    }
+
     SECTION("pcvideo: text -- the PROM, the attribute, blink, the cursor (Table 4, pp. 63-64)");
     {
         Rig g;

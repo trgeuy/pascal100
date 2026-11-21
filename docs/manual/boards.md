@@ -1127,12 +1127,17 @@ id   = "pcv0"
   connect = "null"
 ```
 
-**The keyboard.** The board reads an IBM PC keyboard's scan codes from its unit `kbd`, one at a
-time, and interrupts on VI5. With `keys = ascii` (the default), each byte that reaches `kbd` is
-a character, and the board types it as the keyboard would, with Shift or Ctrl. With
-`keys = scancodes`, each byte is a scan code. Keys typed in the board's own window do not reach
-it yet: send them to `kbd`, with the MCP `send` tool or through an endpoint such as
-`connect = "socket:2400"`.
+**The keyboard.** The board's window is an IBM PC keyboard: click the window and type. Each
+key down and each key up reaches the guest, Shift, Ctrl and Alt (Option on a Mac) alone
+included. The keyboard is the 83-key PC/XT keyboard, so the arrows, Home, End, PgUp, PgDn,
+Insert and Delete send the keypad's codes, and F11, F12 and Cmd send nothing. A paste (Cmd-V,
+or Ctrl-Shift-V) is typed as characters. Ctrl-E in the window goes to the guest: use the
+terminal's Ctrl-E or the window's close box to stop it.
+
+The unit `kbd` is a second keyboard, for a script. With `keys = ascii` (the default), each byte
+that reaches `kbd` is a character, and the board types it as the keyboard would, with Shift or
+Ctrl. With `keys = scancodes`, each byte is a scan code. Send them with the MCP `send` tool or
+through an endpoint such as `connect = "socket:2400"`.
 
 **The light pen.** `SET pcv0 lightpen=mouse` makes the mouse a light pen: hold the left button
 over the window. The pen sees only lit dots.

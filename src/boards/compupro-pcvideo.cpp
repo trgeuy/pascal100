@@ -12,6 +12,7 @@
 #include <cstdio>
 #include <fstream>
 #include <iterator>
+#include <set>
 #include <string>
 #include <utility>
 
@@ -21,6 +22,7 @@ namespace {
 
 Display*         g_display = nullptr;
 EndpointResolver g_resolver;
+std::set<PcVideoBoard*> g_live;   // every board alive, for forOwner()
 
 // The 16 colors of Table 10, as an RGBI monitor shows them. THE LEVELS ARE A MODEL DECISION,
 // not the manual's: 2/3 for each color line, 1/3 more with intensity, and the green of color 6
@@ -94,6 +96,8 @@ void PcVideoBoard::setResolver(EndpointResolver r) { g_resolver = std::move(r); 
 PcVideoBoard::PcVideoBoard() : kbd_(std::make_unique<NullStream>()) {
     std::string err;
     loadFont(font_, err);
+    g_live.insert(this);
+    if (g_display) g_display->claimRawKeys(this);
 }
 
 PcVideoBoard::~PcVideoBoard() {
@@ -101,6 +105,14 @@ PcVideoBoard::~PcVideoBoard() {
         clock_->cancel(keyEvt_);
         clock_->cancel(penEvt_);
     }
+    if (g_display) g_display->releaseRawKeys(this);
+    g_live.erase(this);
+}
+
+PcVideoBoard* PcVideoBoard::forOwner(const void* owner) {
+    // Compared as an address only; followed only when it is one of ours.
+    auto it = g_live.find(static_cast<PcVideoBoard*>(const_cast<void*>(owner)));
+    return it == g_live.end() ? nullptr : *it;
 }
 
 // ---------------------------------------------------------------------------
@@ -326,6 +338,91 @@ void PcVideoBoard::armKey() {
 
 void PcVideoBoard::keyCodes(const uint8_t* codes, size_t n) {
     kq_.insert(kq_.end(), codes, codes + n);
+    deliverKey();
+    armKey();
+}
+
+// USB HID usage (keyboard page 07h) -> the 83-key PC/XT keyboard's scan code. CompuPro's
+// driver takes codes 1-83 and no E0 prefix (PCKEY.DVR: "CMP AL,83"), so a key the XT did not
+// have goes to the XT key that did its job: the arrows, Home, End, PgUp, PgDn, Insert and
+// Delete to the keypad, right Ctrl and Alt to the only Ctrl and Alt, Print Screen to PrtSc *.
+// F11, F12, Pause and the GUI keys have no code.
+uint8_t PcVideoBoard::scanCodeFor(uint16_t u) {
+    static const uint8_t letters[26] = {30, 48, 46, 32, 18, 33, 34, 35, 23, 36, 37, 38, 50,
+                                        49, 24, 25, 16, 19, 31, 20, 22, 47, 17, 45, 21, 44};
+    if (u >= 0x04 && u <= 0x1D) return letters[u - 0x04];        // A-Z
+    if (u >= 0x1E && u <= 0x27) return (uint8_t)(2 + (u - 0x1E)); // 1-9, 0
+    if (u >= 0x3A && u <= 0x43) return (uint8_t)(59 + (u - 0x3A)); // F1-F10
+    switch (u) {
+        case 0x28: return 28;  // Return
+        case 0x29: return 1;   // Esc
+        case 0x2A: return 14;  // Backspace
+        case 0x2B: return 15;  // Tab
+        case 0x2C: return 57;  // Space
+        case 0x2D: return 12;  // - _
+        case 0x2E: return 13;  // = +
+        case 0x2F: return 26;  // [ {
+        case 0x30: return 27;  // ] }
+        case 0x31: return 43;  // \ |
+        case 0x32: return 43;  // the ISO # ~ key: the XT's \ |
+        case 0x33: return 39;  // ; :
+        case 0x34: return 40;  // ' "
+        case 0x35: return 41;  // ` ~
+        case 0x36: return 51;  // , <
+        case 0x37: return 52;  // . >
+        case 0x38: return 53;  // / ?
+        case 0x39: return 58;  // Caps Lock
+        case 0x46: return 55;  // Print Screen -> PrtSc *
+        case 0x47: return 70;  // Scroll Lock
+        case 0x49: return 82;  // Insert -> keypad 0 Ins
+        case 0x4A: return 71;  // Home -> keypad 7 Home
+        case 0x4B: return 73;  // Page Up -> keypad 9 PgUp
+        case 0x4C: return 83;  // Delete -> keypad . Del
+        case 0x4D: return 79;  // End -> keypad 1 End
+        case 0x4E: return 81;  // Page Down -> keypad 3 PgDn
+        case 0x4F: return 77;  // Right -> keypad 6
+        case 0x50: return 75;  // Left -> keypad 4
+        case 0x51: return 80;  // Down -> keypad 2
+        case 0x52: return 72;  // Up -> keypad 8
+        case 0x53: return 69;  // Num Lock
+        case 0x54: return 53;  // keypad / -> /
+        case 0x55: return 55;  // keypad *
+        case 0x56: return 74;  // keypad -
+        case 0x57: return 78;  // keypad +
+        case 0x58: return 28;  // keypad Enter -> Return
+        case 0x59: return 79;  // keypad 1
+        case 0x5A: return 80;  // keypad 2
+        case 0x5B: return 81;  // keypad 3
+        case 0x5C: return 75;  // keypad 4
+        case 0x5D: return 76;  // keypad 5
+        case 0x5E: return 77;  // keypad 6
+        case 0x5F: return 71;  // keypad 7
+        case 0x60: return 72;  // keypad 8
+        case 0x61: return 73;  // keypad 9
+        case 0x62: return 82;  // keypad 0
+        case 0x63: return 83;  // keypad .
+        case 0x64: return 43;  // the ISO key beside left Shift: the XT's \ |
+        case 0xE0: return 29;  // left Ctrl
+        case 0xE1: return 42;  // left Shift
+        case 0xE2: return 56;  // left Alt (Option on a Mac)
+        case 0xE4: return 29;  // right Ctrl
+        case 0xE5: return 54;  // right Shift
+        case 0xE6: return 56;  // right Alt
+        default: return 0;
+    }
+}
+
+void PcVideoBoard::hostKey(uint16_t usage, bool down) {
+    const uint8_t code = scanCodeFor(usage);
+    if (!code || !enabled_) return;
+    kq_.push_back(down ? code : (uint8_t)(code | 0x80));
+    deliverKey();
+    armKey();
+}
+
+void PcVideoBoard::typeText(const uint8_t* p, size_t n) {
+    if (!enabled_) return;
+    for (size_t i = 0; i < n; ++i) typeAscii(p[i]);
     deliverKey();
     armKey();
 }

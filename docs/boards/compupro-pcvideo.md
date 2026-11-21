@@ -1,10 +1,9 @@
 # CompuPro PC Video (`pcvideo`)
 
 **Status:** partial. Color mode works: the decode, the 16K, all ports, the 6845, text and
-graphics in a window, wait states, the keyboard as an endpoint, the light pen from the mouse.
-Not built yet: monochrome mode (`monitor = mono` is refused), and keys typed in the board's
-own window (the window has no physical-key path yet; the keyboard takes its codes from the
-`kbd` endpoint).
+graphics in a window, wait states, the keyboard (the window's own keys, and the `kbd`
+endpoint), the light pen from the mouse. Not built yet: monochrome mode (`monitor = mono` is
+refused).
 
 ## The real hardware
 
@@ -79,10 +78,17 @@ at 2000h, 80 bytes a line.
 - **The picture.** `Indexed8`, 16 colors. One dot for each master clock: 640 dots across in
   every color mode, plus a border of 32 dots and 16 lines. The window shows each scan line
   twice. The frame is drawn whole from the state at that moment.
-- **The keyboard.** The unit `kbd`. With `keys = ascii` each byte is a character, typed with
-  Shift or Ctrl around the key down and the key up. With `keys = scancodes` each byte is a
-  scan code. The board takes one code, sets the ready flag and pulls the VI line, and holds the
-  next code until the guest writes port 11; the next comes 1 ms later.
+- **The keyboard.** Two sources share one queue of scan codes:
+  - The board's window. The board claims physical keys for it (`Display::claimRawKeys`). Each
+    key down and up arrives as a USB HID usage, and the board sends the PC/XT code for it
+    (`scanCodeFor`). A held key repeats as more key downs. Keys the 83-key keyboard did not
+    have go to the key that did their job: the arrows, Home, End, PgUp, PgDn, Insert and
+    Delete to the keypad. A paste (Cmd-V, or Ctrl-Shift-V) is typed as ASCII.
+  - The unit `kbd`. With `keys = ascii` each byte is a character, typed with Shift or Ctrl
+    around the key down and the key up. With `keys = scancodes` each byte is a scan code.
+
+  The board takes one code, sets the ready flag and pulls the VI line, and holds the next code
+  until the guest writes port 11; the next comes 1 ms later.
 - **The light pen.** `lightpen = mouse`: the left button over the window puts the pen at that
   dot and closes its switch. Once each field, when the beam reaches a lit dot under the pen,
   the 6845 latches its address + 2 and the ready flag sets.
@@ -133,8 +139,11 @@ U6 goes in `font`. See `roms/PCVIDEO/README.md`.
 
 - **Monochrome mode** (S2-9 ON) is not built: no 9th dot, no underline or reverse, no 16.257 MHz
   clock. `monitor = mono` is refused.
-- **Keys typed in the board's window** do not reach the keyboard yet: the window's keys go to
-  the console as ASCII. Use the `kbd` endpoint.
+- **The window's keyboard is the 83-key PC/XT keyboard.** F11, F12, Pause and the GUI (Cmd,
+  Windows) keys send nothing; there are no E0-prefixed codes. The board does not light the
+  host's Caps Lock or Num Lock lamps, and the host's own lock state is not read.
+- **Ctrl-E in the window goes to the guest**, as in every other video window. ATTN works at the
+  terminal; the window's close box stops the guest.
 - **The palette levels** are the usual RGBI monitor levels, with color 6 as brown. The manual
   names the colors, not the levels.
 - **The keyboard's 1 ms** between codes is a model decision, not the manual's.
@@ -151,7 +160,8 @@ U6 goes in `font`. See `roms/PCVIDEO/README.md`.
 
 `tests/test_pcvideo.cpp`: the decode, the board select, the flip, write-only mode, 16-bit
 transfers, the status timing over three fields of the 80x25 mode, the wait states, the keyboard
-(one code, VI5, port 11, the 1 ms, the clock hold, ASCII with Shift and Ctrl), text (the PROM,
+(one code, VI5, port 11, the 1 ms, the clock hold, ASCII with Shift and Ctrl), the window's
+keys (the usage table, the claim, the sink, a paste), text (the PROM,
 the attribute, blink, the cursor), 320x200 and 640x200 graphics, the light pen, a frame
 through a `NullDisplay`, the straps, reset and a snapshot. `tests/test_mc6845.cpp` covers the
 6845. Concurrent DOS on the board is stage 2's last step (DESIGN.md 7.4.1).

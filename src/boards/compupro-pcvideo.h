@@ -93,6 +93,18 @@ public:
     // Scan codes from the host keyboard, as the keyboard sends them (bit 7 = released).
     void keyCodes(const uint8_t* codes, size_t n);
 
+    // THE WINDOW'S KEYBOARD. The board claims physical keys for its window (Display::
+    // claimRawKeys): a key down or up there arrives as a USB HID usage, and the board sends
+    // the IBM PC keyboard's code for it. Text pasted into the window arrives as ASCII and is
+    // typed as `keys = ascii` types it. The composition root finds the board by its window
+    // (forOwner) and calls these (src/main.cpp).
+    static PcVideoBoard* forOwner(const void* owner);
+    void hostKey(uint16_t usage, bool down);
+    void typeText(const uint8_t* p, size_t n);
+    // The PC/XT scan code (1-83) for a USB HID usage, or 0 for a key the 83-key keyboard does
+    // not have. The keys it lacks a code for (arrows, Home, Insert...) map to the keypad's.
+    static uint8_t scanCodeFor(uint16_t usage);
+
     // ---- For tests and SHOW ----
     Mc6845&  crtc() { return crtc_; }
     uint8_t  ram(uint32_t a) const { return ram_[a & 0x3FFF]; }
