@@ -352,7 +352,9 @@ void SpuzBoard::hang(const BusCycle& c) {
         case Cycle::MemRead: std::snprintf(what, sizeof what, "read of %06Xh", c.phys()); break;
         default:             std::snprintf(what, sizeof what, "write to %06Xh", c.phys()); break;
     }
-    char buf[256];
+    // 320: the fixed text is 177 bytes, `what` up to 63, the PC up to 8 hex digits. GCC's
+    // -Werror=format-truncation (the Linux CI leg) refuses a buffer that could cut it.
+    char buf[320];
     std::snprintf(buf, sizeof buf,
                   "the host's %s (PC %05X) reached the SPUZ while its Z80 is in reset. A real "
                   "SPUZ hangs the S-100 bus here (manual pp. 9, 29). The cycle floated and the "
