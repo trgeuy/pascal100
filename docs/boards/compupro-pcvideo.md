@@ -77,7 +77,9 @@ at 2000h, 80 bytes a line.
   transfer: 2 master clocks, or 8 for the 6845. The CPU pays them through PRDY.
 - **The picture.** `Indexed8`, 16 colors. One dot for each master clock: 640 dots across in
   every color mode, plus a border of 32 dots and 16 lines. The window shows each scan line
-  twice. The frame is drawn whole from the state at that moment.
+  twice. The frame is drawn whole from the state at that moment. Above the picture, a title
+  bar (`title`, `titlebar`), as a terminal window has: one character row of the board's own
+  font, doubled, black on light gray. The guest never sees it.
 - **The keyboard.** Two sources share one queue of scan codes:
   - The board's window. The board claims physical keys for it (`Display::claimRawKeys`). Each
     key down and up arrives as a USB HID usage, and the board sends the PC/XT code for it
@@ -106,6 +108,8 @@ at 2000h, 80 bytes a line.
 | `cursor_blink` | `true`, `false` | `true` |
 | `font` | `builtin:pcvideo` or a file (binary, Intel HEX, S-records) | `builtin:pcvideo` |
 | `lightpen` | `off`, `mouse` | `off` |
+| `title` | The title bar's text | empty: `CompuPro PC Video (<id>)` |
+| `titlebar` | `true`, `false` | `true` |
 | `width` | The window width | auto |
 | `kbd` `connect` | An endpoint | `null` |
 | `kbd` `keys` | `ascii`, `scancodes` | `ascii` |
@@ -164,7 +168,13 @@ transfers, the status timing over three fields of the 80x25 mode, the wait state
 keys (the usage table, the claim, the sink, a paste), text (the PROM,
 the attribute, blink, the cursor), 320x200 and 640x200 graphics, the light pen, a frame
 through a `NullDisplay`, the straps, reset and a snapshot. `tests/test_mc6845.cpp` covers the
-6845. Concurrent DOS on the board is stage 2's last step (DESIGN.md 7.4.1).
+6845.
+
+Period software: CompuPro's Concurrent DOS 4.1 XIOS (4.1D), rebuilt with `PCBRD`, `NPC_BRD = 1`
+and `COLOR_PC = 1`, boots on the board as console 0 (2026-11-21). Its keyboard driver takes each
+code on VI5, reads port 12 and clears with port 11; its screen driver sets mode 29h, draws the
+status line on row 25 in reverse video, and runs the shell, a PC Mode program (INT 21h) and a
+SPUZ task. The four virtual consoles on the board are not tried yet.
 
 ## References
 

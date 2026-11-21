@@ -32,6 +32,9 @@ struct Feed : ByteStream {
     bool writable() const override { return true; }
 };
 
+// An Indexed8 pixel of a Surface.
+uint8_t px(const Surface& s, int x, int y) { return s.pixels()[(size_t)y * (size_t)s.width() + (size_t)x]; }
+
 struct Rig {
     Machine       m;
     PcVideoBoard* pv = nullptr;
@@ -387,7 +390,7 @@ void test_pcvideo() {
         Display::Pointer p;
         p.kind = Display::Pointer::Kind::Down;
         p.x = geo.borderX + 5 * 8 + 3;
-        p.y = (geo.borderY + 2) * 2;                    // the window doubles each scan line
+        p.y = g.pv->barHeight() + (geo.borderY + 2) * 2;  // below the bar; each line twice
         g.pv->pointer(p);
         CHECK((g.in(10) & 0x04) == 0, "the switch is closed: status D2 = 0");
         g.run(g.hz() / 30);
@@ -419,7 +422,12 @@ void test_pcvideo() {
         NullDisplay* d = &own;
         g.pv->pump();
         const Surface* s = d->surface(g.pv);
-        CHECK(s && s->width() == 704 && s->height() == 464, "704 x 464: 232 lines, each twice");
+        CHECK(s && s->width() == 704 && s->height() == 16 + 464,
+              "704 x 480: the title bar (16), then 232 lines, each twice");
+        bool barGray = s != nullptr;
+        for (int x = 0; s && x < 8; ++x) barGray = barGray && px(*s, x, 0) == PcVideoBoard::kBarColor;
+        CHECK(barGray, "the bar is the gray, palette index 16");
+        CHECK(s && px(*s, 0, 16) == 0x00, "the picture starts under the bar (border, color 0)");
         const uint64_t f = d ? d->frames(g.pv) : 0;
         g.pv->pump();
         CHECK(d && d->frames(g.pv) == f, "nothing changed: no new frame");
@@ -427,6 +435,31 @@ void test_pcvideo() {
         g.pv->pump();
         CHECK(d && d->frames(g.pv) == f + 1, "a write to the RAM: a new frame");
         PcVideoBoard::setDisplay(before);
+    }
+
+    SECTION("pcvideo: the title bar -- the title in the board's font; title and titlebar");
+    {
+        Rig g;
+        g.text80();
+        CHECK(g.pv->barTitle() == "CompuPro PC Video (pcv0)", "the default title names the board");
+        std::string err;
+        CHECK(setProperty(*g.pv, "title", "CDOS console", err), err.c_str());
+        CHECK(g.pv->barTitle() == "CDOS console", "title sets it");
+        const auto geo = g.pv->geometry();
+        Surface s(geo.width, g.pv->windowHeight(), PixelFormat::Indexed8);
+        g.pv->paint(s);
+        // "CDOS console" is 12 characters, centered: the C starts at (704 - 96) / 2 = 304.
+        // The C's scan line 2 in builtin:pcvideo is ##...... or similar: some dot of the
+        // first cell is black on the gray.
+        bool ink = false, plain = true;
+        for (int y = 0; y < 16; ++y)
+            for (int x = 304; x < 312; ++x) ink = ink || px(s, x, y) == 0;
+        for (int y = 0; y < 16; ++y)
+            for (int x = 0; x < 300; ++x) plain = plain && px(s, x, y) == PcVideoBoard::kBarColor;
+        CHECK(ink, "the title's first letter is drawn, black on gray");
+        CHECK(plain, "left of the title, only gray");
+        CHECK(setProperty(*g.pv, "titlebar", "false", err), err.c_str());
+        CHECK(g.pv->barHeight() == 0 && g.pv->windowHeight() == 464, "titlebar = false: no bar");
     }
 
     SECTION("pcvideo: straps -- the font, mono refused, the address checks");

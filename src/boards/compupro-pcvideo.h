@@ -125,8 +125,16 @@ public:
     Geometry geometry() const;
     // The color index (RGBI, Table 10) of picture dot (x, y), as the next frame draws it.
     uint8_t dotAt(int x, int y) const;
-    // Render the frame into a Surface of geometry() size (Indexed8). render() uses it.
+    // THE WINDOW: the title bar (when `titlebar` is on), then the picture with each scan line
+    // twice. The bar is one character row of the board's own font, doubled as the picture is,
+    // in light gray with the title in black, as a terminal window's bar is. The guest never
+    // sees it. windowHeight() = barHeight() + 2 x geometry().height.
+    int  barHeight() const { return titlebar_ ? 16 : 0; }
+    int  windowHeight() const { return barHeight() + 2 * geometry().height; }
+    std::string barTitle() const { return title_.empty() ? productName() + titleIdSuffix() : title_; }
+    // Render the window into a Surface of geometry().width x windowHeight() (Indexed8).
     void paint(Surface& s) const;
+    static constexpr uint8_t kBarColor = 16;   // palette index of the bar's gray
 
     static constexpr long long kMasterHz = 14318180;  // X2, 14.31818 MHz (p. 41)
     static constexpr int       kBorderX  = 32;        // the border drawn around the display area
@@ -171,6 +179,8 @@ private:
     bool        lightpen_ = false;    // the mouse as a light pen
     bool        keysAscii_ = true;    // `kbd` carries characters, not scan codes
     int         width_ = 0;           // the window width (Display::widthProperty)
+    std::string title_;               // the title bar's text; empty = "CompuPro PC Video (id)"
+    bool        titlebar_ = true;     // draw the title bar
 
     // ---- Live state ----
     bool     psel_ = true;            // U2: the board select (reset sets it)

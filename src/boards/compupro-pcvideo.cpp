@@ -27,13 +27,14 @@ std::set<PcVideoBoard*> g_live;   // every board alive, for forOwner()
 // The 16 colors of Table 10, as an RGBI monitor shows them. THE LEVELS ARE A MODEL DECISION,
 // not the manual's: 2/3 for each color line, 1/3 more with intensity, and the green of color 6
 // at half, so that it is the brown Table 10 names (DESIGN.md 7.4.1).
-const Color kPalette[16] = {
+const Color kPalette[17] = {
     {0x00, 0x00, 0x00, 255}, {0x00, 0x00, 0xAA, 255}, {0x00, 0xAA, 0x00, 255},
     {0x00, 0xAA, 0xAA, 255}, {0xAA, 0x00, 0x00, 255}, {0xAA, 0x00, 0xAA, 255},
     {0xAA, 0x55, 0x00, 255}, {0xAA, 0xAA, 0xAA, 255}, {0x55, 0x55, 0x55, 255},
     {0x55, 0x55, 0xFF, 255}, {0x55, 0xFF, 0x55, 255}, {0x55, 0xFF, 0xFF, 255},
     {0xFF, 0x55, 0x55, 255}, {0xFF, 0x55, 0xFF, 255}, {0xFF, 0xFF, 0x55, 255},
     {0xFF, 0xFF, 0xFF, 255},
+    {0xB4, 0xB4, 0xB4, 255},  // 16: the title bar, the terminal windows' neutral gray
 };
 
 // ---------------------------------------------------------------------------
@@ -454,7 +455,7 @@ void PcVideoBoard::pointer(const Display::Pointer& p) {
     }
     penOn_ = true;
     penX_  = p.x;
-    penY_  = p.y / 2;                        // the window shows each scan line twice
+    penY_  = (p.y - barHeight()) / 2;        // below the title bar; each scan line twice
     if (clock_ && penEvt_ != Clock::kNone) {
         clock_->cancel(penEvt_);
         penEvt_ = Clock::kNone;
@@ -562,15 +563,34 @@ uint8_t PcVideoBoard::dotAt(int x, int y) const {
 
 void PcVideoBoard::paint(Surface& s) const {
     const Geometry g = geometry();
-    for (int y = 0; y < s.height(); ++y) {
-        const int py = (int)((int64_t)y * g.height / s.height());
-        for (int x = 0; x < s.width(); ++x) s.put(x, y, dotAt(x, py));
+    const int bar = std::min(barHeight(), s.height());
+    if (bar) {
+        for (int y = 0; y < bar; ++y)
+            for (int x = 0; x < s.width(); ++x) s.put(x, y, kBarColor);
+        std::string text = barTitle();
+        const int cols = s.width() / 8;
+        if ((int)text.size() > cols) text.resize((size_t)cols);
+        const int left = (s.width() - 8 * (int)text.size()) / 2;
+        for (size_t i = 0; i < text.size(); ++i) {
+            uint8_t c = (uint8_t)text[i];
+            if (c < 0x20 || c > 0x7E) c = '?';
+            for (int y = 0; y < bar; ++y) {
+                const uint8_t row = prom_[0x1000 | ((uint32_t)c << 4) | (uint32_t)(y / 2)];
+                for (int d = 0; d < 8; ++d)
+                    if ((row >> (7 - d)) & 1) s.put(left + 8 * (int)i + d, y, 0);
+            }
+        }
+    }
+    const int h = s.height() - bar;
+    for (int y = 0; y < h; ++y) {
+        const int py = (int)((int64_t)y * g.height / h);
+        for (int x = 0; x < s.width(); ++x) s.put(x, bar + y, dotAt(x, py));
     }
 }
 
 void PcVideoBoard::render() {
     const Geometry g = geometry();
-    Surface* s = g_display->acquire(this, id, g.width, g.height * 2, PixelFormat::Indexed8, width_);
+    Surface* s = g_display->acquire(this, id, g.width, windowHeight(), PixelFormat::Indexed8, width_);
     if (!s) return;
     paint(*s);
     g_display->setPalette(this, kPalette);
@@ -838,6 +858,32 @@ std::vector<Property> PcVideoBoard::properties() {
         x.set     = [this](const Value& v, std::string&) {
             lightpen_ = v.s() == "mouse";
             if (!lightpen_) penOn_ = false;
+            return true;
+        };
+        p.push_back(std::move(x));
+    }
+    {
+        Property x;
+        x.name = "title";
+        x.help = "The text on the window's title bar. Empty = \"" + productName() + titleIdSuffix() + "\"";
+        x.kind = Kind::Str;
+        x.get  = [this] { return Value::ofStr(title_); };
+        x.set  = [this](const Value& v, std::string&) {
+            title_ = v.s();
+            dirty_ = true;
+            return true;
+        };
+        p.push_back(std::move(x));
+    }
+    {
+        Property x;
+        x.name = "titlebar";
+        x.help = "Show the title on a bar at the top of the window, in the board's own font";
+        x.kind = Kind::Bool;
+        x.get  = [this] { return Value::ofBool(titlebar_); };
+        x.set  = [this](const Value& v, std::string&) {
+            titlebar_ = v.b();
+            dirty_ = true;
             return true;
         };
         p.push_back(std::move(x));

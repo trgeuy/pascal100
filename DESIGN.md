@@ -1475,7 +1475,11 @@ There are three ways, all real CompuPro ways (pp. 8-9):
    `NullDisplay`, devguide/video-board.md §5), the keyboard endpoint with the ASCII filter, the
    light pen. Then CompuPro's 4.1 XIOS built with `PCBRD`, `NPC_BRD = 1` and `COLOR_PC = 1`:
    Concurrent DOS on the PC Video as console 0, the virtual consoles, then PC Mode with a DOS
-   program.
+   program. (DONE 2026-11-21, except the virtual consoles, not tried yet: `src/boards/
+   compupro-pcvideo.{h,cpp}`, `tests/test_pcvideo.cpp`, and the window as a PC keyboard through
+   `Display::claimRawKeys`. Concurrent DOS 4.1 boots on the board as console 0, starts SPZ from
+   AUTO.BAT, and runs a PC Mode program (INT 21h) and a SPUZ task, typed on the board's keyboard.
+   The rebuilt system stays out of the repository: DRI and CompuPro files.)
 3. Monochrome mode: the 9x14 PROM half, the 9th dot, underline and reverse (Table 31), the
    16.257 MHz clock.
 

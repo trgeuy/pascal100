@@ -1142,6 +1142,9 @@ through an endpoint such as `connect = "socket:2400"`.
 **The light pen.** `SET pcv0 lightpen=mouse` makes the mouse a light pen: hold the left button
 over the window. The pen sees only lit dots.
 
+**The window** has a title bar, as a terminal window has. `title` sets its text (empty:
+`CompuPro PC Video (pcv0)`), and `titlebar = false` takes it away.
+
 **The character generator** is `builtin:pcvideo`, a public-domain font in the layout of the
 board's PROM. To use a dump of a real PROM, give its file in `font`.
 

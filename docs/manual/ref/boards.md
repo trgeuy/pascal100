@@ -846,6 +846,8 @@ CompuPro (Viasyn) PC Video (board 229D): 16K of screen RAM, a Motorola 6845, an 
 | `cursor_blink` | bool | `true` | `on` \| `off` | J5 installed: the cursor blinks at the board's rate (on). Off: a steady cursor |
 | `font` | string | `builtin:pcvideo` | text | The character generator, U6 (a 2764): builtin:pcvideo (default), or a file (binary, Intel HEX or S-records) in the same layout |
 | `lightpen` | enum | `off` | `off` \| `mouse` | The light pen: off (default), or mouse (the left button over the window is the pen and its switch) |
+| `title` | string |  | text | The text on the window's title bar. Empty = "CompuPro PC Video" |
+| `titlebar` | bool | `true` | `on` \| `off` | Show the title on a bar at the top of the window, in the board's own font |
 | `width` | string | `auto` | text | Video window width in pixels: 'auto' (default) opens about half the screen wide, or a number like 1024. The height follows the board's own aspect, and the picture is a whole multiple of its pixels so it stays crisp |
 
 #### Unit `kbd` — `[board.unit.kbd]`
