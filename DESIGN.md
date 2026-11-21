@@ -1317,6 +1317,176 @@ A chip that makes sound from its own model (a speech or music chip) is a further
 
 **And the window is serviced at the prompt too, for liveness** (built 2026-07-25). The run loop is not the only place that must drain the window's event queue: a *stopped* machine sits in the monitor's line editor blocked on a console read, advancing no emulated time and pumping nothing — and a window nobody drains is one the compositor pings for liveness (`_NET_WM_PING`, the Cocoa watchdog), gets no answer from, and the OS then offers to Force-Quit. So the line editor's first-byte wait is a **timeout loop** (`platform::waitForInput`), and on each idle tick it runs an injected hook that pumps the boards once (`Machine::pump()`) and calls `Display::pollEvents()` — draining SDL's whole event queue, which answers the liveness ping and tosses any keystrokes/gamepad events that arrived while stopped. This is **not a second run loop**: it does not *render* (drawing stays the running machine's job, so `SET video=reverse` and the cursor blink still wait for `RUN`) and no emulated time advances. The one thing it acts on beyond draining is a close box clicked *while stopped* — which, unlike one clicked mid-`RUN` (that stops the guest and keeps the window), means the operator is done with the window, so the hook calls `Display::closeWindow()` and it goes.
 
+### 7.4.1 The CompuPro PC Video — DESIGN, for review (2026-11-20)
+
+**Status: design only. No code yet.** The CompuPro (Viasyn) PC Video, board 228D, is a
+display board with 16K of screen RAM, a Motorola 6845, an IBM PC keyboard port and a light pen
+port. It copies the IBM Color Graphics Adapter and Monochrome Display Adapter at the bus level:
+the same memory addresses, the same port addresses and the same register bits. CompuPro's
+Concurrent DOS 8-16 uses it as console 0, and **PC Mode needs it**: the XIOS sends the PC
+video and keyboard functions (XIOS 31-34) to the PC Video driver only. On a serial console they
+return "not supported" (`PCMODE.A86`).
+
+**Sources.**
+
+- The *PC Video Technical Manual* (A493), 96 scanned pages, read as images. Read so far: the
+  hardware section (pp. 1-23) and the theory of operation (pp. 41-70). The scan also has the 14
+  sheets of the logic diagram (pp. 97-110) and the parts list, not read yet. Pages 75-95 (the
+  6845 data sheet reprint) are missing from the scan.
+- The Motorola *MC6845 CRT Controller* data sheet, 23 pp., for the chip.
+- CompuPro's XIOS 4.1D source as a software cross-check: `VSCPC.A86` (the screen), `PCKEY.DVR`
+  (the keyboard), `PCMODE.A86`, `GLOBAL.EQU`. It is not a source for the hardware.
+
+**Scope.** Color mode first (the user's choice, 2026-11-20). The monochrome half of the board
+(S2-9 ON) is a later stage: the strap exists from the start, and `mono` is refused until that
+stage is built.
+
+#### What the board does (the facts the model needs)
+
+| Item | Fact | Manual |
+|---|---|---|
+| Screen RAM | 16K of static RAM: the character byte (even address) and the attribute byte (odd address) of each 16-bit word. The host sees a 16K block. | p. 8, Table 4 |
+| Memory decode | S1-2..9 = A21-A14 (a 16K block). A22 = A23 = 0, fixed in the PAL. `0B8000` for color. | Table 3 |
+| Write-only mode | S1-1 OFF: the board ignores memory reads and takes writes. Another RAM board at the same address answers the reads. | pp. 8-9, 52-53 |
+| 16-bit transfers | The board answers SIXTN\* on a memory address, except in write-only mode. | p. 52 |
+| PHANTOM\* | S2-10 ON: the board pulls PHANTOM\* while it is addressed. Off is the normal setting. | pp. 9, 51 |
+| Port decode | S2-1..8 = A11-A4, A15-A12 = 0, all 16 bits decoded. `03D0` for color. 16 ports; 9 do something. | Tables 11-12 |
+| Port 0 | Board select (write). Bit n, chosen by a shunt on J3, enables the board. Reset sets it. Only port 0 works while the board is disabled. | p. 18, Table 13 |
+| Port 1 | Address flip (write, D0). 1 inverts A15 of the memory compare and A5-A6 of the port compare: the board moves to the monochrome addresses. Reset clears it. J2 B-C disables it. | p. 18, Table 14 |
+| Ports 4, 5 | The 6845 address register (write) and data register (read and write). | Table 15 |
+| Port 8 | Mode register, 6 bits: HRES, GRPH, SBW1, VIDENB, SBW2, ENBBLINK. | Tables 16-17, 21 |
+| Port 9 | Color register, 6 bits: border or background color (B, G, R, I), graphics intensity, 320-dot palette. | Tables 18, 33 |
+| Port A | Status (read), 4 bits: D0 display enable inverted (1 while the beam is blanked), D1 keyboard or light pen data ready (latched), D2 light pen switch (not latched), D3 vertical sync. | Table 19, p. 60 |
+| Port B | Write: clears the keyboard data, the ready flag and the light pen flag. D7 latches the keyboard clock: 1 holds the clock low, so the keyboard cannot send. | p. 22, Table 27 |
+| Port C | Write: sets the ready flag. Read: the keyboard data. A light pen strobe leaves the data at 0, which no keyboard sends. | p. 22, p. 70 |
+| Interrupt | The ready flag drives one VI line, chosen on J4. CompuPro software expects VI5. | Table 20 |
+| Wait states | The board holds PRDY until the request falls in its next transfer window: up to 850 ns. | pp. 8, 44-49, 51-52 |
+| Character PROM | U6, a 2764: A12 = S2-9, A11-A4 = the character, A3-A0 = the scan line. | pp. 42, 61 |
+| Clocks | Color: 14.31818 MHz (X2). A character takes 8 clocks (80x25 text) or 16 (40x25 text and graphics). | Tables 21-22 |
+
+#### The model
+
+**One chip and one board.**
+
+- `src/chips/mc6845.{h,cpp}`: the 6845 from the data sheet. 18 registers (R0-R17; only R14-R17
+  read back), the address register, the cursor (R10 bits 5-6: on, off, blink at 1/16 or 1/32
+  of the field rate), the start address, and the light pen latch. The latch takes the refresh
+  address **plus 2** (data sheet Fig. 5). It counts characters and scan lines from the
+  programmed registers. It has no clock of its own: the board gives it time.
+- `src/boards/compupro-pcvideo.{h,cpp}`, type `pcvideo`: the decode, the 16K, the ports, the
+  keyboard input, the light pen input, the wait states, and the picture.
+
+**Time.** Every guest-visible timing bit comes from emulated time (`Clock::now()`), never from
+a poll count (devguide/video-board.md question 7). The board converts host T-states into
+14.31818 MHz master clocks with `Clock::hz()`, with the remainder carried, as the SPUZ does. The
+6845's frame is then (R0+1) characters per line × ((R4+1) × (R9+1) + R5) lines. From that:
+
+- status D0 and D3 (display enable and vertical sync) at the current master clock;
+- the character blink (the field rate / 16) and the board's cursor blink (/32), counted in
+  frames (U12, p. 63). J5 removed gives a steady cursor;
+- the wait states (below).
+
+**Wait states.** A memory or port access waits for the next transfer window of the board's
+character clock: one master clock at state 3 of an 8-clock cycle, two with the stretch of a
+9-clock cycle, eight in a 16-clock cycle (pp. 44-45). The transfer then takes 2 master clocks,
+or 8 for the 6845 (p. 48). The board knows its own phase from emulated time, so the count is
+exact and repeatable. It reaches the CPU through `Bus::addWaitStates()`. The worst case is the
+manual's 850 ns. At the CPU 286's 8 MHz that is 7 T-states.
+
+**The picture.** `PixelFormat::Indexed8` with 16 entries (RGBI, Table 10).
+
+- One dot per master clock: an 80x25 text screen is 640 dots wide, a 40x25 text screen is 640
+  dots of doubled width, 320x200 graphics doubles each pixel, 640x200 graphics is 640. Height
+  is R6 × (R9+1) scan lines.
+- Text: the character byte and scan line address the PROM (`builtin:pcvideo` by default); the
+  attribute byte gives the foreground (AT0-AT3) and the background (AT4-AT6, and AT7 as
+  intensity or blink by ENBBLINK). The cursor forces the foreground on its scan lines
+  (Table 32, pp. 63-64).
+- Graphics: the even screen lines at offset 0, the odd lines at 2000h, 80 bytes a line (Table
+  6). 320x200: two bits a pixel, bit b0 green, b1 red, blue from the palette bit, intensity
+  from port 9 bit 4, and 00 the background color (Table 7, p. 66). SBW1 makes blue follow
+  green. 640x200: one bit a pixel, the foreground from port 9, the background black.
+- A border around the displayed area in the port 9 color, except in 640x200 graphics, where
+  it is black (Table 32).
+- The frame is drawn whole, from the state at the time of the frame. A guest that changes
+  registers in the middle of a frame does not get a split picture. Interlace (R8) is not drawn.
+- `width` and the aspect handling are the existing Display ones. 200 lines on a 4:3 monitor
+  are drawn at double height.
+
+**The palette is the monitor's, not the board's.** The board puts out four TTL lines. Table 10
+names the 16 colors, and number 6 is **brown**. The model uses the usual RGBI monitor levels:
+2/3 for each color line, 1/3 more with intensity, and the green of color 6 at half. These levels
+are not in the manual. They are a model decision.
+
+**The keyboard.** The board takes the PC keyboard's own codes. `PCKEY.DVR` gives the numbers
+(scan code 1 = Esc, 2-13 the top row, 59-68 F1-F10, 83 keys in all) and bit 7 = released.
+
+- The board's unit `kbd` is an endpoint of scan code bytes, like any serial unit:
+  `connect = "window"` (the PC Video window's keys), `"null"`, a socket, or a file.
+- The window path is new host work. The display now gives a window's keys as ASCII. The PC
+  Video needs the physical key, pressed and released. `Display` gets a second sink, the key
+  position and up or down. The SDL back end maps its scancodes to PC scan codes with one
+  table, made from `PCKEY.DVR`'s 83 keys. The Console keeps the ASCII path for every other
+  window.
+- For scripts and MCP, a filter turns ASCII into make and break codes, with Shift and Ctrl
+  around a character that needs them. Raw codes also pass.
+- Flow: the board takes one code, sets the ready flag, raises VI5, and holds the keyboard data
+  line until the guest writes port B (p. 69). The next code comes 1 ms of emulated time after
+  that, unless port B D7 holds the keyboard clock. The 1 ms is not in the manual: it is a model
+  decision, about one PC keyboard character.
+
+**The light pen** is the strap `lightpen = off | mouse`, off by default (the user's choice,
+2026-11-20).
+
+- With `mouse`, the left button down or dragging over the window puts the pen at that dot.
+  The button is the pen switch (status D2, not latched).
+- In each frame, when the beam reaches that dot and the dot is lit (not the background), the
+  pen strobes: the 6845 latches the address + 2, the ready flag sets, the data register stays
+  0, and VI5 rises if J4 selects it. A pen held on a dark area does not strobe, as on a real
+  CRT.
+- It uses `Display::setPointerSink`, which gives the position in picture dots.
+
+**Straps (properties).** `memory` (S1-2..9: a 16K boundary below `400000`, default
+`0B8000`), `ports` (S2-1..8: a 16-port boundary below `1000`, default `03D0`), `wom` (S1-1 OFF), `phantom` (S2-10), `monitor`
+(`color` | `mono`, S2-9; `mono` refused until stage 3), `select` (J3, the bit of port 0, 0-7),
+`flip` (J2, port 1 on or off), `vi` (J4, default 5, or `none`), `cursor_blink` (J5), `font`
+(the PROM image, default `builtin:pcvideo`), `lightpen`. Live status: the mode, the color
+register, the board select, the flip, the 6845's registers, the keyboard flag.
+
+**Snapshot.** The 16K, the 6845, the five registers, the keyboard state and its queue, the
+master clock phase.
+
+**Memory in a machine.** The machine file must not give the 16K block to a RAM board too.
+There are three ways, all real CompuPro ways (pp. 8-9):
+
+1. A hole in the RAM at `0B8000`-`0BBFFF`, as the SPUZ window has. The simplest.
+2. `wom = true` and RAM under the block that honors no PHANTOM\*: the RAM answers reads, both
+   take writes.
+3. `phantom = true` and RAM that honors PHANTOM\* for reads and writes.
+
+#### Stages
+
+1. The 6845 chip, with unit tests from the data sheet.
+2. The board in color mode: decode, ports, RAM, wait states, the picture (proved with a
+   `NullDisplay`, devguide/video-board.md §5), the keyboard endpoint with the ASCII filter, the
+   light pen. Then CompuPro's 4.1 XIOS built with `PCBRD`, `NPC_BRD = 1` and `COLOR_PC = 1`:
+   Concurrent DOS on the PC Video as console 0, the virtual consoles, then PC Mode with a DOS
+   program.
+3. Monochrome mode: the 9x14 PROM half, the 9th dot, underline and reverse (Table 31), the
+   16.257 MHz clock.
+
+**Out of scope.** The composite output, J1 (it moves the picture one character), up to eight
+boards behind the board select (the XIOS allows one), and the 32K boards that `GLOBAL.EQU`
+names (`COLOR32K`, `MONO32K`): the manual describes 16K only.
+
+**Open questions.**
+
+- Ports 2, 3, 6, 7 and D-F: the manual says the board "responds" at all 16 ports. The model
+  claims them, ignores writes, and reads `FF`. The logic diagram may say more.
+- Status D4-D7 are not driven (a 4-bit buffer, U42): they float.
+- How the 6845's refresh address and RA0 form the graphics address (Table 6's 2000h for odd
+  lines). Read from the logic diagram before stage 2.
+
 ### 7.5 `Clock` — the single source of time
 
 Nothing in the simulator may call `std::chrono::now()` except this. Time is measured in **T-states**, never milliseconds, and it advances only when the CPU retires an instruction — by exactly the count the CPU reported, **plus the wait states any board held READY for** during that instruction's cycles. That is what makes replay deterministic, and it is why the UART's idea of when a character has finished going out is derived from the very instruction stream the guest is timing it against; the two cannot drift.
