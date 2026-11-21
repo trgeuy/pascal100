@@ -107,6 +107,11 @@ private:
         std::vector<Color>       palette;   // index -> Color, set by the board
         std::vector<uint8_t>     rgba;      // scratch: indexed -> RGBA for upload
 
+        // Physical keys held down in this window (USB HID usages), for an owner that claimed
+        // them (Display::claimRawKeys). Released when the window loses focus, so a key let go
+        // in another window does not stay down in the guest.
+        std::vector<uint16_t> keysDown;
+
         // This board's own name (its id -- "vdm0"), so its window is titled apart from the
         // other video board's. Set by acquire() before the window is built; empty until then.
         std::string label;

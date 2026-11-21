@@ -651,6 +651,7 @@ void SdlDisplay::pollEvents() {
             // with focus decides where the keys go: its owner travels with them (ownerOf),
             // so a terminal window types on its own line.
             if (!keysFrom(e.text.windowID)) break;  // display-only: keys are the joystick's
+            if (rawKeys(ownerOf(e.text.windowID))) break;  // physical keys carry it instead
             for (const char* p = e.text.text; p && *p; ++p) {
                 uint8_t c = (uint8_t)*p;
                 if (c < 0x80) emitKeys(ownerOf(e.text.windowID), &c, 1);
@@ -689,6 +690,17 @@ void SdlDisplay::pollEvents() {
                     if (!keys.empty())
                         emitKeys(from, reinterpret_cast<const uint8_t*>(keys.data()), keys.size());
                 }
+                break;
+            }
+            // A WINDOW THAT TAKES PHYSICAL KEYS (the PC Video): every key down, named by its
+            // USB HID usage -- the SDL3 scancode. Copy and paste above still work.
+            if (rawKeys(from)) {
+                if (Window* w = windowById(e.key.windowID)) {
+                    const uint16_t u = (uint16_t)e.key.scancode;
+                    if (std::find(w->keysDown.begin(), w->keysDown.end(), u) == w->keysDown.end())
+                        w->keysDown.push_back(u);
+                }
+                emitRawKey(from, (uint16_t)e.key.scancode, true);
                 break;
             }
             uint8_t c = 0;
@@ -731,6 +743,26 @@ void SdlDisplay::pollEvents() {
             if (c) emitKeys(from, &c, 1);
             break;
         }
+        // A key up matters only to a window that takes physical keys.
+        case SDL_EVENT_KEY_UP: {
+            const Owner from = ownerOf(e.key.windowID);
+            if (!rawKeys(from)) break;
+            if (Window* w = windowById(e.key.windowID)) {
+                auto it = std::find(w->keysDown.begin(), w->keysDown.end(), (uint16_t)e.key.scancode);
+                if (it == w->keysDown.end()) break;  // pressed elsewhere: not ours to release
+                w->keysDown.erase(it);
+            }
+            emitRawKey(from, (uint16_t)e.key.scancode, false);
+            break;
+        }
+        // Focus went to another window: let go of every key still held in this one.
+        case SDL_EVENT_WINDOW_FOCUS_LOST:
+            if (Window* w = windowById(e.window.windowID)) {
+                const Owner from = ownerOf(e.window.windowID);
+                for (uint16_t u : w->keysDown) emitRawKey(from, u, false);
+                w->keysDown.clear();
+            }
+            break;
         default:
             break;
         }

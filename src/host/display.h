@@ -243,6 +243,23 @@ public:
     void emitCopy(Owner from) {
         if (copySink_) copySink_(from);
     }
+
+    // PHYSICAL KEYS, for a board whose window is a real keyboard (the CompuPro PC Video: an
+    // IBM PC keyboard sends a code for each key down and each key up, Shift and Ctrl alone
+    // included). ASCII cannot carry that. A board claims physical keys for its own window;
+    // the back end then sends that window each key down and up here, named by its USB HID
+    // usage (keyboard page 07h: 04h = A, E0h = left Ctrl), and no text for it. SDL3's
+    // scancodes are those usages. A held key repeats as more downs, as a PC keyboard's
+    // typematic does. The board turns a usage into its own keyboard's code; the back end
+    // knows no guest keyboard. A paste still comes through the key sink as ASCII.
+    using RawKeySink = std::function<void(Owner, uint16_t usage, bool down)>;
+    void setRawKeySink(RawKeySink s) { rawKeySink_ = std::move(s); }
+    void emitRawKey(Owner from, uint16_t usage, bool down) {
+        if (rawKeySink_) rawKeySink_(from, usage, down);
+    }
+    void claimRawKeys(Owner o) { rawOwners_.insert(o); }
+    void releaseRawKeys(Owner o) { rawOwners_.erase(o); }
+    bool rawKeys(Owner o) const { return o && rawOwners_.count(o) != 0; }
     // Put text on the host clipboard. Nothing to do without a window system.
     virtual void setClipboardText(const std::string&) {}
 
@@ -490,7 +507,9 @@ public:
     // later drawer that lands on the same address starts without one.
     void claimKeyboard(Owner o) { keyOwners_.insert(o); }
     void releaseKeyboard(Owner o) { keyOwners_.erase(o); }
-    bool keysToGuest(Owner o) const { return keyboardToConsole_ || keyOwners_.count(o) != 0; }
+    bool keysToGuest(Owner o) const {
+        return keyboardToConsole_ || keyOwners_.count(o) != 0 || rawOwners_.count(o) != 0;
+    }
 
     // ---- CRT PRESENTATION: paint the window like the original monitor, or crisp? ----
     //
@@ -554,9 +573,12 @@ private:
     SpecialKeySink specialKeySink_;
     PointerSink    pointerSink_;
     CopySink       copySink_;
+    RawKeySink     rawKeySink_;
 
     // The owners whose windows are always a keyboard; see claimKeyboard().
     std::set<Owner> keyOwners_;
+    // The owners whose windows take physical keys; see claimRawKeys().
+    std::set<Owner> rawOwners_;
 
     // Sol-20 Table 7-4: up 97, down 9A, left 81, right 93, HOME CURSOR 8E, MODE SELECT 80,
     // CLEAR 8B, LOAD 8C. The last three have no key on a modern keyboard and no ASCII code,

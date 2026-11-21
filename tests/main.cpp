@@ -6,6 +6,7 @@
 #include "boards/compupro-interfacer3.h"
 #include "boards/compupro-interfacer4.h"
 #include "boards/compupro-disk1.h"
+#include "boards/compupro-pcvideo.h"
 #include "boards/compupro-ss1.h"
 #include "boards/terminal-font.h"
 #include "host/display_null.h"
@@ -99,6 +100,7 @@ const struct {
     {"wd17xx", test_wd17xx},
     {"upd765", test_upd765},
     {"bitserial", test_bitserial},
+    {"mc6845", test_mc6845},
     {"i8257", test_i8257},
     {"scn2681", test_scn2681},
     {"am9511a", test_am9511a},
@@ -106,6 +108,7 @@ const struct {
     {"tarbell", test_tarbell},
     {"jadedd", test_jadedd},
     {"spuz", test_spuz},
+    {"pcvideo", test_pcvideo},
     {"cpu8088", test_cpu8088},
     {"cpu80286", test_cpu80286},
     {"disk1", test_disk1},
@@ -151,6 +154,7 @@ int main(int argc, char** argv) {
     altair::InterfacerThreeBoard::setResolver(altair::resolveEndpoint);
     altair::InterfacerFourBoard::setResolver(altair::resolveEndpoint);
     altair::Io4Board::setResolver(altair::resolveEndpoint);
+    altair::PcVideoBoard::setResolver(altair::resolveEndpoint);
     altair::CompuProDisk1Board::setResolver(altair::resolveEndpoint);
     altair::Ss1Board::setResolver(altair::resolveEndpoint);
 
@@ -163,6 +167,7 @@ int main(int argc, char** argv) {
     // not windowed, so `terminal:` refuses at CONNECT here -- which test_terminal asserts,
     // while it drives the VT100 engine directly (no window, no endpoint) to read the grid.
     altair::TerminalStream::setDisplay(&g_display);
+    altair::PcVideoBoard::setDisplay(&g_display);
     altair::TerminalStream::setFont(&altair::bundledTerminalFont());
 
     // The REAL media resolver, for the same reason -- and the SAME one the CLI

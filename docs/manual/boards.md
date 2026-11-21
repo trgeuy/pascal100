@@ -1093,6 +1093,61 @@ A Disk 1A machine often has one, with its console on the serial channel of the b
 at `5A` (command) and `5B` (data). The board reference gives the
 digit map, the read and set sequences and the register layouts.
 
+## Video
+
+### `pcvideo`: CompuPro PC Video
+
+The CompuPro PC Video is a color display board with a keyboard port. It answers at the
+addresses of IBM's Color Graphics Adapter: 16K of screen RAM at `0B8000` and 16 ports at
+`03D0`, decoded on all 16 address bits. Its picture opens in a window: 80x25 or 40x25 text, or
+320x200 or 640x200 graphics, in 16 colors. Only the color half of the board is built.
+
+The screen RAM must not belong to a RAM board as well. Leave a hole in the RAM at
+`0B8000`-`0BBFFF`:
+
+```toml
+[[board]]
+type = "memory"
+id   = "mem0"
+ext  = true
+honors_phantom = "read"
+  [[board.region]]
+  type = "ram"
+  at   = 000000
+  size = "736K"
+  [[board.region]]
+  type = "ram"
+  at   = 0BC000
+  size = "272K"
+
+[[board]]
+type = "pcvideo"
+id   = "pcv0"
+  [board.unit.kbd]
+  connect = "null"
+```
+
+**The keyboard.** The board's window is an IBM PC keyboard: click the window and type. Each
+key down and each key up reaches the guest, Shift, Ctrl and Alt (Option on a Mac) alone
+included. The keyboard is the 83-key PC/XT keyboard, so the arrows, Home, End, PgUp, PgDn,
+Insert and Delete send the keypad's codes, and F11, F12 and Cmd send nothing. A paste (Cmd-V,
+or Ctrl-Shift-V) is typed as characters. Ctrl-E in the window goes to the guest: use the
+terminal's Ctrl-E or the window's close box to stop it.
+
+The unit `kbd` is a second keyboard, for a script. With `keys = ascii` (the default), each byte
+that reaches `kbd` is a character, and the board types it as the keyboard would, with Shift or
+Ctrl. With `keys = scancodes`, each byte is a scan code. Send them with the MCP `send` tool or
+through an endpoint such as `connect = "socket:2400"`.
+
+**The light pen.** `SET pcv0 lightpen=mouse` makes the mouse a light pen: hold the left button
+over the window. The pen sees only lit dots.
+
+**The window** has a title bar, as a terminal window has. `title` sets its text (empty:
+`CompuPro PC Video (pcv0)`), and `titlebar = false` takes it away.
+
+**The character generator** is `builtin:pcvideo`, a public-domain font in the layout of the
+board's PROM. To use a dump of a real PROM, give its file in `font`.
+
 ## Host integration
 
 A board that connects the machine to your computer. It is not period hardware.

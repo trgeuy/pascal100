@@ -160,6 +160,12 @@ Type the part before the bracket.
 | `interfacer4` | CompuPro Interfacer 4: three serial, Centronics, parallel |
 | `io4` | SSM IO-4: two serial + two parallel ports |
 
+**Video**
+
+| Type | What it is |
+|---|---|
+| `pcvideo` | CompuPro PC Video: 6845 color display, PC keyboard |
+
 **Other**
 
 | Type | What it is |

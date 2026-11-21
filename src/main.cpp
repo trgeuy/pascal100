@@ -5,6 +5,7 @@
 #include "boards/compupro-interfacer4.h"
 #include "boards/compupro-disk1.h"
 #include "boards/compupro-ss1.h"
+#include "boards/compupro-pcvideo.h"
 #include "boards/compupro-spuz.h"
 #include "boards/terminal-font.h"
 #ifdef PASCAL100_ENABLE_SDL
@@ -319,6 +320,7 @@ int main(int argc, char** argv) {
     Io4Board::setResolver(resolveEndpoint);          // the real SSM IO-4's two UART channels
     CompuProDisk1Board::setResolver(resolveEndpoint);  // the Disk 1's bit-banged port 3 line
     SpuzBoard::setResolver(resolveEndpoint);         // the CompuPro SPUZ's two 2681 channels
+    PcVideoBoard::setResolver(resolveEndpoint);      // the CompuPro PC Video's keyboard
     Ss1Board::setResolver(resolveEndpoint);          // the System Support 1's 2651 serial channel
     // --mcp: every serial line gets an AgentTap (host/agent_tap.h), so `send`/`recv`/`run`
     // can reach any unit, not only the console. Before the machine loads, so its lines have one.
@@ -335,6 +337,7 @@ int main(int argc, char** argv) {
     // headless build g_display is a NullDisplay (isWindowed() false), so CONNECT refuses the
     // endpoint cleanly rather than opening a serial line with nothing behind it.
     TerminalStream::setDisplay(&g_display);
+    PcVideoBoard::setDisplay(&g_display);
     TerminalStream::setFont(&bundledTerminalFont());
 
     // 60 frames a second, and no more. A real VDM-1 scanned at the monitor's rate no
@@ -354,17 +357,26 @@ int main(int argc, char** argv) {
     // board reads that Console, so you type in the VDM window and SOLOS sees one stream
     // (DESIGN.md 7.4). The monitor keeps stdio to itself. A NullDisplay never fires.
     g_display.setKeySink([](Display::Owner from, const uint8_t* p, size_t n) {
-        if (!TerminalStream::routeKeys(from, p, n)) Console::instance().inject(p, n);
+        if (TerminalStream::routeKeys(from, p, n)) return;
+        if (PcVideoBoard* b = PcVideoBoard::forOwner(from)) return b->typeText(p, n);  // a paste
+        Console::instance().inject(p, n);
+    });
+
+    // A PC Video window is an IBM PC keyboard: it claims physical keys (host/display.h), and
+    // each key down and up goes to that board as a USB HID usage, which it sends as a scan code.
+    g_display.setRawKeySink([](Display::Owner from, uint16_t usage, bool down) {
+        if (PcVideoBoard* b = PcVideoBoard::forOwner(from)) b->hostKey(usage, down);
     });
 
     // Arrows and Home carry no ASCII, so the window hands them over symbolically
     // (host/display.h): a terminal encodes each in its own dialect (VT100 ESC[A, VT52 ESCA,
     // ADM-3A ^K), which the byte table could not do. Any other window injects the table's
     // guest byte into the Console, exactly as the display would have without this sink.
-    // The mouse and copy: a terminal window selects and copies its own text. Nothing else
-    // uses them yet, so another window's events go nowhere.
+    // The mouse and copy: a terminal window selects and copies its own text, and a PC Video
+    // window's mouse is its light pen (when `lightpen = mouse`). Another window's go nowhere.
     g_display.setPointerSink([](Display::Owner from, const Display::Pointer& p) {
-        TerminalStream::routePointer(from, (int)p.kind, p.x, p.y);
+        if (TerminalStream::routePointer(from, (int)p.kind, p.x, p.y)) return;
+        if (PcVideoBoard* b = PcVideoBoard::forOwner(from)) b->pointer(p);  // the light pen
     });
     g_display.setCopySink([](Display::Owner from) { TerminalStream::routeCopy(from); });
     g_display.setSpecialKeySink([](Display::Owner from, Display::SpecialKey k) {

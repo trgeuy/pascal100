@@ -58,6 +58,12 @@ and within a group the boards are in **alphabetical order**.
 | [`interfacer4`](#interfacer4) | CompuPro Interfacer 4: three serial, Centronics, parallel |
 | [`io4`](#io4) | SSM IO-4: two serial + two parallel ports |
 
+**Video**
+
+| Type | What it is |
+|---|---|
+| [`pcvideo`](#pcvideo) | CompuPro PC Video: 6845 color display, PC keyboard |
+
 **Other**
 
 | Type | What it is |
@@ -815,6 +821,42 @@ SSM IO-4 (2P+2S): the real Solid State Music board -- two full-duplex serial cha
 | `dav_active_low` | bool | `false` | `on` \| `off` | Present the data-available flag active-low -- the dav_bit reads 0 when a byte is waiting (§3.2.2 "D0 going low"). Off = active-high |
 | `int` | enum | `none` | `none` \| `int` \| `vi0` \| `vi1` \| `vi2` \| `vi3` \| `vi4` \| `vi5` \| `vi6` \| `vi7` | Where this parallel input's interrupt (a byte latched in, service request) is strapped on header W4: none \| int \| vi0..vi7. Canonical: vi6 (Parallel A) / vi5 (Parallel B) *(interrupt strap)* |
 | `title` | string |  | text | The title of a terminal window on this unit. Empty = "SSM IO-4 pb" |
+
+
+## Video
+
+### `pcvideo`
+
+CompuPro (Viasyn) PC Video (board 229D): 16K of screen RAM, a Motorola 6845, an IBM PC keyboard port (unit kbd) and a light pen port, at the IBM Color Graphics Adapter's addresses: memory (default 0B8000, a 16K block) and ports (default 03D0, decoded on A0-A15). Port 0 enables the board (select, J3), port 1 moves it to the monochrome addresses (flip, J2), ports 4-5 the 6845, 8 the mode, 9 the color, 10 the status, 11-12 the keyboard. The keyboard and light pen pull a VI line (interrupt, default vi5). 80x25 and 40x25 text, 320x200 and 640x200 graphics in a window. Color mode only. font: the character generator (default builtin:pcvideo). lightpen: off or mouse
+
+**Units:** `kbd` (serial, CONNECT)
+
+#### Board properties
+
+| Key | Kind | Default | Legal | Meaning |
+|---|---|---|---|---|
+| `memory` | int | `0xB8000` | `0x0` .. `0x3FC000` | S1-2..9: the 16K block of screen RAM, A21-A14 (default 0B8000, IBM's color address). A multiple of 4000 below 400000 |
+| `ports` | int | `0x3D0` | `0x0` .. `0xFF0` | S2-1..8: the 16 ports, A11-A4 (default 03D0, IBM's color ports). A multiple of 10 below 1000 |
+| `wom` | bool | `false` | `on` \| `off` | S1-1 OFF: write-only memory. The board takes writes; another RAM board at the same address answers reads (off: read and write) |
+| `phantom` | bool | `false` | `on` \| `off` | S2-10 ON: pull PHANTOM* while the screen RAM is addressed (off, as normally set) |
+| `monitor` | enum | `color` | `color` \| `mono` | S2-9: color (OFF: 14.31818 MHz, RGBI) or mono (ON: 16.257 MHz, 9x14 characters, underline and reverse, a green monitor) |
+| `select` | int | `0` | `0` .. `7` | J3: the bit of port 0 that enables this board, 0-7 (default 0) |
+| `flip` | bool | `true` | `on` \| `off` | J2 A-C: port 1 can move the board to the monochrome addresses (on). Off is J2 B-C |
+| `interrupt` | enum | `vi5` | `none` \| `int` \| `vi0` \| `vi1` \| `vi2` \| `vi3` \| `vi4` \| `vi5` \| `vi6` \| `vi7` | J4: the VI line the keyboard and light pen pull (vi5, CompuPro's standard) *(interrupt strap)* |
+| `cursor_blink` | bool | `true` | `on` \| `off` | J5 installed: the cursor blinks at the board's rate (on). Off: a steady cursor |
+| `font` | string | `builtin:pcvideo` | text | The character generator, U6 (a 2764): builtin:pcvideo (default), or a file (binary, Intel HEX or S-records) in the same layout |
+| `lightpen` | enum | `off` | `off` \| `mouse` | The light pen: off (default), or mouse (the left button over the window is the pen and its switch) |
+| `title` | string |  | text | The text on the window's title bar. Empty = "CompuPro PC Video" |
+| `titlebar` | bool | `true` | `on` \| `off` | Show the title on a bar at the top of the window, in the board's own font |
+| `width` | string | `auto` | text | Video window width in pixels: 'auto' (default) opens about half the screen wide, or a number like 1024. The height follows the board's own aspect, and the picture is a whole multiple of its pixels so it stays crisp |
+
+#### Unit `kbd` — `[board.unit.kbd]`
+
+| Key | Kind | Default | Legal | Meaning |
+|---|---|---|---|---|
+| `connect` | string | `null` | text | The endpoint the keyboard's codes come from (CONNECT sets this) |
+| `keys` | enum | `ascii` | `ascii` \| `scancodes` | What the endpoint's bytes are: ascii (characters, typed as a PC keyboard would; default) or scancodes (as the keyboard sends them) |
+| `title` | string |  | text | The title of a terminal window on this unit. Empty = "CompuPro PC Video kbd" |
 
 
 ## Other
