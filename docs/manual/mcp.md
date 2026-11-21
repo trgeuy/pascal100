@@ -315,6 +315,19 @@ core goes away (the board is removed, or another machine is loaded), the breakpo
 and `list` gives it `unit_missing: true`. `stop_at` stops on whichever core gets to the address.
 On a board with one processor, these tools do not change.
 
+`regs`, `step`, `disasm` and `mem_dump` also take `unit`, as `<board>:<unit>`. Then `regs`
+gives that core's registers, whether it runs now or not. `disasm` decodes with that core's
+instruction set, as the core fetches. `mem_dump` reads memory as that core sees it, with a
+peek, and the addresses are the core's own. `step` steps only the active core of a processor
+board, and refuses another.
+
+A processor on a board's own bus, such as the Z80 of a CompuPro SPUZ, is a core too:
+`spuz0:z80`. `step` with that `unit` runs only that processor, and the host does not run. A
+`pc` breakpoint on it stops that processor where it is, and the host stops after its next
+instruction: `run` and `step` then give `breakpoint_core` and `breakpoint_pc`. The next run
+lets the processor go. Its instruction history is in `HISTORY CPU spuz0:z80` through the
+`monitor` tool, after `board_set` `history=on`.
+
 On the IEEE 696 bus, which is the only bus in this program, the memory tools (`mem_dump`, `mem_deposit`, `mem_fill`,
 `mem_search`, `mem_load`, `mem_save`), `who`, `bus_map`, `bus_contention` and `bus_trace` use
 24-bit physical addresses. `disasm` and the run tools use the 16-bit processor addresses. The

@@ -1,4 +1,5 @@
 #include "core/machine.h"
+#include "core/privatecpu.h"
 
 #include "boards/s100-memory.h"
 #include "boards/registry.h"
@@ -543,6 +544,7 @@ CpuCard* Machine::cpuCard() {
 CpuCore* Machine::coreByRef(const std::string& ref, std::string* canonical) {
     size_t colon = ref.find(':');
     if (colon == std::string::npos) return nullptr;
+    if (PrivateCpu* p = privateByRef(ref, nullptr, canonical)) return &p->core();
     Board* b = find(ref.substr(0, colon));
     auto* card = dynamic_cast<CpuCard*>(b);
     if (!card) return nullptr;
@@ -563,6 +565,46 @@ CpuCore* Machine::coreByRef(const std::string& ref, std::string* canonical) {
     return nullptr;
 }
 
+PrivateCpu* Machine::privateByRef(const std::string& ref, Board** owner, std::string* canonical) {
+    size_t colon = ref.find(':');
+    if (colon == std::string::npos) return nullptr;
+    Board* b = find(ref.substr(0, colon));
+    if (!b) return nullptr;
+    const std::string unit = lowerAscii(ref.substr(colon + 1));
+    for (PrivateCpu* p : b->privateCpus())
+        if (lowerAscii(p->unit()) == unit) {
+            if (owner) *owner = b;
+            if (canonical) *canonical = b->id + ":" + p->unit();
+            return p;
+        }
+    return nullptr;
+}
+
+PrivateCpu* Machine::privateOf(const CpuCore* c, Board** owner) {
+    if (!c) return nullptr;
+    for (auto& b : boards_)
+        for (PrivateCpu* p : b->privateCpus())
+            if (&p->core() == c) {
+                if (owner) *owner = b.get();
+                return p;
+            }
+    return nullptr;
+}
+
+uint8_t Machine::peekCode(CpuCore* c, uint32_t a) {
+    if (PrivateCpu* p = privateOf(c)) return p->peekCode(a);
+    CpuCard* card = cpuCard();
+    if (card && c) return card->peekCodeByte(c, bus, a);
+    return a > 0xFFFF ? bus.peekX(a) : bus.peek((uint16_t)a);
+}
+
+std::vector<std::pair<Board*, PrivateCpu*>> Machine::privateCpus() {
+    std::vector<std::pair<Board*, PrivateCpu*>> out;
+    for (auto& b : boards_)
+        for (PrivateCpu* p : b->privateCpus()) out.push_back({b.get(), p});
+    return out;
+}
+
 std::string Machine::coreUnit(const CpuCore* c) {
     CpuCard* card = cpuCard();
     if (!card || !c || card->coreCount() < 2) return "";
@@ -573,6 +615,8 @@ std::string Machine::coreUnit(const CpuCore* c) {
 }
 
 std::string Machine::coreTag(const CpuCore* c) {
+    Board* owner = nullptr;
+    if (PrivateCpu* p = privateOf(c, &owner)) return "[" + owner->id + ":" + p->unit() + "] ";
     std::string unit = coreUnit(c);
     return unit.empty() ? std::string() : "[" + unit + "] ";
 }

@@ -10,11 +10,15 @@
 #include "core/bus.h"
 #include "core/clock.h"
 #include "core/machine.h"
+#include "cli/monitor.h"
+#include "core/privatecpu.h"
 #include "test.h"
 
+#include <algorithm>
 #include <cstdint>
 #include <cstdio>
 #include <initializer_list>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -74,6 +78,35 @@ struct Rig {
         out(PTLATCH, ZRST | 0x03);
     }
 };
+
+// A board Z80 register by name, through the debugger's registers.
+uint32_t zreg(SpuzBoard* sp, const char* name) {
+    for (RegDef& d : sp->z80().registers())
+        if (d.name == name) return d.get();
+    return 0xFFFFFFFF;
+}
+
+// A host Z80 spinning on JR $ at 0000h, in 4K of RAM, so the run loop has something to run
+// while the SPUZ catches up on its 1 ms deadline.
+void addSpinningHost(Rig& r) {
+    std::string err;
+    r.m.add("z80", "cpu0", err);
+    Board* mem = r.m.add("memory", "mem", err);
+    mem->loadSubUnit("region", {{"type", "ram"}, {"at", "0000"}, {"size", "4K"}}, err);
+    r.m.power();
+    r.m.bus.memWrite(0x0000, 0x18);  // JR $
+    r.m.bus.memWrite(0x0001, 0xFE);
+    r.m.cpu()->setPc(0);
+}
+
+// The SPUZ loop for the stage 4 tests: LD A,0 / loop: INC A / JR loop (0002h-0004h).
+std::initializer_list<uint8_t> kCountLoop = {0x3E, 0x00, 0x3C, 0x18, 0xFD};
+
+std::string mon(Monitor& m, const std::string& line) {
+    std::ostringstream o;
+    m.exec(line, o);
+    return o.str();
+}
 
 }  // namespace
 
@@ -337,14 +370,142 @@ void test_spuz() {
               "the restored loop finishes at the same board T-state");
     }
 
-    SECTION("spuz: two serial units, a and b");
+    SECTION("spuz: units: the board Z80, and two serial lines a and b");
     {
         Rig r;
         auto u = r.sp->units();
-        CHECK(u.size() == 2 && u[0].name == "a" && u[1].name == "b" &&
-                  u[0].kind == UnitKind::Serial,
+        CHECK(u.size() == 3 && u[0].name == "z80" && u[0].kind == UnitKind::Cpu &&
+                  u[0].state == "in reset",
+              "z80 is a cpu unit, in reset after power-on");
+        CHECK(u[1].name == "a" && u[2].name == "b" && u[1].kind == UnitKind::Serial &&
+                  u[2].kind == UnitKind::Serial,
               "units a and b are serial lines");
         CHECK(r.sp->unitStream("a") != nullptr && r.sp->unitStream("c") == nullptr,
               "a has a stream, c does not exist");
+    }
+
+    SECTION("spuz: the board Z80 is a core: spuz0:z80 (stage 4)");
+    {
+        Rig r;
+        std::string canon;
+        CHECK(r.m.coreByRef("SPUZ0:Z80", &canon) == &r.sp->z80() && canon == "spuz0:z80",
+              "coreByRef finds the private core, in any case");
+        CHECK(r.m.privateOf(&r.sp->z80()) == &r.sp->z80Unit(), "privateOf maps it back");
+        CHECK(r.m.coreTag(&r.sp->z80()) == "[spuz0:z80] ", "its register lines are tagged in full");
+    }
+
+    SECTION("spuz: a breakpoint on spuz0:z80 holds the board Z80 and stops the host run");
+    {
+        Rig r;
+        addSpinningHost(r);
+        r.start(kCountLoop);
+        int id = r.m.debug.add(BreakKind::Pc, 0x0003, 0x0003);
+        CHECK(r.m.debug.setCore(id, "spuz0:z80"), "bind the breakpoint to spuz0:z80");
+        r.m.cpu()->setPc(0);
+        RunResult rr = r.m.debug.run(200000);
+        CHECK(rr.why == StopReason::Breakpoint && rr.bp == id && rr.bpCore == &r.sp->z80(),
+              "the run stops on the private breakpoint, and names the core");
+        CHECK(r.sp->z80().pc() == 0x0003 && r.sp->z80Unit().held(), "the board Z80 is held at 0003");
+        const uint32_t a1 = zreg(r.sp, "A");
+        const uint64_t b1 = r.sp->boardClock().now();
+        r.m.clock.advance(10 * MS);  // host time passes: a held core does not move
+        r.sp->catchUp();
+        CHECK(r.sp->z80().pc() == 0x0003 && r.sp->boardClock().now() == b1,
+              "held: neither the Z80 nor its clock moves");
+        rr = r.m.debug.run(200000);
+        CHECK(rr.why == StopReason::Breakpoint && r.sp->z80().pc() == 0x0003 &&
+                  zreg(r.sp, "A") == ((a1 + 1) & 0xFF),
+              "the next run goes past it once and stops there on the next lap");
+        r.m.debug.clear();
+        rr = r.m.debug.run(20000);
+        CHECK(rr.why == StopReason::Steps && !r.sp->z80Unit().held(),
+              "with the breakpoint gone, the next run lets the core go");
+    }
+
+    SECTION("spuz: STEP spuz0:z80 runs the board Z80 alone; in reset it is refused");
+    {
+        Rig r;
+        std::string e;
+        CHECK(!r.sp->z80Unit().step(e) && e.find("in reset") != std::string::npos,
+              "in reset: refused, and says why");
+        r.start(kCountLoop);
+        r.run(MS);
+        const uint64_t host = r.m.clock.now();
+        const uint32_t pc0  = r.sp->z80().pc();
+        CHECK(r.sp->z80Unit().step(e), "a step");
+        CHECK(r.sp->z80().pc() != pc0 && r.m.clock.now() == host,
+              "the board Z80 moved; host time did not");
+    }
+
+    SECTION("spuz: history=on records the board Z80; off records nothing");
+    {
+        Rig r;
+        r.start(kCountLoop);
+        r.run(MS);
+        CHECK(r.sp->z80Unit().history(4).empty(), "off by default: nothing recorded");
+        setProperty(*r.sp, "history", "on", err);
+        r.run(MS);
+        auto h = r.sp->z80Unit().history(4);
+        bool inLoop = h.size() == 4;
+        for (const auto& rec : h)
+            inLoop = inLoop && rec.core == &r.sp->z80() && rec.pc >= 0x0002 && rec.pc <= 0x0003;
+        CHECK(inLoop, "four records, all from the loop at 0002-0003");
+        setProperty(*r.sp, "history", "off", err);
+        CHECK(r.sp->z80Unit().history(4).empty(), "off clears the ring");
+    }
+
+    SECTION("spuz: the monitor takes spuz0:z80 in REGS, DISASM, DUMP, STEP, HISTORY, BREAK");
+    {
+        Rig r;
+        Monitor m(r.m);
+        r.start(kCountLoop);
+        r.run(MS);
+        CHECK(mon(m, "REGS spuz0:z80").rfind("[spuz0:z80] ", 0) == 0, "REGS: the tagged line");
+        const std::string dis = mon(m, "DISASM spuz0:z80 0 3");
+        CHECK(dis.find("INC") != std::string::npos && dis.find("JR") != std::string::npos,
+              ("DISASM decodes the Z80's bank: " + dis).c_str());
+        const std::string dump = mon(m, "DUMP spuz0:z80 0-4");
+        CHECK(dump.find("3E 00 3C 18 FD") != std::string::npos,
+              ("DUMP reads the Z80's bank: " + dump).c_str());
+        const uint64_t host = r.m.clock.now();
+        CHECK(mon(m, "STEP spuz0:z80").rfind("[spuz0:z80] ", 0) == 0 && r.m.clock.now() == host,
+              "STEP: the board Z80 alone");
+        CHECK(mon(m, "HISTORY CPU spuz0:z80").find("history=on") != std::string::npos,
+              "HISTORY with recording off says how to turn it on");
+        mon(m, "SET spuz0 history=on");
+        r.run(MS);
+        const std::string hist = mon(m, "HISTORY CPU spuz0:z80 2");
+        size_t tags = 0;
+        for (size_t at = hist.find("[spuz0:z80] "); at != std::string::npos;
+             at = hist.find("[spuz0:z80] ", at + 1))
+            ++tags;
+        CHECK(tags == 2, ("HISTORY: two tagged records: " + hist).c_str());
+        CHECK(mon(m, "BREAK spuz0:z80 3 IF A=1").find("no IF") != std::string::npos,
+              "BREAK on a private core refuses IF");
+        CHECK(mon(m, "REGS spuz0:nope").find("no core") != std::string::npos, "an unknown core");
+    }
+
+    SECTION("spuz: RUN reports a private breakpoint with both PCs");
+    {
+        Rig r;
+        addSpinningHost(r);
+        Monitor m(r.m);
+        r.start(kCountLoop);
+        mon(m, "BREAK spuz0:z80 3");
+        const std::string out = mon(m, "RUN 0");
+        CHECK(out.find("the board's core stopped at 0003") != std::string::npos,
+              ("RUN names the board's core: " + out).c_str());
+    }
+
+    SECTION("spuz: STEP on a host core that is not active is refused");
+    {
+        Machine hm;
+        Monitor m(hm);
+        std::ostringstream sink;
+        m.exec("BOARDS ADD cpu8588 cpu0", sink);
+        CHECK(mon(m, "STEP cpu0:8088").find("not the processor that runs now") !=
+                  std::string::npos,
+              "the 8085 runs first: STEP cpu0:8088 is refused");
+        CHECK(mon(m, "REGS cpu0:8088").rfind("[8088] ", 0) == 0, "...but REGS cpu0:8088 shows it");
     }
 }

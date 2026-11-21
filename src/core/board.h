@@ -26,6 +26,7 @@ namespace altair {
 class ByteStream;  // host/stream.h -- a serial unit's connector, borrowed by unitStream()
 class StateWriter; // core/statefile.h -- SNAPSHOT/RESTORE
 class StateReader;
+class PrivateCpu;  // core/privatecpu.h -- a processor on the board's own bus
 
 // The key/value pairs of one TOML sub-unit table, in file order.
 using KeyValues = std::vector<std::pair<std::string, std::string>>;
@@ -932,6 +933,12 @@ public:
     // names. THIS IS THE ONLY LIST -- SHOW, MOUNT, CONNECT, the MCP schemas and tab
     // completion all read it, so they cannot disagree about what units exist.
     virtual std::vector<UnitDef> units() const { return {}; }
+
+    // THE PROCESSORS ON THIS BOARD'S OWN BUS, for the debugger (DESIGN.md 3.0.4). Not bus
+    // masters and not CpuCard cores: the board steps them inside its own catch-up. Each one
+    // is "<board>:<unit>" to BREAK, REGS, STEP, DISASM, HISTORY CPU and DUMP
+    // (Machine::coreByRef). Non-owning; they live as long as the board. Default: none.
+    virtual std::vector<PrivateCpu*> privateCpus() { return {}; }
 
     // Find a unit by name, case-insensitively. False if this card has no such unit.
     bool findUnit(const std::string& name, UnitDef& out) const;

@@ -1,7 +1,7 @@
 # CompuPro SPUZ slave processor
 
 **Status:** partial. The board, its window, its ports, its reset, its banks, its VI line and its
-2681 are done (stage 3 of DESIGN.md §3.0.4). The debugger cannot reach the board Z80 yet
+2681 are done (stage 3 of DESIGN.md §3.0.4). The debugger reaches the board Z80 as `spuz0:z80`
 (stage 4). Concurrent DOS with `SPZ.CMD` and `SW!SPUZ` is not tested yet (stage 5).
 
 ## The real hardware
@@ -26,6 +26,7 @@ Switches and jumpers (manual pp. 4-7):
 | J2 | The VI line that the board pulls (VI0, as shipped) | `interrupt` |
 | J3 | The bus-acknowledge hold off, 4 or 8 cycles | not modeled |
 | U1-U8 | 4164s (64K) or 41256s (256K) | `memory` |
+| (none) | The debugger's record of the board Z80's instructions | `history` |
 
 ## Sources
 
@@ -121,7 +122,30 @@ answers every I/O cycle with the 2681. This is the pattern of the Jade Double D
   instruction boundary with `StopReason::BusHang` (MCP: `bus-hang`).
 - **Two boards with one select.** `Board::backplaneConflict()` reports it. The loader refuses the
   file, and RUN refuses to start, as for a TMA conflict.
-- **Units.** `a` and `b` are the 2681's channels A and B, each a `ByteStream` (`CONNECT spuz0:a`).
+- **Units.** `z80` is the board Z80 (a `cpu` unit). `a` and `b` are the 2681's channels A and
+  B, each a `ByteStream` (`CONNECT spuz0:a`).
+
+### The debugger (stage 4)
+
+The board publishes its Z80 through `Board::privateCpus()`, as a `PrivateCpu`
+(`src/core/privatecpu.h`). `Machine::coreByRef("spuz0:z80")` finds it, so every command that
+takes a core takes it.
+
+- **REGS, DISASM, DUMP** read the Z80 through `PrivateCpu::peekCode`: its own bus, in the bank
+  that OP5/OP4 select. No cycle runs.
+- **STEP spuz0:z80** runs one Z80 instruction and no host instruction. The board clock then is
+  ahead of the host, and `runTo` does nothing until the host passes it. In reset, STEP is
+  refused.
+- **BREAK spuz0:z80 <addr>.** At the start of each run, `Debugger::run` hands the board the PC
+  breakpoints bound to its Z80. `runTo` asks `shouldStop(pc)` before each step. A hit holds the
+  Z80 and its clock. The run loop takes the hit at the next host boundary, so the host is at
+  most one instruction past it, and `RunResult::bpCore` names the core. The next run lets the
+  Z80 go, and the first step from the breakpoint is not checked again. A held Z80 keeps the 1 ms
+  deadline, so the next run catches it up. A breakpoint on the board Z80 takes no IF and no
+  TRACE: the run loop judges those against its own registers at a host boundary.
+- **HISTORY CPU spuz0:z80** reads the board's own ring (8192 records, as the host's). It records
+  only with `history = on`. The Z80 never halts under CompuPro's scheduler, so an always-on ring
+  costs time on every instruction of every board.
 
 ### Reset
 
@@ -161,7 +185,12 @@ starts at 0000h in bank 3.
   equations are not available.
 - **A ByteStream carries bytes only.** Parity, framing errors and break do not travel on a line.
   The 2681's own loopback modes carry them (`src/chips/scn2681.h`).
-- **The debugger does not reach the board Z80** (stage 4). `SHOW` gives its PC and state.
+- **The debugger reaches the board Z80 with PC breakpoints only.** A MEM or IO breakpoint
+  watches the S-100 bus, not the private bus. A PC breakpoint on the board Z80 takes no IF and
+  no TRACE.
+- **The board's time skips while its Z80 is held.** The host time that passes between the hit
+  and the host boundary is run when the Z80 is let go, so board time stays host time x 8 MHz /
+  host `hz()`.
 - **Performance is not measured yet.** CompuPro's scheduler never halts the Z80, so an idle SPUZ
   costs as much as a busy one. Stage 5 measures 1, 2, 4, 8 and 16 boards.
 
@@ -182,7 +211,12 @@ starts at 0000h in bank 3.
   IMR 08h, the start counter command);
 - three boards share the window with no contention; two boards with one select are refused;
 - the window pulls PHANTOM\* over 1M of RAM; a bus reset deselects and resets the board;
-- a snapshot taken mid-loop restores and finishes at the same board T-state.
+- a snapshot taken mid-loop restores and finishes at the same board T-state;
+- stage 4: `spuz0:z80` resolves in any case and tags its lines; a breakpoint on it holds the Z80
+  and its clock, stops the host run, and is passed once on the next run; with no breakpoint the
+  Z80 goes on; STEP runs the Z80 and not the host, and is refused in reset; `history` records
+  only when on; the monitor's REGS, DISASM, DUMP, STEP, HISTORY and BREAK take the core, and RUN
+  names the board's core and both PCs; STEP on a host core that is not active is refused.
 
 `test_ieee696` checks that every other board decodes A0-A7 only, now also with A8-A15 = FCh.
 

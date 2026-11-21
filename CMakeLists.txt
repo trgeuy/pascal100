@@ -336,6 +336,7 @@ add_library(altair_core STATIC
   src/core/value.cpp
   src/core/expr.cpp
   src/core/debug.cpp
+  src/core/privatecpu.cpp     # a processor on a board's own bus, for the debugger (DESIGN.md 3.0.4)
   src/core/debuglog.cpp
   src/core/spindle.cpp
   src/isa/isa8080.cpp

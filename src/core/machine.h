@@ -209,13 +209,27 @@ public:
     // (DESIGN.md 3.0.1: cores are units). Case does not matter. Null when there is no such
     // board, it is not a CPU board, or it has no core by that name. `canonical`, when given,
     // gets the name as the machine spells it ("p100:me"), for listings.
+    // It also finds a processor on a board's own bus (Board::privateCpus): "spuz0:z80".
     CpuCore* coreByRef(const std::string& ref, std::string* canonical = nullptr);
+
+    // A PROCESSOR ON A BOARD'S OWN BUS (DESIGN.md 3.0.4), by name or by core, with the
+    // board that owns it. Null when there is none: the core is the host's (a CpuCard's).
+    PrivateCpu* privateByRef(const std::string& ref, Board** owner = nullptr,
+                             std::string* canonical = nullptr);
+    PrivateCpu* privateOf(const CpuCore* c, Board** owner = nullptr);
+    // The byte at `a` as core `c` fetches it, without a bus cycle: through a private core's
+    // own bus and bank (PrivateCpu::peekCode), through the card's map for a host core
+    // (CpuCard::peekCodeByte), else straight off the bus. REGS, DISASM and DUMP read with it.
+    uint8_t peekCode(CpuCore* c, uint32_t a);
+    // Every private processor in the machine, with its board.
+    std::vector<std::pair<Board*, PrivateCpu*>> privateCpus();
 
     // The unit name of core `c` ("me", "z80") -- but ONLY on a board with more than one
     // core; empty otherwise. What REGS, STEP, HISTORY CPU and MCP put in front of a
     // register line, so a one-core machine prints exactly what it always printed.
     std::string coreUnit(const CpuCore* c);
-    // ...as the prefix of a register line: "[me] ", or "" on a one-core board.
+    // ...as the prefix of a register line: "[me] ", or "" on a one-core board. A private
+    // processor is always named in full: "[spuz0:z80] ".
     std::string coreTag(const CpuCore* c);
 
     // The instruction set the machine currently speaks -- the active core's own

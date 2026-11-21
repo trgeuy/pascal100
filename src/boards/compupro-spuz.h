@@ -31,6 +31,7 @@
 #include "core/board.h"
 #include "core/bus.h"
 #include "core/clock.h"
+#include "core/privatecpu.h"
 #include "cpu/cpuZ80.h"
 
 #include <cstdint>
@@ -86,6 +87,9 @@ public:
 
     std::vector<std::string> drainLog() override;
 
+    // The board Z80 for the debugger: "spuz0:z80" (DESIGN.md 3.0.4, stage 4).
+    std::vector<PrivateCpu*> privateCpus() override { return {&z80Unit_}; }
+
     void serialize(StateWriter& w) const override;
     void deserialize(StateReader& r) override;
 
@@ -99,6 +103,7 @@ public:
     int      z80Bank() const { return zbank_; }
     uint8_t  ram(uint32_t a) const { return ram_[a % kRamMax]; }
     void     catchUp();
+    PrivateCpu& z80Unit() { return z80Unit_; }
 
     static constexpr long long kBoardHz = 8000000;  // X1 16 MHz / 2 (manual p. 8)
     static constexpr uint32_t  kRamMax  = 0x40000;  // 256K
@@ -141,6 +146,20 @@ private:
         bool    assertsInt() const override { return d->zint_; }
     };
 
+    // The board Z80 as the debugger reaches it. Its code comes from the bank OP5/OP4 select;
+    // a step by hand runs the Z80 and not the host (stepOne).
+    struct Z80Unit : PrivateCpu {
+        SpuzBoard* d = nullptr;
+        Z80Unit() : PrivateCpu("z80") {}
+        CpuCore& core() override { return d->cpu_; }
+        uint8_t  peekCode(uint32_t a) const override { return d->ram_[d->zOffset() | (a & 0xFFFF)]; }
+        bool     step(std::string& err) override {
+            if (!d->stepOne(err)) return false;
+            stepped();
+            return true;
+        }
+    };
+
     // PTLATCH (FC41h, U28, a 74LS175 cleared by CLR*; manual p. 10, sheet 3).
     static constexpr uint8_t kZrst = 0x08;  // 1: the Z80 and the 2681 run; 0: reset
     static constexpr uint8_t kVdma = 0x04;  // 1: this board is the DMA board (not modeled)
@@ -169,6 +188,7 @@ private:
     void    hang(const BusCycle& c);       // the access a real SPUZ in reset never finishes
 
     void runTo(uint64_t target);
+    bool stepOne(std::string& err);        // the debugger's STEP spuz0:z80
     void rearmHost();
     void hostWake();
     Clock& hostClk() const;
@@ -180,6 +200,7 @@ private:
     Ram     ramBoard_;
     LocalIo ioBoard_;
     Scn2681 duart_{"duart"};
+    Z80Unit z80Unit_;
     std::vector<uint8_t> ram_;
     Clock::Handle duartWake_ = Clock::kNone;
 

@@ -468,7 +468,15 @@ halts the Z80. With no task, it loops at FD00h. So an idle SPUZ costs as much as
    `Machine::tmaConflict` asks, so a second board with one select is refused like a TMA
    conflict. Logic sheets 2 and 3 added two facts: CLR\* = SLVCLR\* AND pRESET\* clears PTLATCH
    and the selection, and Q4 pulls PHANTOM\* from the window compare.)
-4. The debugger units (`spuz0:z80`).
+4. The debugger units (`spuz0:z80`). (DONE 2026-11-20: `PrivateCpu`
+   (`src/core/privatecpu.{h,cpp}`) holds a private core's step, its breakpoints and its
+   opt-in history ring; `Board::privateCpus()` publishes it; `Machine::coreByRef` finds it.
+   REGS, STEP, DISASM, HISTORY CPU and DUMP take `<board>:<unit>` for ANY core, as BREAK did:
+   a STEP of a host core that is not active is refused. The MCP `regs`, `step`, `disasm` and
+   `mem_dump` tools take `unit`. A held core keeps its board's 1 ms deadline, so the next run
+   catches it up. A breakpoint on a private core takes no IF and no TRACE. The board's history
+   is a ring of its own and opt-in (`history = on`): a shared ring would show a burst of board
+   instructions out of order with the host's, and the Z80 never halts.)
 5. Concurrent DOS: `SPZ`, `SW!SPUZ` as `SW!.CMD`, HELLO and MBASIC on one board; then the
    measurement of the slave limit.
 

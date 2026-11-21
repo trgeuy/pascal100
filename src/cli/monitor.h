@@ -207,7 +207,18 @@ private:
     bool refuseHalted(CpuCore* cpu, std::ostream& out, bool finalOnly);
     // The processor's interrupts are off -- for the stop line of a final HLT.
     bool intsOff();
-    void showRegs(std::ostream& out);
+    void showRegs(std::ostream& out, CpuCore* core = nullptr);
+
+    // A CORE NAMED AT THE PROMPT: "<board>:<unit>" (Machine::coreByRef). Any core: one on a
+    // processor board (p100:me) or one on a board's own bus (spuz0:z80, DESIGN.md 3.0.4).
+    // Null when `t` names none -- `1234:0010` is an 8088 address, not a core.
+    CpuCore* coreArg(const std::string& t);
+    // The byte at `a` as core `c` fetches it, without a bus cycle: through a private core's
+    // own bus and bank, through the card's map for a host core.
+    uint8_t peekFor(CpuCore* c, uint32_t a);
+    // The core DISASM is decoding for while a command names one (null: the active core,
+    // through the S-100 bus). It stays for a bare DISASM that continues the listing.
+    CpuCore* viewCore_ = nullptr;
 
     // The "C0Z0... A=00 BC=0000 ... PC=0000  <insn>" status line -- flags clustered, then
     // fields -- built from a register set and a source for each register's value. Shared by
@@ -338,7 +349,7 @@ private:
     // disasmNext_ through setDisasmNext, which drops that, so the next DI starts at CS:IP.
     uint16_t disasm88Seg_ = 0;
     bool disasm88Set_ = false;
-    void setDisasmNext(uint32_t a) { disasmNext_ = a; disasm88Set_ = false; }
+    void setDisasmNext(uint32_t a) { disasmNext_ = a; disasm88Set_ = false; viewCore_ = nullptr; }
 
     // EXAMINE HAS NO CURSOR HERE, AND MUST NOT GROW ONE. The panel has no address
     // latch of its own: it jams the switches into the PROGRAM COUNTER and lets the CPU

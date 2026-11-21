@@ -172,7 +172,7 @@ Digicomp Research Pascal-100: a Z80 (unit z80) and the Western Digital MicroEngi
 
 CompuPro (Viasyn) SPUZ (board 257E): a slave processor with its own 8 MHz Z80H, 64K or 256K of RAM (memory) and a 2681 DUART with two RS-232 channels (units a and b). Not a bus master. To the host it is a 64K window (window = A23-A16, default 0E: 0E0000h) and ports FC30-FC41, decoded on A0-A15: FC30-FC3F the 2681, FC40 SLAVESEL (every board), FC41 PTLATCH (D3 ZRST*, D1-D0 host bank). Up to 16 boards share both; SLAVESEL against `select` (0-15) picks the one that answers. 2681 OP6 pulls a VI line (interrupt, default vi0) from reset until software sets OPR bit 6. An access while the Z80 is in reset hangs a real bus: here it floats and the run stops (bus-hang). waits: jumper J1
 
-**Units:** `a` (serial, CONNECT), `b` (serial, CONNECT)
+**Units:** `z80` (cpu), `a` (serial, CONNECT), `b` (serial, CONNECT)
 
 #### Board properties
 
@@ -183,6 +183,7 @@ CompuPro (Viasyn) SPUZ (board 257E): a slave processor with its own 8 MHz Z80H, 
 | `memory` | enum | `256k` | `256k` \| `64k` | 256k (eight 41256s, four 64K banks; default) or 64k (eight 4164s, one bank) |
 | `waits` | int | `2` | `1` .. `3` | J1: the S-100 wait states on each access to the window or the 2681: 1 (A), 2 (B, as shipped) or 3 (C) |
 | `m1_wait` | bool | `true` | `on` \| `off` | SW1 position 4: one wait state in each Z80 M1 cycle (on, as shipped; needed at 6 MHz and above) |
+| `history` | bool | `false` | `on` \| `off` | Record the board Z80's instructions for HISTORY CPU <id>:z80 (off by default: it costs time on every Z80 instruction) |
 | `interrupt` | enum | `vi0` | `none` \| `vi0` \| `vi1` \| `vi2` \| `vi3` \| `vi4` \| `vi5` \| `vi6` \| `vi7` | J2: the VI line that 2681 OP6 pulls through Q3 (vi0, as shipped) *(interrupt strap)* |
 
 #### Unit `a` — `[board.unit.a]`

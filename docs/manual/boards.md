@@ -435,6 +435,7 @@ select does not load or run.
 | `waits` | `1`-`3` | The wait states on each host access to the window or the 2681. The default is `2`. |
 | `m1_wait` | `true`, `false` | One wait state in each opcode fetch of the board's Z80. The default is `true`. |
 | `interrupt` | `none`, `vi0`-`vi7` | The vectored interrupt line that the board pulls. The default is `vi0`. |
+| `history` | `true`, `false` | Record the board Z80's instructions for `HISTORY CPU`. The default is `false`. |
 
 The units `a` and `b` are the two serial channels. Connect them as any serial unit, for example
 `CONNECT spuz0:a socket:2325`.
@@ -458,8 +459,24 @@ The window pulls PHANTOM\*. RAM under the window that obeys PHANTOM\* for reads 
   board Z80  PC 0001  halted  Z80 bank 3  host bank 3  selected  VI pulled
 ```
 
+**The board's Z80 is a core for the monitor: `spuz0:z80`.** `REGS spuz0:z80`,
+`DISASM spuz0:z80`, `DUMP spuz0:z80 <addr>` and `STEP spuz0:z80` work on it. `DISASM` and
+`DUMP` read the bank that the Z80 runs in. `STEP` runs only the board's Z80, and the host does
+not run. `BREAK spuz0:z80 <addr>` stops the board's Z80 at that address. The host then stops
+after its next instruction, and `RUN` lets both go on. A breakpoint on the board's Z80 takes no
+`IF` and no `TRACE`.
+
+The board records the Z80's instructions only when you ask, because the recording costs time
+on every instruction:
+
+```
+pascal100> SET spuz0 history=on
+pascal100> RUN
+pascal100> HISTORY CPU spuz0:z80 20
+```
+
 Not modeled: DMA into SPUZ memory (VDMA), and the time that host accesses take from the
-board's Z80. The monitor cannot step the board's Z80 or set a breakpoint on it yet.
+board's Z80.
 
 ## Serial ports and consoles
 

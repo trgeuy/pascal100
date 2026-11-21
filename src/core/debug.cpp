@@ -586,6 +586,21 @@ RunResult Debugger::run(uint64_t maxSteps, bool clearPending) {
     for (Breakpoint& b : bps_)
         b.coreAt = b.core.empty() ? nullptr : m_.coreByRef(b.core);
 
+    // ...and a breakpoint on a processor on a board's own bus goes to that board, which
+    // checks it inside its catch-up (PrivateCpu). A core held at a breakpoint goes on.
+    privArmed_.clear();
+    for (auto& [owner, p] : m_.privateCpus()) {
+        (void)owner;
+        p->resume();
+        std::vector<PrivateCpu::Break> list;
+        for (const Breakpoint& b : bps_)
+            if (b.enabled && b.kind == BreakKind::Pc && b.action == BreakAction::Stop && !b.cond &&
+                b.coreAt == &p->core())
+                list.push_back({b.id, b.lo, b.hi});
+        if (!list.empty() || p->held()) privArmed_.push_back(p);
+        p->setBreaks(std::move(list));
+    }
+
     // PRE-ACCESS VETO for the CYCLE breakpoints. Installed only when at least one
     // MEM/IO breakpoint is enabled, so a machine that carries only PC breakpoints (or
     // none) never pays for the four cycle paths' null test to become a real call. The
@@ -794,6 +809,24 @@ RunResult Debugger::run(uint64_t maxSteps, bool clearPending) {
         if (m_.bus.takeBusHang()) {
             r.why = StopReason::BusHang;
             break;
+        }
+
+        // A processor on a board's own bus reached a breakpoint inside its catch-up during
+        // this instruction. The board holds it there; the host stops here, at most one
+        // instruction past the hit (DESIGN.md 3.0.4).
+        if (!privArmed_.empty()) [[unlikely]] {
+            bool privHit = false;
+            for (PrivateCpu* p : privArmed_)
+                if (int id = p->takeHit()) {
+                    for (Breakpoint& b : bps_)
+                        if (b.id == id) ++b.hits;
+                    r.why    = StopReason::Breakpoint;
+                    r.bp     = id;
+                    r.bpCore = &p->core();
+                    privHit  = true;
+                    break;
+                }
+            if (privHit) break;
         }
 
         // CONDITIONAL cycle breakpoints (BREAK MEM/IO ... IF|LOADS <expr>). Unlike an

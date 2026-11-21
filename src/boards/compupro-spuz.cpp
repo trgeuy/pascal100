@@ -44,6 +44,7 @@ SpuzBoard::SpuzBoard() : ram_(kRamMax, 0) {
     ramBoard_.id = "ram";
     ioBoard_.d = this;
     ioBoard_.id = "duart";
+    z80Unit_.d = this;
     bbus_.attach(&ramBoard_);
     bbus_.attach(&ioBoard_);
     bclk_.setHz(kBoardHz);
@@ -121,6 +122,10 @@ void SpuzBoard::catchUp() {
 void SpuzBoard::runTo(uint64_t target) {
     while (bclk_.now() < target) {
         if (!inReset()) {
+            // A breakpoint on spuz0:z80 holds the Z80 here, and its clock with it. The run
+            // stops at the next host boundary (Debugger::run); the next run lets it go.
+            if ((z80Unit_.armed() || z80Unit_.held()) && z80Unit_.shouldStop(cpu_.pc())) break;
+            z80Unit_.record();
             StepResult s = cpu_.step(bbus_);
             bclk_.advance(s.tStates + bbus_.takeWaitStates());
             if (!cpu_.halted()) continue;
@@ -141,10 +146,26 @@ void SpuzBoard::rearmHost() {
     if (!clock_) return;
     clock_->cancel(hostWake_);
     hostWake_ = Clock::kNone;
+    // A core held at a breakpoint keeps its deadline: the next run lets it go
+    // (PrivateCpu::resume), and nothing else would catch the board up again.
     if (!enabled_ || inReset()) return;
     if (cpu_.halted() && duart_.nextEvent(bclk_) == 0) return;
     uint64_t dt = std::max<uint64_t>(1, clock_->tStatesPer(1000));
     hostWake_ = clock_->after(dt, [this] { hostWake(); });
+}
+
+// STEP spuz0:z80: one instruction of the board Z80, none of the host. The board is then
+// ahead of the host, and runTo does nothing until the host passes it (DESIGN.md 3.0.4).
+bool SpuzBoard::stepOne(std::string& err) {
+    if (inReset()) {
+        err = id + ":z80 is in reset (PTLATCH D3 = 0): write 08h to FC41h first";
+        return false;
+    }
+    z80Unit_.record();
+    StepResult s = cpu_.step(bbus_);
+    bclk_.advance(s.tStates + bbus_.takeWaitStates());
+    rearmHost();
+    return true;
 }
 
 void SpuzBoard::hostWake() {
@@ -483,6 +504,22 @@ std::vector<Property> SpuzBoard::properties() {
         p.push_back(std::move(x));
     }
     {
+        // Not a switch: the debugger's flight recorder for the board Z80 (HISTORY CPU
+        // spuz0:z80). Off by default, because the Z80 never halts under CompuPro's scheduler
+        // and a record on every instruction costs on every board.
+        Property x;
+        x.name = "history";
+        x.help = "Record the board Z80's instructions for HISTORY CPU <id>:z80 (off by default: "
+                 "it costs time on every Z80 instruction)";
+        x.kind = Kind::Bool;
+        x.get  = [this] { return Value::ofBool(z80Unit_.historyOn()); };
+        x.set  = [this](const Value& v, std::string&) {
+            z80Unit_.setHistory(v.b());
+            return true;
+        };
+        p.push_back(std::move(x));
+    }
+    {
         // J2: one shunt on VI0*-VI7*. There is no pINT position.
         Property x = irqJumperProperty(
             "interrupt", "J2: the VI line that 2681 OP6 pulls through Q3 (vi0, as shipped)", irq_);
@@ -519,7 +556,9 @@ std::vector<MapEntry> SpuzBoard::memMap() const {
 // The serial channels. CompuPro's software does not use them; the chip has them (§3.0.4).
 // ---------------------------------------------------------------------------
 std::vector<UnitDef> SpuzBoard::units() const {
+    const char* state = inReset() ? "in reset" : cpu_.halted() ? "halted" : "running";
     return {
+        {"z80", UnitKind::Cpu, state},
         {"a", UnitKind::Serial, duart_.stream(0).describe()},
         {"b", UnitKind::Serial, duart_.stream(1).describe()},
     };
