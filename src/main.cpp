@@ -5,6 +5,7 @@
 #include "boards/compupro-interfacer4.h"
 #include "boards/compupro-disk1.h"
 #include "boards/compupro-ss1.h"
+#include "boards/compupro-pcvideo.h"
 #include "boards/compupro-spuz.h"
 #include "boards/terminal-font.h"
 #ifdef PASCAL100_ENABLE_SDL
@@ -319,6 +320,7 @@ int main(int argc, char** argv) {
     Io4Board::setResolver(resolveEndpoint);          // the real SSM IO-4's two UART channels
     CompuProDisk1Board::setResolver(resolveEndpoint);  // the Disk 1's bit-banged port 3 line
     SpuzBoard::setResolver(resolveEndpoint);         // the CompuPro SPUZ's two 2681 channels
+    PcVideoBoard::setResolver(resolveEndpoint);      // the CompuPro PC Video's keyboard
     Ss1Board::setResolver(resolveEndpoint);          // the System Support 1's 2651 serial channel
     // --mcp: every serial line gets an AgentTap (host/agent_tap.h), so `send`/`recv`/`run`
     // can reach any unit, not only the console. Before the machine loads, so its lines have one.
@@ -335,6 +337,7 @@ int main(int argc, char** argv) {
     // headless build g_display is a NullDisplay (isWindowed() false), so CONNECT refuses the
     // endpoint cleanly rather than opening a serial line with nothing behind it.
     TerminalStream::setDisplay(&g_display);
+    PcVideoBoard::setDisplay(&g_display);
     TerminalStream::setFont(&bundledTerminalFont());
 
     // 60 frames a second, and no more. A real VDM-1 scanned at the monitor's rate no

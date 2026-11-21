@@ -1093,6 +1093,53 @@ A Disk 1A machine often has one, with its console on the serial channel of the b
 at `5A` (command) and `5B` (data). The board reference gives the
 digit map, the read and set sequences and the register layouts.
 
+## Video
+
+### `pcvideo`: CompuPro PC Video
+
+The CompuPro PC Video is a color display board with a keyboard port. It answers at the
+addresses of IBM's Color Graphics Adapter: 16K of screen RAM at `0B8000` and 16 ports at
+`03D0`, decoded on all 16 address bits. Its picture opens in a window: 80x25 or 40x25 text, or
+320x200 or 640x200 graphics, in 16 colors. Only the color half of the board is built.
+
+The screen RAM must not belong to a RAM board as well. Leave a hole in the RAM at
+`0B8000`-`0BBFFF`:
+
+```toml
+[[board]]
+type = "memory"
+id   = "mem0"
+ext  = true
+honors_phantom = "read"
+  [[board.region]]
+  type = "ram"
+  at   = 000000
+  size = "736K"
+  [[board.region]]
+  type = "ram"
+  at   = 0BC000
+  size = "272K"
+
+[[board]]
+type = "pcvideo"
+id   = "pcv0"
+  [board.unit.kbd]
+  connect = "null"
+```
+
+**The keyboard.** The board reads an IBM PC keyboard's scan codes from its unit `kbd`, one at a
+time, and interrupts on VI5. With `keys = ascii` (the default), each byte that reaches `kbd` is
+a character, and the board types it as the keyboard would, with Shift or Ctrl. With
+`keys = scancodes`, each byte is a scan code. Keys typed in the board's own window do not reach
+it yet: send them to `kbd`, with the MCP `send` tool or through an endpoint such as
+`connect = "socket:2400"`.
+
+**The light pen.** `SET pcv0 lightpen=mouse` makes the mouse a light pen: hold the left button
+over the window. The pen sees only lit dots.
+
+**The character generator** is `builtin:pcvideo`, a public-domain font in the layout of the
+board's PROM. To use a dump of a real PROM, give its file in `font`.
+
 ## Host integration
 
 A board that connects the machine to your computer. It is not period hardware.

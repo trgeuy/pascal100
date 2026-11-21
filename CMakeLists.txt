@@ -502,6 +502,9 @@ add_library(altair_core STATIC
   # CompuPro SPUZ -- a slave Z80H with its own RAM and 2681, behind a 64K window and FC30-FC41
   # (DESIGN.md 3.0.4). The second board with a processor on a private bus, after the Jade DD.
   src/boards/compupro-spuz.cpp
+  # CompuPro PC Video -- a 6845 color display at the IBM CGA addresses, with a PC keyboard
+  # port and a light pen port (DESIGN.md 7.4.1).
+  src/boards/compupro-pcvideo.cpp
   src/boards/floppy-drive.cpp
   src/boards/io4.cpp           # SSM IO-4: real chip-backed dual-UART serial board (2P+2S; serial section)
   # OUR OWN CARD -- the only one in this list that is not a period board, and the
@@ -763,6 +766,7 @@ add_executable(altair_tests
   tests/test_tarbell.cpp
   tests/test_jadedd.cpp
   tests/test_spuz.cpp
+  tests/test_pcvideo.cpp
   tests/test_cpu8088.cpp
   tests/test_cpu80286.cpp
   tests/test_disk1.cpp

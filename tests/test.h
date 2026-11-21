@@ -101,6 +101,7 @@ void test_am9512();
 void test_tarbell();
 void test_jadedd();
 void test_spuz();
+void test_pcvideo();
 void test_cpu8088();
 void test_cpu80286();
 void test_disk1();
