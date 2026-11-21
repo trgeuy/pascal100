@@ -1319,7 +1319,7 @@ A chip that makes sound from its own model (a speech or music chip) is a further
 
 ### 7.4.1 The CompuPro PC Video — DESIGN, for review (2026-11-20)
 
-**Status: design only. No code yet.** The CompuPro (Viasyn) PC Video, board 228D, is a
+**Status: design only. No code yet.** The CompuPro (Viasyn) PC Video, board 229D, is a
 display board with 16K of screen RAM, a Motorola 6845, an IBM PC keyboard port and a light pen
 port. It copies the IBM Color Graphics Adapter and Monochrome Display Adapter at the bus level:
 the same memory addresses, the same port addresses and the same register bits. CompuPro's
@@ -1329,10 +1329,11 @@ return "not supported" (`PCMODE.A86`).
 
 **Sources.**
 
-- The *PC Video Technical Manual* (A493), 96 scanned pages, read as images. Read so far: the
-  hardware section (pp. 1-23) and the theory of operation (pp. 41-70). The scan also has the 14
-  sheets of the logic diagram (pp. 97-110) and the parts list, not read yet. Pages 75-95 (the
-  6845 data sheet reprint) are missing from the scan.
+- The *PC Video Technical Manual* (A493), 96 scanned pages, read as images: the hardware
+  section (pp. 1-23), the theory of operation (pp. 41-70) and sheets 4-8 of the logic diagram
+  (pp. 100-104: the port strobes, board select, keyboard input, status buffer, 6845, address
+  multiplexer, attribute RAM). Pages 75-95 (the 6845 data sheet reprint) are missing from the
+  scan.
 - The Motorola *MC6845 CRT Controller* data sheet, 23 pp., for the chip.
 - CompuPro's XIOS 4.1D source as a software cross-check: `VSCPC.A86` (the screen), `PCKEY.DVR`
   (the keyboard), `PCMODE.A86`, `GLOBAL.EQU`. It is not a source for the hardware.
@@ -1345,18 +1346,18 @@ stage is built.
 
 | Item | Fact | Manual |
 |---|---|---|
-| Screen RAM | 16K of static RAM: the character byte (even address) and the attribute byte (odd address) of each 16-bit word. The host sees a 16K block. | p. 8, Table 4 |
+| Screen RAM | Two 8K static RAMs: the character RAM (U17, even addresses) and the attribute RAM (U16, odd addresses). The host addresses them as words with A1-A13; A0 picks the RAM. The high byte of a 16-bit write comes in on DI0-DI7 (U44), as IEEE 696 specifies. | p. 8, Table 4, sheets 7-8 |
 | Memory decode | S1-2..9 = A21-A14 (a 16K block). A22 = A23 = 0, fixed in the PAL. `0B8000` for color. | Table 3 |
 | Write-only mode | S1-1 OFF: the board ignores memory reads and takes writes. Another RAM board at the same address answers the reads. | pp. 8-9, 52-53 |
 | 16-bit transfers | The board answers SIXTN\* on a memory address, except in write-only mode. | p. 52 |
 | PHANTOM\* | S2-10 ON: the board pulls PHANTOM\* while it is addressed. Off is the normal setting. | pp. 9, 51 |
 | Port decode | S2-1..8 = A11-A4, A15-A12 = 0, all 16 bits decoded. `03D0` for color. 16 ports; 9 do something. | Tables 11-12 |
-| Port 0 | Board select (write). Bit n, chosen by a shunt on J3, enables the board. Reset sets it. Only port 0 works while the board is disabled. | p. 18, Table 13 |
+| Port 0 | Board select (write). Bit n, chosen by a shunt on J3, enables the board. Reset sets it (U2's preset). Only port 0 works while the board is disabled. | p. 18, Table 13, sheet 5 |
 | Port 1 | Address flip (write, D0). 1 inverts A15 of the memory compare and A5-A6 of the port compare: the board moves to the monochrome addresses. Reset clears it. J2 B-C disables it. | p. 18, Table 14 |
 | Ports 4, 5 | The 6845 address register (write) and data register (read and write). | Table 15 |
 | Port 8 | Mode register, 6 bits: HRES, GRPH, SBW1, VIDENB, SBW2, ENBBLINK. | Tables 16-17, 21 |
 | Port 9 | Color register, 6 bits: border or background color (B, G, R, I), graphics intensity, 320-dot palette. | Tables 18, 33 |
-| Port A | Status (read), 4 bits: D0 display enable inverted (1 while the beam is blanked), D1 keyboard or light pen data ready (latched), D2 light pen switch (not latched), D3 vertical sync. | Table 19, p. 60 |
+| Port A | Status (read), 4 bits from half of a 74LS244 (U24): D0 display enable inverted (1 while the beam is blanked), D1 keyboard or light pen data ready (latched), D2 the light pen switch, active low (0 while pressed; not latched), D3 vertical sync. | Table 19, p. 60, sheet 6 |
 | Port B | Write: clears the keyboard data, the ready flag and the light pen flag. D7 latches the keyboard clock: 1 holds the clock low, so the keyboard cannot send. | p. 22, Table 27 |
 | Port C | Write: sets the ready flag. Read: the keyboard data. A light pen strobe leaves the data at 0, which no keyboard sends. | p. 22, p. 70 |
 | Interrupt | The ready flag drives one VI line, chosen on J4. CompuPro software expects VI5. | Table 20 |
@@ -1403,7 +1404,9 @@ manual's 850 ns. At the CPU 286's 8 MHz that is 7 T-states.
   intensity or blink by ENBBLINK). The cursor forces the foreground on its scan lines
   (Table 32, pp. 63-64).
 - Graphics: the even screen lines at offset 0, the odd lines at 2000h, 80 bytes a line (Table
-  6). 320x200: two bits a pixel, bit b0 green, b1 red, blue from the palette bit, intensity
+  6). The wiring: the 6845's CA0-CA11 address the RAM words, and MA12 is CA12 in text mode and
+  RA0 in graphics mode (U26, sheet 8). So in graphics mode the display wraps within each 8K,
+  and each character clock shows one word, 16 dots: the even byte first (Table 6). 320x200: two bits a pixel, bit b0 green, b1 red, blue from the palette bit, intensity
   from port 9 bit 4, and 00 the background color (Table 7, p. 66). SBW1 makes blue follow
   green. 640x200: one bit a pixel, the foreground from port 9, the background black.
 - A border around the displayed area in the port 9 color, except in 640x200 graphics, where
@@ -1479,13 +1482,17 @@ There are three ways, all real CompuPro ways (pp. 8-9):
 boards behind the board select (the XIOS allows one), and the 32K boards that `GLOBAL.EQU`
 names (`COLOR32K`, `MONO32K`): the manual describes 16K only.
 
-**Open questions.**
+**Settled from the logic diagram (2026-11-20).**
 
-- Ports 2, 3, 6, 7 and D-F: the manual says the board "responds" at all 16 ports. The model
-  claims them, ignores writes, and reads `FF`. The logic diagram may say more.
-- Status D4-D7 are not driven (a 4-bit buffer, U42): they float.
-- How the 6845's refresh address and RA0 form the graphics address (Table 6's 2000h for odd
-  lines). Read from the logic diagram before stage 2.
+- **Ports 2, 3, 6, 7 and D-F.** PAL U28 makes a strobe only for the 9 working ports (sheet 4).
+  The bus buffers work from the address decode of all 16 ports, and every read goes out
+  through latch U46 from the board's internal bus (sheet 6). So the board drives the bus on a
+  read of an unused port, with nothing behind it: the value is undefined. The PAL equations are
+  not printed. The model claims the 16 ports, ignores writes to the unused ones, reads `FF`,
+  and inserts the wait states.
+- **Status D4-D7.** U24 drives D0-D3 only, so D4-D7 come from the same undriven internal bus:
+  the model reads 1s. The guest masks them (`VSCPC.A86` tests 01h and 08h).
+- **The graphics address.** MA12 is RA0 in graphics mode (above).
 
 ### 7.5 `Clock` — the single source of time
 
