@@ -133,6 +133,9 @@ enum class StopReason {
                   // decodes. Stopped at the boundary, like a cycle breakpoint (4.6.1).
     TmaConflict,  // the run did not start: two DMA boards cannot be arbitrated (same TMA
                   // priority, or one with no TMA lines). Machine::tmaConflict() says why.
+    BusHang,      // a cycle that hangs the real S-100 bus forever (the SPUZ accessed while
+                  // its Z80 is in reset). The cycle floated, the board logged it, and the run
+                  // stopped at the boundary (Bus::requestBusHang, DESIGN.md 3.0.4).
 };
 
 struct RunResult {

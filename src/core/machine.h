@@ -234,6 +234,8 @@ public:
     // believe they had won. The TOML loader refuses such a file, and the run loop
     // refuses to start (StopReason::TmaConflict), because a board can be added or a
     // switch set after the load. One or no DMA board is always fine.
+    // It also asks each board for a backplane rule of its own (Board::backplaneConflict),
+    // refused the same way: the SPUZ refuses a second board with its select.
     bool tmaConflict(std::string& why);
 
     // True only while the debugger's run loop is turning. This is a DIFFERENT thing

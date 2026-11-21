@@ -3243,6 +3243,12 @@ static void reportStop(const RunResult& r, const Debugger& dbg, std::ostream& ou
                       r.write ? "OUT to" : "IN from", r.port);
         out << buf << "\n";
         break;
+    case StopReason::BusHang:
+        // A board let a cycle float that hangs the real bus forever (DESIGN.md 3.0.4). Its
+        // own line, with the cycle and the PC, is in the board log flushed after this.
+        out << "stopped: that cycle would hang the real S-100 bus -- see the board message "
+               "below. RUN resumes.\n";
+        break;
     }
 }
 

@@ -516,6 +516,18 @@ public:
         warnedIoRead_.reset();
         warnedIoWrite_.reset();
         unclaimedHalt_ = false;
+        busHang_ = false;  // also the start of a run: a stale request must not stop it
+    }
+
+    // A BOARD THAT WOULD HANG THE REAL BUS (StopReason::BusHang, DESIGN.md 3.0.4). A board
+    // whose real counterpart holds READY forever for this cycle (the SPUZ, accessed while its
+    // Z80 is in reset) lets the cycle float, logs why, and calls this. The run loop stops at
+    // the instruction boundary, as for SET BUS UNCLAIMED=HALT.
+    void requestBusHang() { busHang_ = true; }
+    bool takeBusHang() {
+        bool h = busHang_;
+        busHang_ = false;
+        return h;
     }
 
     // Read-and-clear the pending Halt request: Unclaimed::Halt set it when a guest
@@ -745,6 +757,7 @@ private:
     std::bitset<256> warnedIoRead_;       // ports already warned this run: IN ...
     std::bitset<256> warnedIoWrite_;      // ... and OUT, kept apart -- the message names it
     bool unclaimedHalt_ = false;          // Halt tripped; the run loop stops at the boundary
+    bool busHang_ = false;                // a board asked for a BusHang stop (requestBusHang)
     uint8_t haltPort_ = 0;                // which port, and ...
     bool haltWrite_ = false;              // ... which direction, for the stop message
 

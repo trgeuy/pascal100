@@ -150,6 +150,7 @@ The boards are in groups, in the same order as the sections below.
 | `z80` | a Z80 processor board. The same bus, with a different instruction set |
 | `pascal100` | Digicomp Research Pascal-100: a Z80 and the Western Digital MicroEngine, one active at a time |
 | `cpu8687` | CompuPro CPU 86/87: an 8086 on a 16-bit bus. Boots CompuPro CP/M-86 and MP/M 8-16 from their Disk #2 |
+| `spuz` | CompuPro SPUZ: a slave processor with its own Z80, RAM and two serial ports. Up to 16 boards. Not a bus master |
 
 **Serial ports and consoles**
 
@@ -404,6 +405,61 @@ The board has two functions of its own:
 Not modeled: the 8087 math chip (the socket is empty), the 80130's ROM, and the jumpers that send
 the 80130's interrupt and timer outputs to the bus. With those jumpers open, as in CompuPro's
 standard system, the 80130 interrupts nothing.
+
+### `spuz`: CompuPro SPUZ
+
+The **SPUZ** (Viasyn, 1985) is a slave processor board for the CompuPro 816 and 286 systems. It
+has an 8 MHz **Z80**, 64K or 256K of RAM, and a **2681** with two serial channels. Under
+Concurrent DOS 8-16, each board runs 8-bit programs for one user while the host runs 16-bit
+programs.
+
+The SPUZ is not a bus master. Its Z80 runs on the board's own bus, and it runs only while the
+host processor runs. The host sees the board as a 64K memory window and ports `FC30`-`FC41`.
+The board decodes all 16 bits of the port address, so it does not answer port `0030`.
+
+| Port | What it does |
+|---|---|
+| `FC30`-`FC3F` | The registers of the selected board's 2681. |
+| `FC40` | SLAVESEL (write only). Every board compares bits D3-D0 with its `select`. The board that matches is selected. |
+| `FC41` | PTLATCH (write only), on the selected board. D3: `1` lets the Z80 run, `0` resets the Z80 and the 2681. D1-D0: the 64K bank that the host sees. |
+
+Up to 16 boards share the window and the ports. Only the selected board answers the window,
+the 2681 ports and PTLATCH. Give each board its own `select`. A machine with two boards on one
+select does not load or run.
+
+| Setting | Values | What it does |
+|---|---|---|
+| `select` | `0`-`15` | The board select. The default is `0`. |
+| `window` | `00`-`FF` | Address bits A23-A16 of the window. The default is `0E`, the CompuPro standard (`0E0000`-`0EFFFF`). |
+| `memory` | `256k`, `64k` | The RAM. A 256K board has four 64K banks. The default is `256k`. |
+| `waits` | `1`-`3` | The wait states on each host access to the window or the 2681. The default is `2`. |
+| `m1_wait` | `true`, `false` | One wait state in each opcode fetch of the board's Z80. The default is `true`. |
+| `interrupt` | `none`, `vi0`-`vi7` | The vectored interrupt line that the board pulls. The default is `vi0`. |
+
+The units `a` and `b` are the two serial channels. Connect them as any serial unit, for example
+`CONNECT spuz0:a socket:2325`.
+
+After power-on or a bus reset, no board is selected, and every Z80 is in reset. The 2681 output
+OP6 is high after a reset, so **the board pulls its interrupt line** until software sets bit 6
+of the 2681's output port.
+
+**Do not read or write the window or ports `FC30`-`FC3F` while the board's Z80 is in reset.** On
+the real board, this access stops the S-100 bus forever. `pascal100` lets the access go nowhere
+(a read gives `FF`), prints the address and the PC, and stops the run with **bus-hang**. Select
+the board, write `08` to `FC41`, and then access the board. To load a program, halt the Z80
+first: put a `HLT` (`76`) at address 0, reset the Z80, and let it run again.
+
+The window pulls PHANTOM\*. RAM under the window that obeys PHANTOM\* for reads and writes
+(`honors_phantom = "all"`) gives the window to the SPUZ.
+
+`SHOW` gives the PC of the board's Z80, its state, the two banks and the interrupt line:
+
+```
+  board Z80  PC 0001  halted  Z80 bank 3  host bank 3  selected  VI pulled
+```
+
+Not modeled: DMA into SPUZ memory (VDMA), and the time that host accesses take from the
+board's Z80. The monitor cannot step the board's Z80 or set a breakpoint on it yet.
 
 ## Serial ports and consoles
 

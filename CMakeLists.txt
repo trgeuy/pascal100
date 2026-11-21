@@ -495,6 +495,9 @@ add_library(altair_core STATIC
   # AND a 32-byte boot PROM that shadows low RAM over PHANTOM*. See src/boards/tarbell.h.
   src/boards/tarbell.cpp
   src/boards/jade-dd.cpp
+  # CompuPro SPUZ -- a slave Z80H with its own RAM and 2681, behind a 64K window and FC30-FC41
+  # (DESIGN.md 3.0.4). The second board with a processor on a private bus, after the Jade DD.
+  src/boards/compupro-spuz.cpp
   src/boards/floppy-drive.cpp
   src/boards/io4.cpp           # SSM IO-4: real chip-backed dual-UART serial board (2P+2S; serial section)
   # OUR OWN CARD -- the only one in this list that is not a period board, and the
@@ -754,6 +757,7 @@ add_executable(altair_tests
   tests/test_am9512.cpp
   tests/test_tarbell.cpp
   tests/test_jadedd.cpp
+  tests/test_spuz.cpp
   tests/test_cpu8088.cpp
   tests/test_cpu80286.cpp
   tests/test_disk1.cpp

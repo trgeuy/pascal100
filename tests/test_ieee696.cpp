@@ -830,7 +830,9 @@ void test_ieee696() {
     {
         // Each registry board goes in, its I/O decode depends on A0-A7 only (board.h
         // contract) and its memory decode ignores A16-A23 (no board decodes the extended
-        // address by default).
+        // address by default). A port the board declares with decodesIoHigh() is the
+        // exception (the SPUZ's FC30h-FC41h): the bus never caches it. FCh is in the A8-A15
+        // list so that a board decoding the SPUZ's ports without declaring them is caught.
         int types = 0;
         for (const BoardType& bt : boardTypes()) {
             ++types;
@@ -845,7 +847,8 @@ void test_ieee696() {
                 bool ioSame = true, memSame = true;
                 for (int p = 0; p < 256 && ioSame; ++p)
                     for (Cycle cy : {Cycle::IoRead, Cycle::IoWrite})
-                        for (uint16_t hi : {0x0000, 0xA500, 0xFF00, (int)(p << 8)}) {
+                        for (uint16_t hi : {0x0000, 0xA500, 0xFC00, 0xFF00, (int)(p << 8)}) {
+                            if (b->decodesIoHigh((uint8_t)p)) continue;
                             BusCycle lo{cy, (uint16_t)p, 0, false};
                             BusCycle wide{cy, (uint16_t)(hi | p), 0, false};
                             if (b->decodes(lo) != b->decodes(wide)) ioSame = false;

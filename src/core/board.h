@@ -215,11 +215,20 @@ public:
     // AN I/O DECODE USES A0-A7 ONLY -- c.port() -- and that is a CONTRACT, like the
     // page-granular memory cache. On the IEEE 696 bus an I/O cycle's `addr` carries all
     // of A0-A15 (the Z80's B, the 8080's port copy), and the bus caches the I/O decode
-    // one entry per port, built with A8-A15 = 0. A board that also decoded A8-A15
-    // (IEEE 696 extended I/O, 2.2.2.4) would need a wider cache first; no board does, and
-    // setVerify(true) aborts if one starts to. The registry test in test_ieee696.cpp
-    // checks every board type against it.
+    // one entry per port, built with A8-A15 = 0. A board that also decodes A8-A15
+    // (IEEE 696 extended I/O, 2.2.2.4) says so, port by port, with decodesIoHigh() below;
+    // the bus then never caches those ports. Any other port that a board decodes on A8-A15
+    // makes setVerify(true) abort. The registry test in test_ieee696.cpp checks every board
+    // type against it.
     virtual bool decodes(const BusCycle&) const { return false; }
+
+    // DO I DECODE A8-A15 ON THIS PORT? (IEEE 696 extended I/O, 2.2.2.4.) `port` is A0-A7.
+    // True: my decodes() for an I/O cycle whose A0-A7 is `port` also reads A8-A15, so the bus
+    // takes the exact path for every cycle on this low byte, and gives decodes(), sharesPort()
+    // and drivesBits() the whole address each time. The CompuPro SPUZ is the first such board:
+    // it answers FC30h-FC41h and not 0030h-0041h (DESIGN.md 3.0.4). COMBINATIONAL AND PURE, and
+    // it changes only with the board's configuration (a SET calls decodeChanged()).
+    virtual bool decodesIoHigh(uint8_t port) const { (void)port; return false; }
 
     // WHICH DATA LINES DO I DRIVE ON THIS I/O READ? All eight, nearly always. A board whose
     // buffer drives only some lines says which, and the bus floats the rest to 1. Two boards
@@ -552,6 +561,16 @@ public:
     // other master, cannot be arbitrated on a real backplane: both cards think they
     // won. Machine::tmaConflict() finds that, and the machine refuses to load or run.
     virtual int tmaPriority() const { return -1; }
+
+    // A RULE ABOUT THE OTHER BOARDS IN THE BACKPLANE that this board cannot keep alone: true,
+    // with the reason in `why`, when this machine cannot run as built. Machine::tmaConflict()
+    // asks every enabled board, so the loader refuses the file and RUN refuses to start, as
+    // for a TMA conflict. Up to 16 CompuPro SPUZ boards share one window and one set of ports,
+    // and two with one select would both answer (DESIGN.md 3.0.4). Default: no rule.
+    virtual bool backplaneConflict(const std::vector<Board*>& all, std::string& why) const {
+        (void)all; (void)why;
+        return false;
+    }
 
     // "MY pHOLD PIN MAY HAVE MOVED." The exact analogue of intChanged(), and for the
     // same reason: the bus keeps a running wire-OR count so the run loop reads pHOLD

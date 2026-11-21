@@ -689,6 +689,7 @@ const char* stopReasonName(StopReason w) {
     case StopReason::StepTarget:   return "step-target";
     case StopReason::Unclaimed:    return "unclaimed";
     case StopReason::TmaConflict:  return "tma-conflict";
+    case StopReason::BusHang:      return "bus-hang";
     }
     return "?";
 }
@@ -1145,6 +1146,7 @@ bool sliceStops(StopReason w) {
     case StopReason::TmaConflict:
     case StopReason::StopRequested:
     case StopReason::Unclaimed:
+    case StopReason::BusHang:
     case StopReason::StepTarget:  // the run tool's `stop_at`; a free run never sets one
         return true;
     default:

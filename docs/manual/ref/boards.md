@@ -25,6 +25,7 @@ and within a group the boards are in **alphabetical order**.
 | [`cpu8588`](#cpu8588) | CompuPro CPU 8085/88: 8085 + 8088, one on line |
 | [`cpu8687`](#cpu8687) | CompuPro CPU 86/87: an 8086 on a 16-bit bus |
 | [`pascal100`](#pascal100) | Digicomp Pascal-100: Z80 + WD MicroEngine, one active |
+| [`spuz`](#spuz) | CompuPro SPUZ: slave processor, own Z80H |
 | [`z80`](#z80) | Generic Z80 CPU board |
 
 **Memory**
@@ -165,6 +166,38 @@ Digicomp Research Pascal-100: a Z80 (unit z80) and the Western Digital MicroEngi
 | `clock_hz` | int | `0` | `0` .. `100000000` | The clock of both processors (header U102: 2 or 2.5 MHz in the manual, 3 MHz measured on a real box). 0 runs flat out -- as fast as the host can. |
 | `idle` | bool | `true` | `on` \| `off` | Stand down when the guest is only polling an empty keyboard. On by default. |
 | `achieved_hz` | int | — | — | LIVE: T-states per real second the run loop last reached. Read-only; 0 until it has run. **(read-only — not a key you may set)** |
+
+
+### `spuz`
+
+CompuPro (Viasyn) SPUZ (board 257E): a slave processor with its own 8 MHz Z80H, 64K or 256K of RAM (memory) and a 2681 DUART with two RS-232 channels (units a and b). Not a bus master. To the host it is a 64K window (window = A23-A16, default 0E: 0E0000h) and ports FC30-FC41, decoded on A0-A15: FC30-FC3F the 2681, FC40 SLAVESEL (every board), FC41 PTLATCH (D3 ZRST*, D1-D0 host bank). Up to 16 boards share both; SLAVESEL against `select` (0-15) picks the one that answers. 2681 OP6 pulls a VI line (interrupt, default vi0) from reset until software sets OPR bit 6. An access while the Z80 is in reset hangs a real bus: here it floats and the run stops (bus-hang). waits: jumper J1
+
+**Units:** `a` (serial, CONNECT), `b` (serial, CONNECT)
+
+#### Board properties
+
+| Key | Kind | Default | Legal | Meaning |
+|---|---|---|---|---|
+| `select` | int | `0` | `0` .. `15` | The board select, SW1 positions 5-8: 0-15 (default 0). Each SPUZ in a machine needs its own; SLAVESEL (FC40h) D3-D0 picks the board that answers |
+| `window` | int | `0xE` | `0x0` .. `0xFF` | Address bits A23-A16 of the 64K window, SW2: 00-FF (default 0E, the CompuPro standard: 0E0000h-0EFFFFh) |
+| `memory` | enum | `256k` | `256k` \| `64k` | 256k (eight 41256s, four 64K banks; default) or 64k (eight 4164s, one bank) |
+| `waits` | int | `2` | `1` .. `3` | J1: the S-100 wait states on each access to the window or the 2681: 1 (A), 2 (B, as shipped) or 3 (C) |
+| `m1_wait` | bool | `true` | `on` \| `off` | SW1 position 4: one wait state in each Z80 M1 cycle (on, as shipped; needed at 6 MHz and above) |
+| `interrupt` | enum | `vi0` | `none` \| `vi0` \| `vi1` \| `vi2` \| `vi3` \| `vi4` \| `vi5` \| `vi6` \| `vi7` | J2: the VI line that 2681 OP6 pulls through Q3 (vi0, as shipped) *(interrupt strap)* |
+
+#### Unit `a` — `[board.unit.a]`
+
+| Key | Kind | Default | Legal | Meaning |
+|---|---|---|---|---|
+| `connect` | string | `null` | text | The endpoint on the other end of this channel's line (CONNECT sets this) |
+| `title` | string |  | text | The title of a terminal window on this unit. Empty = "CompuPro SPUZ a" |
+
+#### Unit `b` — `[board.unit.b]`
+
+| Key | Kind | Default | Legal | Meaning |
+|---|---|---|---|---|
+| `connect` | string | `null` | text | The endpoint on the other end of this channel's line (CONNECT sets this) |
+| `title` | string |  | text | The title of a terminal window on this unit. Empty = "CompuPro SPUZ b" |
 
 
 ### `z80`

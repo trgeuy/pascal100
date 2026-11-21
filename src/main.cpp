@@ -5,6 +5,7 @@
 #include "boards/compupro-interfacer4.h"
 #include "boards/compupro-disk1.h"
 #include "boards/compupro-ss1.h"
+#include "boards/compupro-spuz.h"
 #include "boards/terminal-font.h"
 #ifdef PASCAL100_ENABLE_SDL
 #include "host/display_sdl.h"
@@ -317,6 +318,7 @@ int main(int argc, char** argv) {
     InterfacerFourBoard::setResolver(resolveEndpoint);   // the Interfacer 4's 2651s and parallel ports
     Io4Board::setResolver(resolveEndpoint);          // the real SSM IO-4's two UART channels
     CompuProDisk1Board::setResolver(resolveEndpoint);  // the Disk 1's bit-banged port 3 line
+    SpuzBoard::setResolver(resolveEndpoint);         // the CompuPro SPUZ's two 2681 channels
     Ss1Board::setResolver(resolveEndpoint);          // the System Support 1's 2651 serial channel
     // --mcp: every serial line gets an AgentTap (host/agent_tap.h), so `send`/`recv`/`run`
     // can reach any unit, not only the console. Before the machine loads, so its lines have one.

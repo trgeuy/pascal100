@@ -657,6 +657,14 @@ void Bus::rebuild() {
     for (int p = 0; p < 256; ++p) {
         ioRead_[p]  = resolve(Cycle::IoRead, (uint16_t)p);
         ioWrite_[p] = resolve(Cycle::IoWrite, (uint16_t)p);
+        // A board that decodes A8-A15 on this low byte (Board::decodesIoHigh): a slot built
+        // with A8-A15 = 0 cannot hold its answer, so every cycle here takes the exact path,
+        // which passes the whole address.
+        for (Board* b : boards_)
+            if (b->decodesIoHigh((uint8_t)p)) {
+                ioRead_[p].slow = ioWrite_[p].slow = true;
+                break;
+            }
     }
 
     snoopers_.clear();

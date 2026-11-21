@@ -789,6 +789,13 @@ RunResult Debugger::run(uint64_t maxSteps, bool clearPending) {
             break;
         }
 
+        // A board let a cycle float that would hang the real bus (Bus::requestBusHang). Its
+        // log line names the cycle and the PC; stop at the boundary, as above.
+        if (m_.bus.takeBusHang()) {
+            r.why = StopReason::BusHang;
+            break;
+        }
+
         // CONDITIONAL cycle breakpoints (BREAK MEM/IO ... IF|LOADS <expr>). Unlike an
         // unconditional cycle breakpoint -- which stops BEFORE the access, via the veto's
         // throw -- a conditional one let the instruction RETIRE (matchCycleBreak recorded

@@ -392,7 +392,7 @@ Ports (on the S-100 bus, decoded on A0-A15, manual p. 9):
 
 On the real board this hangs the S-100 bus. The board asserts pRDY and waits for a BUSACK that
 a reset Z80 never gives (manual pp. 9, 29). A model that hangs the host is useless, and a model that answers is wrong. **Decided 2026-11-20:** the access floats (reads FFh, writes go nowhere), and the board logs the port or
-address and the PC. The run stops at the instruction boundary with a new `StopReason::BusHang`.
+address and the PC. The run stops at the instruction boundary with a new `StopReason::BusHang`. (Built: the board calls `Bus::requestBusHang()`, and `Debugger::run` takes it at the boundary, after the unclaimed-port check.)
 This is the same shape as `SET BUS UNCLAIMED=HALT` (§4.6.1). It is the only change to the run
 loop.
 
@@ -462,7 +462,12 @@ halts the Z80. With no task, it loops at FD00h. So an idle SPUZ costs as much as
 2. `src/chips/scn2681` and its unit tests, from the data sheet (DONE 2026-11-20:
    `tests/test_scn2681.cpp`, 83 checks).
 3. The `spuz` board: window, ports, banks, reset, VI, catch-up, `StopReason::BusHang`;
-   `docs/boards/compupro-spuz.md` (§14); unit tests from the manual's `HLT.CMD` sequence.
+   `docs/boards/compupro-spuz.md` (§14); unit tests from the manual's `HLT.CMD` sequence
+   (DONE 2026-11-20: `src/boards/compupro-spuz.{h,cpp}`, `tests/test_spuz.cpp`. Two bus
+   changes came with it: `Board::decodesIoHigh` (§4.6) and `Board::backplaneConflict`, which
+   `Machine::tmaConflict` asks, so a second board with one select is refused like a TMA
+   conflict. Logic sheets 2 and 3 added two facts: CLR\* = SLVCLR\* AND pRESET\* clears PTLATCH
+   and the selection, and Q4 pulls PHANTOM\* from the window compare.)
 4. The debugger units (`spuz0:z80`).
 5. Concurrent DOS: `SPZ`, `SW!SPUZ` as `SW!.CMD`, HELLO and MBASIC on one board; then the
    measurement of the slave limit.
@@ -878,6 +883,8 @@ The failure that *does* deserve a warning is a memory board strapped **not** to 
 **Boards built to share a port are not contention either.** A board says so with `Board::sharesPort`. Up to eight CompuPro M-Drive/H boards sit at the same two ports: every board takes every write (an address load shifts all their counters), and a counter on each board picks the one that drives a read (`docs/boards/compupro-mdriveh.md`). An I/O **write** that several boards decode is not reported when **every** one of them shares the port; one board that does not (a misstrapped serial card at the same port) is still reported, because two boards that latch the same write by accident is the bug this section exists to show. A **read** keeps the `drivesBits` rule: the sharing board drives its lines only while it is selected, and an overlap is contention. The bus never caches a shared port. It takes the exact path on every cycle, so the sharing board's `drivesBits` may follow its own state with no `decodeChanged()`, which would rebuild the whole decode cache several times per sector. Before this rule, the Interfacer 3 and 4 shared their select ports with `snoop()` and one claimant; that pattern still works, but it cannot name a claimant when the shared state points at a board that is not fitted.
 
 **A processor card's own ports are not bus decodes.** An I/O decode on the bus uses A0-A7 (`board.h`), but a device on a processor card's LOCAL bus can decode all of A0-A15: the CompuPro CPU 86/87's 80130 at FFF0-FFFF and its Memory Manager at 00FD. The card says so through the `AddressTranslator` that it already puts in front of its own processor (`ownsIo`, `localRead`, `localWrite`). Only that processor's cycles reach it, as on the real card. The cycle still runs on the S-100 bus, so observers, TRACE and every board see it, and an 8-bit board that decodes A0-A7 answers it as it would on a real backplane. The bus does not report it as unclaimed. On a read the processor takes the local byte and the observers see what the bus drove: the real card turns its bus buffers off (ACK*). This keeps the one-entry-per-port I/O cache, and no board has to decode A8-A15.
+
+**pascal100: a bus board that decodes A8-A15 says so, port by port (2026-11-20).** The CompuPro SPUZ is on the bus, not on a processor card, and it decodes FC30h-FC41h on all of A0-A15 (its manual p. 9, logic sheet 2: U36 decodes A8-A15 = FCh). It answers FC40h and not 0040h. A board like it overrides `Board::decodesIoHigh(port)`, which names the low bytes it decodes with A8-A15. `Bus::rebuild()` marks those slots slow, so every cycle on them takes the exact path, which passes the whole address to `decodes()`, `sharesPort()` and `drivesBits()`. Only those low bytes lose the cache, and only while such a board is in the machine. The registry test in `test_ieee696.cpp` still holds every other port of every board to A0-A7, now also with A8-A15 = FCh.
 
 ### 4.6.1 The floating bus — one rule, three consequences
 

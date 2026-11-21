@@ -481,6 +481,11 @@ std::vector<Board*> Machine::masters() {
 // never shows up here. Walks the backplane, not boards_: a test rig may attach a card
 // to the bus by hand.
 bool Machine::tmaConflict(std::string& why) {
+    // A board's own backplane rule first (Board::backplaneConflict): two SPUZ boards with
+    // one select would both answer every cycle meant for one of them.
+    for (Board* b : bus.boards())
+        if (b->enabled() && b->backplaneConflict(bus.boards(), why)) return true;
+
     std::vector<Board*> tma;
     for (Board* b : bus.boards())
         if (b->enabled() && b->busMaster()) tma.push_back(b);

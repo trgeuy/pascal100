@@ -105,6 +105,7 @@ const struct {
     {"am9512", test_am9512},
     {"tarbell", test_tarbell},
     {"jadedd", test_jadedd},
+    {"spuz", test_spuz},
     {"cpu8088", test_cpu8088},
     {"cpu80286", test_cpu80286},
     {"disk1", test_disk1},

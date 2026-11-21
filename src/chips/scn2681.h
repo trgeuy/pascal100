@@ -92,6 +92,7 @@ public:
     void        connect(int ch, std::unique_ptr<ByteStream> s);
     void        disconnect(int ch);
     ByteStream& stream(int ch) { return *chan_[ch].stream; }
+    const ByteStream& stream(int ch) const { return *chan_[ch].stream; }
     void        pump();  // both lines
     uint64_t    rxBytes(int ch) const { return chan_[ch].rxCount; }
     std::vector<Property> channelProperties(int ch, const EndpointResolver& resolve);

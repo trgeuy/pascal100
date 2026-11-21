@@ -17,6 +17,7 @@
 #include "boards/s100-memory.h"
 #include "boards/tarbell.h"
 #include "boards/jade-dd.h"
+#include "boards/compupro-spuz.h"
 #include "boards/io4.h"
 #include "boards/compupro-interfacer1.h"
 #include "boards/compupro-interfacer3.h"
@@ -55,6 +56,7 @@ std::vector<BoardType> boardTypes() {
         {"disk2", "CompuPro Disk 2: hard disk controller (Fujitsu 2300), DMA", "CompuPro Disk 2 (board 177): a hard disk controller for up to four Fujitsu M2301B/M2302B drives (m10, m20: 244 cylinders, 4 or 8 heads, 11 sectors of 1024 bytes). Two ports at BASE+0..1 (default C8): CTL/STATUS, and the DRIVE/CYLINDER/HEAD/SECTOR registers (an IN steps the selected drive). Commands NULL, READ DATA, WRITE DATA, WRITE HEADER, READ HEADER. All data moves by DMA through a Selector Channel (`selch`) programmed for its dma_priority (default 10). ATTN to a VI line or pINT when a command ends"},
         {"disk3", "CompuPro Disk 3: intelligent ST506 hard disk controller, DMA", "CompuPro Disk 3 (board 194): an ST506 Winchester controller with its own 8085, up to four drives (default shape Quantum Q540: 512 cylinders, 8 heads, 9 sectors of 1024 bytes). One write-only attention port pair (default 90): 00 = attention, the J10 bit = reset. The host builds 16-byte IOPBs in memory, linked from 0:50h; the board fetches them, moves the data and writes STATUS back by its own DMA at dma_priority (default 9). Commands NOOP, VERSION, GLOBAL, SPECIFY, SET-MAP, HOME, SEEK, READ-HEADER, R/W, FORMAT, FORMAT-BAD. Completion interrupt to a VI line or pINT"},
         {"mdriveh", "CompuPro M-Drive/H: 512K RAM disk on two I/O ports", "CompuPro M-Drive/H (board 197B): 512K of dynamic RAM used as a disk drive, on two I/O ports (default C6H data, C7H address; S1-1..7 = A7-A1). Each OUT to the address port shifts a 22-bit counter up 8 bits and loads the byte; each data IN/OUT moves one byte and counts up. Up to eight boards share the same two ports: MA21-MA19 against `cascade` (S1-8..10) pick the board that stores and drives, and a range with no board reads FF. RAM contents at power-on per `fill`. CompuPro CP/M 2.2, CP/M-86 and MP/M 8-16 size the boards and use them as drive M:"},
+        {"spuz", "CompuPro SPUZ: slave processor, own Z80H", "CompuPro (Viasyn) SPUZ (board 257E): a slave processor with its own 8 MHz Z80H, 64K or 256K of RAM (memory) and a 2681 DUART with two RS-232 channels (units a and b). Not a bus master. To the host it is a 64K window (window = A23-A16, default 0E: 0E0000h) and ports FC30-FC41, decoded on A0-A15: FC30-FC3F the 2681, FC40 SLAVESEL (every board), FC41 PTLATCH (D3 ZRST*, D1-D0 host bank). Up to 16 boards share both; SLAVESEL against `select` (0-15) picks the one that answers. 2681 OP6 pulls a VI line (interrupt, default vi0) from reset until software sets OPR bit 6. An access while the Z80 is in reset hangs a real bus: here it floats and the run stops (bus-hang). waits: jumper J1"},
         {"selch", "CompuPro Selector Channel: the Disk 2's DMA cycles", "CompuPro Selector Channel (board 172): the 24-bit address, status and strobes of a temporary master, shared by the controllers that use it (the Disk 2). One port (default F0): an IN disables it, then four OUTs load A23-A16, A15-A8, A7-A0 and the MODE byte (write/read, memory/I/O, up/down, wait, and the complement of the controller's DMA priority). The boot EPROM is not modeled"},
         // "CONNECT it to a file" was true when a file was the only place printing could go.
         // It is not the offer any more -- printer:, socket: and the rest are on the same
@@ -85,6 +87,7 @@ static std::unique_ptr<Board> buildBoard(const std::string& typeName) {
     if (type == "tarbell") return std::make_unique<TarbellBoard>();
     if (type == "tarbelldd") return std::make_unique<TarbellDdBoard>();
     if (type == "jadedd") return std::make_unique<JadeDdBoard>();
+    if (type == "spuz") return std::make_unique<SpuzBoard>();
     if (type == "ss1") return std::make_unique<Ss1Board>();
     if (type == "disk1") return std::make_unique<CompuProDisk1Board>();
     if (type == "disk1a") return std::make_unique<CompuProDisk1aBoard>();

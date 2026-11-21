@@ -9,8 +9,8 @@ copyright page and the contents, so **the PDF page is the printed page + 4**. Pr
 (PDF 19-31) are Signetics' SCN2681 data sheet, reprinted. PDF 39 is an addendum (ECO 138), PDF
 41 the component layout, PDF 42 the warranty and PDF 43 the back cover.
 Converted 2026-11-20. Every converted page was read from the OCR text and checked against the page
-image; the image wins. The logic diagram (PDF 34-38) is indexed: sheets 1 and 4 are described from
-the image, sheets 2, 3 and 5 are not transcribed.
+image; the image wins. The logic diagram (PDF 34-38) is indexed: sheets 1-4 are described from
+the image (2 and 3 added 2026-11-20 for the board stage), sheet 5 is not transcribed.
 
 Conventions are the same as the other CompuPro conversions in this folder. Errors in the printed
 manual are marked **[sic]**. Notes that interpret the manual say so.
@@ -349,8 +349,21 @@ Why the steps (page 29):
   pins 3; IP1/IP0 = CTSB/CTSA from CONN 1 pins 20; IP6 = HALT\*, IP5/IP4 = SB1/SB0, IP3/IP2 NC.
   (Interpretation: the two channel groups on the drawing, A and B, are two connector halves; the
   drawing labels both pin sets 2, 3, 5, 20.)
-- Sheets 2, 3 and 5 (PDF 35, 36, 38): not read. Their OCR text names U27 and SLAVESEL (sheet 2)
-  and pHLDA (sheet 5); sheet 3 has no readable labels in the OCR.
+- **Sheet 2 (page 31, PDF 35), read from the image 2026-11-20:** the data buffers U39/U40 and U38
+  (DO3-DO0 to SD3-SD0); the S2 compare U31 (25LS2521: A23-A16 against S2, EN = VBD\*, out VMA\*);
+  the address buffers U37/U26 on BUSACK\*; the select compare U27 (74LS266: SD3-SD0 against
+  S1 5-8) into **U17, a D flip-flop: D = the compare, clock = SLAVESEL\*, CLR = CLR\*, Q = VPROC**;
+  **U36 (a '30) decodes A8-A15 = FCh** (VIOA\*, "FC-FF"); U35 makes I/O\* from sOUT/sINP; PAL
+  U25 (P372) takes A0-A9, VIOA\*, I/O\*, VPROC and gives SLAVESEL\* (FC40), PTLTCH\* (FC41) and
+  INTI/O\* (FC30-FC3F). So the board decodes the ports on all of A0-A15.
+- **Sheet 3 (page 32, PDF 36), read from the image 2026-11-20:** **U28 (74LS175) is PTLATCH**:
+  SD3-SD0 clocked by PTLTCH\*, outputs ZRST\*/ZRST, VDMA\*, PB1, PB0, **cleared by CLR\***.
+  **CLR\* = SLVCLR\* (pin 54) AND pRESET\* (pin 75)** (U34). PAL U22 (P258) makes DIEN\*, DOEN\*,
+  MRQ\*, IORQ\*, RD\*, WR\* and the wait (pin 19, through C11/R3 to Q2, which pulls **pRDY**, pin 72).
+  **VMA\* through U15 drives Q4, which pulls PHANTOM\* (pin 67)**: the board asserts PHANTOM\*
+  whenever its window is addressed. U21 (J1) times ENDWAIT; U33 with J3 is the hold off; the
+  regulators U41-U43.
+- Sheet 5 (PDF 38): not read. Its OCR text names pHLDA.
 
 ### Addendum: ECO 138 (PDF 39, "attached to page 35")
 
