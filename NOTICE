@@ -23,3 +23,8 @@ core that runs pascal100's 8088:
   https://github.com/TomHarte/CLK
   MIT License (third_party/clk/LICENCE)
 pascal100's changes to it are listed in third_party/clk/README.pascal100.md.
+
+roms/PCVIDEO holds the glyphs of Modern DOS (version 20190101.02), the
+font in the built-in character generator of the CompuPro PC Video:
+  Jayvee Enaguas
+  Creative Commons Zero 1.0 Universal (roms/PCVIDEO/source/LICENSE-ModernDOS.txt)
