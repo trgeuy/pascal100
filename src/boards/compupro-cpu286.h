@@ -45,6 +45,10 @@ namespace altair {
 
 class CompuProCpu286Board : public Board, public BusMaster, public CpuCard {
 public:
+    // The slowest crystal it was sold with (8, 10 or 12.5 MHz): what a board divides by when
+    // clock_hz is 0 (Clock::setHz).
+    static constexpr long long kNominalHz = 8000000;
+
     CompuProCpu286Board();
 
     std::string type() const override { return "cpu286"; }

@@ -49,8 +49,8 @@ JadeDdBoard::~JadeDdBoard() {
 // HOST TIME -> BOARD TIME.
 //
 // board T = host T x boardHz / host hz(). The host's hz() is its crystal, and it is never 0
-// (Clock::setHz): flat out still counts T-states at clock_hz, so a flat-out host gets the
-// same board time per host T-state as a paced one. The remainder carries from one call to
+// (Clock::setHz): flat out it is the host card's as-sold crystal, so a flat-out host gets the
+// same board time per host T-state as a paced one at that crystal. The remainder carries from one call to
 // the next, so no board T-state is lost to rounding. A SET clock_hz between two calls splits
 // the interval at Clock::rateChangedAt(): the part before it at the old rate, the rest at
 // the new.

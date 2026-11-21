@@ -81,8 +81,8 @@ Properties:
 | `power_on_jump` | S1-8 POJ | off | The 8085 starts with a JMP to `poj_addr` |
 | `poj_addr` | S2 | 0000 | The power-on-jump page (A8-A15) |
 | `reset_8088` | J7 | on | RESET\* resets the 8088 too |
-| `clock_hz_8085` | S4 | 0 | The 8085 clock. 0 runs flat out |
-| `clock_hz_8088` | X2 | 0 | The 8088 clock. 0 runs flat out |
+| `clock_hz_8085` | S4 | 0 | The 8085 clock. 0 runs flat out, and boards time it as 6 MHz |
+| `clock_hz_8088` | X2 | 0 | The 8088 clock. 0 runs flat out, and boards time it as 8 MHz |
 | `idle`, `achieved_hz` | | | The run policy, as on the other CPU boards |
 
 The switch defaults are the manual's quick-start settings (p.4).

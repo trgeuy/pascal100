@@ -239,4 +239,10 @@ void test_cpu8687() {
         cpu->i8086()->pcSegOff(cs, ip);
         CHECK(cs == 0x0000 && ip == 0x0008, "...and the next came from the ROM at 0006 (XOR AX,AX)");
     }
+
+    SECTION("cpu8687: flat out, the clock divides by 8 MHz (the 8086 as shipped)");
+    {
+        Rig g;
+        CHECK(g.m.clock.free() && g.m.clock.hz() == 8000000, "clock_hz 0: flat out at 8 MHz");
+    }
 }

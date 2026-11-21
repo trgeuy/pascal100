@@ -36,6 +36,10 @@ namespace altair {
 
 class CompuProCpu8687Board : public Board, public BusMaster, public CpuCard {
 public:
+    // The 8086 as shipped (8 or 10 MHz; 5 MHz with an 8087): what a board divides by when
+    // clock_hz is 0 (Clock::setHz).
+    static constexpr long long kNominalHz = 8000000;
+
     CompuProCpu8687Board();
 
     std::string type() const override { return "cpu8687"; }

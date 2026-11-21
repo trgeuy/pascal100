@@ -97,7 +97,7 @@ CompuPro CPU 286 (451B): an 80286 in real mode (unit 80286) with 8- and 16-bit I
 | `sockets` | bool | `false` | `on` \| `off` | J7 fitted: page FF (FF0000-FFFFFF) is the on-board sockets, holding `rom`. As shipped off: page FF is memory on the S-100 bus |
 | `rom` | string |  | text | The EPROM pair in U37/U38, as one 16-bit image: Intel HEX, S-records, a flat binary or builtin:<name>. Offset 0 = FF0000; 16K, 32K or 64K, repeated through page FF. Empty = no chips |
 | `waits` | string | `B` | text | Jumper J1, the positions fitted (additive): A 1 memory, B 1 I/O, C 1 all, D 2 memory, E 2 I/O, F 2 all, G 4 sockets, H 1 memory write + 1 I/O. Empty = none (an illegal S-100 cycle). Default B |
-| `clock_hz` | int | `0` | `0` .. `100000000` | The 80286's clock: 8000000, 10000000 or 12500000 as sold. 0 runs flat out |
+| `clock_hz` | int | `0` | `0` .. `100000000` | The 80286's clock: 8000000, 10000000 or 12500000 as sold. 0 runs flat out, timed as 8000000 |
 | `idle` | bool | `true` | `on` \| `off` | Stand down when the guest is only polling an empty keyboard. On by default. |
 | `achieved_hz` | int | — | — | LIVE: T-states per real second the run loop last reached. Read-only; 0 until it has run. **(read-only — not a key you may set)** |
 
@@ -121,8 +121,8 @@ CompuPro CPU 8085/88 (161F): an 8085 (unit 8085) and an 8088 (unit 8088), one on
 | `power_on_jump` | bool | `false` | `on` \| `off` | S1-8 POJ: the 8085 starts with a JMP to poj_addr (C3 00 page). Off: it starts at 0000 |
 | `poj_addr` | int | `0x0` | `0x0` .. `0xFF00` | Switch S2: where the 8085's power-on-jump goes, on a 256-byte page (A8-A15) |
 | `reset_8088` | bool | `true` | `on` \| `off` | Jumper J7: RESET* resets the 8088 too (A-B, factory). Off (B-C): the 8088 is reset only at power-on |
-| `clock_hz_8085` | int | `0` | `0` .. `100000000` | The 8085's clock (switch S4: 6000000 or 2000000; 5000000 with the parts-list crystal). 0 runs flat out |
-| `clock_hz_8088` | int | `0` | `0` .. `100000000` | The 8088's clock (X2/3: 8000000; 5000000 with the parts-list crystal). 0 runs flat out |
+| `clock_hz_8085` | int | `0` | `0` .. `100000000` | The 8085's clock (switch S4: 6000000 or 2000000; 5000000 with the parts-list crystal). 0 runs flat out, timed as 6000000 |
+| `clock_hz_8088` | int | `0` | `0` .. `100000000` | The 8088's clock (X2/3: 8000000; 5000000 with the parts-list crystal). 0 runs flat out, timed as 8000000 |
 | `idle` | bool | `true` | `on` \| `off` | Stand down when the guest is only polling an empty keyboard. On by default. |
 | `achieved_hz` | int | — | — | LIVE: T-states per real second the run loop last reached. Read-only; 0 until it has run. **(read-only — not a key you may set)** |
 
@@ -144,7 +144,7 @@ CompuPro CPU 86/87 (186B): an 8086 (unit 8086) with 8- and 16-bit IEEE 696 trans
 | `power_on_jump` | bool | `false` | `on` \| `off` | S5-10: start at poj_addr (a jammed JMPF) instead of FFFF0. Standard off |
 | `jump_on_reset` | bool | `false` | `on` \| `off` | S5-9: the power-on jump on every RESET too, not only at power-on |
 | `poj_addr` | int | `0xFF000` | `0x0` .. `0xFF000` | Switch S5-1..8 (A19-A12): where the power-on jump goes, a 4K boundary in the low megabyte. All OFF = FF000 |
-| `clock_hz` | int | `0` | `0` .. `100000000` | The 8086's clock: 8000000 or 10000000 as shipped, 5000000 with an 8087. 0 runs flat out |
+| `clock_hz` | int | `0` | `0` .. `100000000` | The 8086's clock: 8000000 or 10000000 as shipped, 5000000 with an 8087. 0 runs flat out, timed as 8000000 |
 | `idle` | bool | `true` | `on` \| `off` | Stand down when the guest is only polling an empty keyboard. On by default. |
 | `achieved_hz` | int | — | — | LIVE: T-states per real second the run loop last reached. Read-only; 0 until it has run. **(read-only — not a key you may set)** |
 

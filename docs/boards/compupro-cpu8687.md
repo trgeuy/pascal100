@@ -87,7 +87,7 @@ modes**: timer 0 mode 2 (SYSTICK), timer 1 mode 0 (DELAY), timer 2 mode 3 (BAUD)
 | `power_on_jump` | `false` | S5-10: start at `poj_addr` instead of FFFF0 |
 | `jump_on_reset` | `false` | S5-9: the power-on jump at every RESET too |
 | `poj_addr` | `FF000` | S5-1..8 = A19-A12 |
-| `clock_hz` | `0` | 8000000 or 10000000; 5000000 with an 8087. 0 = flat out |
+| `clock_hz` | `0` | 8000000 or 10000000; 5000000 with an 8087. 0 = flat out, timed as 8 MHz |
 | `idle` | `true` | stand down while the guest polls an empty keyboard |
 
 ### Reset

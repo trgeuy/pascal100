@@ -316,4 +316,17 @@ void test_clock() {
         c.advance(20);
         CHECK(fired, "after a RESTORE, a handle from before it cancels nothing new");
     }
+
+    SECTION("Clock -- flat out divides by the card's as-sold crystal, 2 MHz without one");
+    {
+        Clock c;
+        c.setHz(0);
+        CHECK(c.free() && c.hz() == 2000000, "no nominal: flat out, the 88-CPU's 2 MHz");
+        c.setHz(0, 8000000);
+        CHECK(c.free() && c.hz() == 8000000, "nominal 8 MHz: flat out, and divides by 8 MHz");
+        c.setHz(10000000, 8000000);
+        CHECK(!c.free() && c.hz() == 10000000, "a crystal set: paced at it, the nominal unused");
+        c.setHz(0, 0);
+        CHECK(c.free() && c.hz() == 2000000, "a nominal of 0 is no nominal: never a 0 divisor");
+    }
 }

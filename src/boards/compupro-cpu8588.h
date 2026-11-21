@@ -35,6 +35,11 @@ namespace altair {
 
 class Cpu8588Board : public Board, public BusMaster, public CpuCard {
 public:
+    // What a board divides by when the running core's clock is 0 (Clock::setHz): the 8085 at
+    // 6 MHz (S4 right, the manual's text and schematic) and the 8088 at 8 MHz.
+    static constexpr long long kNominal85Hz = 6000000;
+    static constexpr long long kNominal88Hz = 8000000;
+
     Cpu8588Board();
 
     std::string type() const override { return "cpu8588"; }
