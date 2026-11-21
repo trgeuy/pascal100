@@ -1469,7 +1469,8 @@ There are three ways, all real CompuPro ways (pp. 8-9):
 
 #### Stages
 
-1. The 6845 chip, with unit tests from the data sheet.
+1. The 6845 chip, with unit tests from the data sheet. (DONE 2026-11-20: `src/chips/mc6845.{h,cpp}`,
+   `tests/test_mc6845.cpp`, 41 checks. Interlace sync mode has no half line; see the header.)
 2. The board in color mode: decode, ports, RAM, wait states, the picture (proved with a
    `NullDisplay`, devguide/video-board.md §5), the keyboard endpoint with the ASCII filter, the
    light pen. Then CompuPro's 4.1 XIOS built with `PCBRD`, `NPC_BRD = 1` and `COLOR_PC = 1`:

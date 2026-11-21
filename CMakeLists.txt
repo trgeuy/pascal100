@@ -454,6 +454,9 @@ add_library(altair_core STATIC
   # The Intel 8259A -- a programmable interrupt controller; INT is a pure function of the
   # live IR levels the card supplies. The CompuPro System Support 1 carries two (cascade).
   src/chips/intel8259a.cpp
+  # The Motorola MC6845 CRT controller: registers and counters on the character clock.
+  # The CompuPro PC Video carries one (src/chips/mc6845.h, DESIGN.md 7.4.1).
+  src/chips/mc6845.cpp
   # The AMD Am9511A (Intel 8231A) and Am9512 (Intel 8232) math chips -- the bus side they
   # share (ports, byte stack, END/SVREQ/ERR), then each chip's command set: the 9511A's
   # fixed, float and derived functions, the 9512's single and double precision floats.
@@ -754,6 +757,7 @@ add_executable(altair_tests
   tests/test_bitserial.cpp
   tests/test_i8257.cpp
   tests/test_scn2681.cpp
+  tests/test_mc6845.cpp
   tests/test_am9511a.cpp
   tests/test_am9512.cpp
   tests/test_tarbell.cpp

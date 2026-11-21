@@ -99,6 +99,7 @@ const struct {
     {"wd17xx", test_wd17xx},
     {"upd765", test_upd765},
     {"bitserial", test_bitserial},
+    {"mc6845", test_mc6845},
     {"i8257", test_i8257},
     {"scn2681", test_scn2681},
     {"am9511a", test_am9511a},
