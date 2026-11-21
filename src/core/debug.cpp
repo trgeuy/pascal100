@@ -103,7 +103,7 @@ std::string Breakpoint::describe() const {
     const bool mem = kind == BreakKind::MemRead || kind == BreakKind::MemWrite;
     // A MEM breakpoint is a physical address, A0-A23: 6 digits. A PC breakpoint is the
     // CPU's 16-bit address: 4.
-    int w = io ? 2 : (mem ? 6 : 4);
+    int w = io ? (hi > 0xFF ? 4 : 2) : (mem ? 6 : 4);
     // A core-bound PC breakpoint reads as it was typed: "pc     cpu0:z80 0100".
     std::string at = core.empty() ? std::string() : core + " ";
     if (lo == hi)
@@ -405,7 +405,12 @@ void Debugger::matchCycleBreak(const BusCycle& c) {
         if (!match) continue;
 
         bool io = (b.kind == BreakKind::IoRead || b.kind == BreakKind::IoWrite);
-        uint32_t a = io ? c.port() : c.phys();  // memory: A0-A23
+        // An I/O breakpoint above FF names a 16-bit port (an 8086 family OUT DX puts all of DX
+        // on A0-A15) and compares all 16 bits. One at FF or below compares the low byte: an
+        // 8080 or Z80 puts its 8-bit port on both halves of the address, so the full address
+        // of OUT 10 is 1010, and BREAK IO W 10 must still match it.
+        const bool io16 = io && b.hi > 0xFF;
+        uint32_t a = io16 ? c.addr : io ? c.port() : c.phys();  // memory: A0-A23
         // A 16-bit transfer (IEEE 696 sXTRQ*) moves the even byte AND the odd byte in one
         // cycle, so it matches a breakpoint on either address.
         const uint32_t aEnd = (!io && c.xtrq) ? a + 1 : a;

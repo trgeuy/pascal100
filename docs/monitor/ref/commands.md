@@ -551,7 +551,11 @@ BREAK FF13       ; stop when PC gets there
 BREAK 2C00-2CFF  ; ...anywhere in a range
 BREAK MEM W 100  ; stop when anything WRITES 0100
 BREAK IO R 10    ; stop on an IN from port 10
+BREAK IO W FC3E  ; stop on an OUT to the 16-bit port FC3E (8086/80286 OUT DX)
 ```
+
+A port above FF compares all 16 bits of the port. A port of FF or below compares
+the low byte: an 8080 or Z80 puts its 8-bit port on both halves of the address.
 
 A PC breakpoint can name one core as <board>:<unit>. SHOW <board> lists the
 cores of a board. This is for a board with two processors, where the active

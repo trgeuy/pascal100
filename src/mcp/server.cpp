@@ -362,7 +362,8 @@ Json toolList() {
         p["action"] = strSchema("list (default) | add | remove | clear.");
         p["kind"]   = strSchema("For add: pc | memread | memwrite | ioread | iowrite.");
         p["lo"]     = intSchema("For add: the address (a port, for io kinds), or the low end of "
-                                "a range.");
+                                "a range. A port above 0xFF compares all 16 bits (an 80286 "
+                                "OUT DX to 0xFC3E); 0xFF or below compares the low byte.");
         p["hi"]     = intSchema("For add: the high end of an address range (defaults to `lo`).");
         p["id"]     = intSchema("For remove: which breakpoint (from the list).");
         p["unit"]   = strSchema("For add, kind pc only: the core it watches, as <board>:<unit> "
