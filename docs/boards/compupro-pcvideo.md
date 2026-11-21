@@ -1,9 +1,10 @@
 # CompuPro PC Video (`pcvideo`)
 
-**Status:** partial. Color mode works: the decode, the 16K, all ports, the 6845, text and
-graphics in a window, wait states, the keyboard (the window's own keys, and the `kbd`
-endpoint), the light pen from the mouse. Not built yet: monochrome mode (`monitor = mono` is
-refused).
+**Status:** works. Color and monochrome modes: the decode, the 16K, all ports, the 6845, text
+and graphics in a window, wait states, the keyboard (the window's own keys, and the `kbd`
+endpoint), the light pen from the mouse. Monochrome (`monitor = mono`, S2-9 ON): the 16.257
+MHz clock, 9x14 characters with the 9th dot, underline and reverse, black-and-white graphics,
+a green monitor.
 
 ## The real hardware
 
@@ -17,7 +18,10 @@ driver.
 
 One switch (S2-9) picks the monitor: color (a 14.31818 MHz master clock) or monochrome
 (16.257 MHz). The color modes are 80x25 and 40x25 text, 320x200 graphics in four colors and
-640x200 graphics in two.
+640x200 graphics in two. The monochrome modes are 80x25 text in 9x14 cells and 320x200 and
+640x200 graphics in black and white (the IBM Monochrome Display Adapter has no graphics).
+The switches, not the monitor strap, set the addresses: the IBM monochrome ones are `0B0000`
+and `03B0`, or port 1 moves the board there.
 
 | Switch or jumper | What it sets | Default |
 |---|---|---|
@@ -69,17 +73,26 @@ at 2000h, 80 bytes a line.
   (`decodesIoHigh` names both port blocks the flip can reach). The board answers SIXTN\* on an
   even memory address, except in write-only mode. While the board is disabled it decodes only
   a write to port 0.
-- **Time.** The board converts host T-states into 14.31818 MHz master clocks, and those into
-  the 6845's character clocks: 8 a character for 80x25 text, 16 for 40x25 text and graphics.
-  The status bits, the blink rates, the light pen and the wait states all come from that.
+- **Time.** The board converts host T-states into master clocks (14.31818 MHz color, 16.257
+  MHz mono), and those into the 6845's character clocks: 8 a character for color 80x25 text, 9
+  for mono 80x25 text, 16 for 40x25 text and graphics. The status bits, the blink rates, the
+  light pen and the wait states all come from that.
 - **Wait states.** Each access waits for the next transfer window of the character clock (state
-  3 of an 8-clock cycle, states 4-11 of a 16-clock cycle), then 1 master clock, then the
-  transfer: 2 master clocks, or 8 for the 6845. The CPU pays them through PRDY.
-- **The picture.** `Indexed8`, 16 colors. One dot for each master clock: 640 dots across in
-  every color mode, plus a border of 32 dots and 16 lines. The window shows each scan line
-  twice. The frame is drawn whole from the state at that moment. Above the picture, a title
-  bar (`title`, `titlebar`), as a terminal window has: one character row of the board's own
-  font, doubled, black on light gray. The guest never sees it.
+  3 of an 8-clock cycle, states 3-4 of the mono 9-clock cycle, states 4-11 of a 16-clock cycle),
+  then 1 master clock, then the transfer: 2 master clocks, or 8 for the 6845. The CPU pays them
+  through PRDY.
+- **The picture.** `Indexed8`: the 16 colors, and for mono black, green and bright green. One
+  dot for each master clock: 640 dots across in every color mode and in mono graphics, 720 in
+  mono text, plus a border of 32 dots and 16 lines. The window shows each scan line twice for
+  color (200 lines) and 1.5 times for mono (350 lines). The frame is drawn whole from the state
+  at that moment. Above the picture, a title bar (`title`, `titlebar`), as a terminal window
+  has: one character row of the board's own font, doubled, black on light gray. The guest
+  never sees it.
+- **Mono text** (Table 31, pp. 61-66). The character comes from the 9x14 half of the PROM
+  (A12 = 0). The 9th dot is dark, or a copy of the 8th for C0-DF (the line drawing
+  characters). Attributes: AT6-4 = 111 with AT2-0 = 000 is reverse; AT6-4 = 000 with AT2-0 =
+  001 underlines raster line 12; AT3 brightens; AT7 blinks (ENBBLINK 1). Any other colour bits
+  give a normal character, attribute 00 included. The border is black.
 - **The keyboard.** Two sources share one queue of scan codes:
   - The board's window. The board claims physical keys for it (`Display::claimRawKeys`). Each
     key down and up arrives as a USB HID usage, and the board sends the PC/XT code for it
@@ -101,7 +114,7 @@ at 2000h, 80 bytes a line.
 | `ports` | A 16-port boundary below `1000` | `03D0` |
 | `wom` | `true`, `false` | `false` |
 | `phantom` | `true`, `false` | `false` |
-| `monitor` | `color` (`mono` is refused) | `color` |
+| `monitor` | `color`, `mono` | `color` |
 | `select` | 0-7 | 0 |
 | `flip` | `true`, `false` | `true` |
 | `interrupt` | `none`, `int`, `vi0`-`vi7` | `vi5` |
@@ -138,11 +151,21 @@ U6 goes in `font`. See `roms/PCVIDEO/README.md`.
 | The keyboard holds its next code until port 11 | A driver loses keys typed quickly |
 | Graphics: MA12 = RA0, odd lines at 2000h | Every other line of a graphics screen is wrong |
 | AT7 is background intensity with ENBBLINK = 0, blink with ENBBLINK = 1 | Bright backgrounds blink, or blinking text is bright |
+| Mono: the 9th dot repeats the 8th only for C0-DF | Box lines have gaps, or every character touches the next |
+| Mono: underline only for AT6-4 = 000, AT2-0 = 001, on raster line 12 | Blue (in color terms) text is underlined, or not |
+| Mono: a text character is 9 master clocks, and the request window is 2 clocks wide | Wrong field rate (about 50 Hz) and wrong wait states |
 
 ## Limitations and deliberate departures
 
-- **Monochrome mode** (S2-9 ON) is not built: no 9th dot, no underline or reverse, no 16.257 MHz
-  clock. `monitor = mono` is refused.
+- **The monochrome monitor is green** (an IBM 5151-type P39 phosphor): black, green and bright
+  green. Video off is black whatever the intensity line says. The board puts out only B/W and
+  intensity; the colour is a model decision.
+- **Mono attribute 00 shows the character.** Table 4 calls it "blank character (no output)",
+  but the decoder (Table 31, pp. 64-66) has no blank function: the B/W line follows the dots.
+  The model follows the circuit. Likewise AT7 with ENBBLINK = 0 goes to the background group,
+  which is dark on a mono monitor, so it shows nothing (Table 4: "intensify reverse
+  character").
+- **Mono lines are drawn 1.5 times** so that 720 x 350 comes out near 4:3; color lines twice.
 - **The window's keyboard is the 83-key PC/XT keyboard.** F11, F12, Pause and the GUI (Cmd,
   Windows) keys send nothing; there are no E0-prefixed codes. The board does not light the
   host's Caps Lock or Num Lock lamps, and the host's own lock state is not read.
@@ -166,15 +189,27 @@ U6 goes in `font`. See `roms/PCVIDEO/README.md`.
 transfers, the status timing over three fields of the 80x25 mode, the wait states, the keyboard
 (one code, VI5, port 11, the 1 ms, the clock hold, ASCII with Shift and Ctrl), the window's
 keys (the usage table, the claim, the sink, a paste), text (the PROM,
-the attribute, blink, the cursor), 320x200 and 640x200 graphics, the light pen, a frame
-through a `NullDisplay`, the straps, reset and a snapshot. `tests/test_mc6845.cpp` covers the
-6845.
+the attribute, blink, the cursor), 320x200 and 640x200 graphics, mono text (the field rate at
+16.257 MHz and 9 clocks, the 9x14 half, the 9th dot, attribute 00, reverse, underline,
+intensity, blink, the 9-clock wait states) and mono graphics, the light pen, a frame through a
+`NullDisplay`, the straps, reset and a snapshot. `tests/test_mc6845.cpp` covers the 6845.
 
 Period software: CompuPro's Concurrent DOS 4.1 XIOS (4.1D), rebuilt with `PCBRD`, `NPC_BRD = 1`
 and `COLOR_PC = 1`, boots on the board as console 0 (2026-11-21). Its keyboard driver takes each
 code on VI5, reads port 12 and clears with port 11; its screen driver sets mode 29h, draws the
 status line on row 25 in reverse video, and runs the shell, a PC Mode program (INT 21h) and a
-SPUZ task. The four virtual consoles on the board are not tried yet.
+SPUZ task. Its four virtual consoles switch with Ctrl + keypad 0-3, and `WINDOW` splits the
+screen between them. PC Mode programs use the BIOS INT 10h (cursor, write, teletype, scroll,
+read back, graphics mode 4) and INT 16h. Two faults found on the way are in CompuPro's and
+DRI's code, not the board: the 4.1D XIOS records 640x200 as mode 20h (fixed locally in the
+rebuilt XIOS), and the PC Mode kernel does not hand INT 10h function 13 (read dot) back to the
+program.
+
+The same XIOS rebuilt with `MONO_PC = 1` boots on the board with `monitor = mono`,
+`memory = 0B0000` and `ports = 03B0` (2026-11-21): the shell, the virtual consoles and the BIOS
+calls work, and INT 10h reports mode 07. DOS graphics do not exist on a mono system with this
+XIOS: it sends DOS modes 4 and 6 to its color routines, as IBM's monochrome adapter has no
+graphics either.
 
 ## References
 

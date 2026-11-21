@@ -6,13 +6,14 @@
 // Concurrent DOS 8-16 uses it as console 0 and for PC Mode. DESIGN.md 7.4.1 is the design;
 // the *PC Video Technical Manual* (A493) and its logic diagram are the source.
 //
-// COLOR MODE ONLY (stage 2). The monochrome half (S2-9 ON) is stage 3, and `monitor = mono`
-// is refused until then.
+// COLOR AND MONOCHROME. `monitor` is S2-9 (MXSEL): color (OFF) or mono (ON). Mono selects the
+// 16.257 MHz crystal, the 9x14 half of the character PROM, the 9th dot and the monochrome
+// attribute logic (underline, reverse: Table 31), and drives a green IBM 5151-type monitor.
 //
-// TIME. The board runs on its own 14.31818 MHz master clock (X2). It converts host T-states
-// into master clocks with the host divisor, remainder carried, and the master clocks into the
-// 6845's character clocks: 8 a character for 80x25 text, 16 for 40x25 text and graphics
-// (Table 22). Every timing a guest can see comes from that: the status port's display enable
+// TIME. The board runs on its own master clock: 14.31818 MHz (X2) for color, 16.257 MHz (X1)
+// for mono (p. 41). It converts host T-states into master clocks with the host divisor,
+// remainder carried, and the master clocks into the 6845's character clocks: 8 a character
+// for color 80x25 text, 9 for mono 80x25 text, 16 for 40x25 text and graphics (Table 22). Every timing a guest can see comes from that: the status port's display enable
 // and vertical sync, the blink rates, the light pen strobe and the wait states.
 //
 // THE PICTURE is drawn whole, from the state at the time of the frame (DESIGN.md 7.4.1).
@@ -126,17 +127,27 @@ public:
     // The color index (RGBI, Table 10) of picture dot (x, y), as the next frame draws it.
     uint8_t dotAt(int x, int y) const;
     // THE WINDOW: the title bar (when `titlebar` is on), then the picture with each scan line
-    // twice. The bar is one character row of the board's own font, doubled as the picture is,
-    // in light gray with the title in black, as a terminal window's bar is. The guest never
-    // sees it. windowHeight() = barHeight() + 2 x geometry().height.
+    // drawn twice (color) or 1.5 times (mono). The bar is one character row of the board's own
+    // font, doubled, in light gray with the title in black, as a terminal window's bar is. The
+    // guest never sees it.
     int  barHeight() const { return titlebar_ ? 16 : 0; }
-    int  windowHeight() const { return barHeight() + 2 * geometry().height; }
+    // Scan lines are drawn at 2x for color (200 lines) and 1.5x for mono (350 lines), so both
+    // pictures come out near 4:3. A model decision (DESIGN.md 7.4.1).
+    int  windowHeight() const {
+        const int h = geometry().height;
+        return barHeight() + (mono_ ? (3 * h + 1) / 2 : 2 * h);
+    }
     std::string barTitle() const { return title_.empty() ? productName() + titleIdSuffix() : title_; }
     // Render the window into a Surface of geometry().width x windowHeight() (Indexed8).
     void paint(Surface& s) const;
     static constexpr uint8_t kBarColor = 16;   // palette index of the bar's gray
 
-    static constexpr long long kMasterHz = 14318180;  // X2, 14.31818 MHz (p. 41)
+    static constexpr long long kColorHz  = 14318180;  // X2, 14.31818 MHz (p. 41)
+    static constexpr long long kMonoHz   = 16257000;  // X1, 16.257 MHz (p. 41)
+    // Palette indexes of the green phosphor (mono). 0 is black in both modes.
+    static constexpr uint8_t   kMonoOn   = 17;
+    static constexpr uint8_t   kMonoHi   = 18;
+    long long masterHz() const { return mono_ ? kMonoHz : kColorHz; }
     static constexpr int       kBorderX  = 32;        // the border drawn around the display area
     static constexpr int       kBorderY  = 16;
 
@@ -152,7 +163,10 @@ private:
     bool     memHit(const BusCycle& c) const;
     int      ioReg(const BusCycle& c) const;   // the relative port 0-15, or -1
     uint32_t offset(const BusCycle& c) const { return c.addr & 0x3FFF; }
-    int      mclkPerChar() const { return ((mode_ & kHres) && !(mode_ & kGrph)) ? 8 : 16; }
+    // Table 22: HRES text is 8 (color) or 9 (mono) master clocks; graphics and 40x25 are 16.
+    int      mclkPerChar() const {
+        return ((mode_ & kHres) && !(mode_ & kGrph)) ? (mono_ ? 9 : 8) : 16;
+    }
     void     waitFor(bool crtcPort);            // PRDY: the wait for the transfer window
     uint8_t  status() const;
     bool     loadFont(const std::string& spec, std::string& err);
@@ -174,6 +188,7 @@ private:
     int         select_ = 0;          // J3: the bit of port 0 that enables this board
     bool        flipOk_ = true;       // J2 A-C: port 1 works
     bool        cursorBlink_ = true;  // J5 installed: the cursor blinks
+    bool        mono_ = false;        // S2-9 ON: MXSEL low, monochrome
     IrqJumper   irq_ = IrqJumper::Vi5;  // J4 (CompuPro software expects VI5)
     std::string font_ = "builtin:pcvideo";
     bool        lightpen_ = false;    // the mouse as a light pen

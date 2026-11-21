@@ -437,6 +437,117 @@ void test_pcvideo() {
         PcVideoBoard::setDisplay(before);
     }
 
+    SECTION("pcvideo: mono text -- 9 x 14 cells, the 9th dot, underline, reverse (Tables 21-22, 31)");
+    {
+        Rig g({{"monitor", "mono"}});
+        // The IBM monochrome timing: 98 characters a line, 26 rows of 14 lines + 6 = 370 lines;
+        // 80 x 25 displayed.
+        const uint8_t v[12] = {0x61, 0x50, 0x52, 0x0F, 0x19, 0x06, 0x19, 0x19, 0x02, 0x0D, 0x0B, 0x0C};
+        for (int r = 0; r < 12; ++r) g.crtc(r, v[r]);
+        g.crtc(12, 0);
+        g.crtc(13, 0);
+        g.out(8, 0x09);                                 // HRES + VIDENB (Table 17, ENBBLINK off)
+        const uint64_t f0 = g.pv->crtc().fields();
+        g.run(g.hz());
+        g.pv->catchUp();
+        const uint64_t fps = g.pv->crtc().fields() - f0;
+        // 16.257 MHz / (98 x 9) / 370 = 49.8 fields a second.
+        CHECK(fps >= 49 && fps <= 50, ("16.257 MHz, 9 clocks a character: ~50 fields/s, got " +
+                                       std::to_string(fps)).c_str());
+        const auto geo = g.pv->geometry();
+        CHECK(geo.width == 720 + 64 && geo.height == 350 + 32, "80 x 9 dots by 25 x 14 lines, a border");
+        const int bx = geo.borderX, by = geo.borderY;
+        g.out(9, 0x0F);
+        CHECK(g.pv->dotAt(0, 0) == 0, "the border is black on a mono monitor");
+        g.m.bus.memWrite16(SCREEN + 0, 'H', 0x07);
+        g.m.bus.memWrite16(SCREEN + 2, 0xC4, 0x07);     // a line-drawing character (C0-DF)
+        g.m.bus.memWrite16(SCREEN + 4, '_', 0x0F);      // outside C0-DF, bit 0 set on line 12
+        bool hOk = true;                                // 'H', line 2 = C6: ##...##. and a dark 9th
+        for (int d = 0; d < 9; ++d)
+            hOk = hOk && g.pv->dotAt(bx + d, by + 2) ==
+                             ((d < 8 && ((0xC6 >> (7 - d)) & 1)) ? PcVideoBoard::kMonoOn : 0);
+        CHECK(hOk, "'H' from the 9x14 half (A12 = MXSEL = 0): 9 dots, the 9th dark");
+        CHECK(g.pv->dotAt(bx + 9 + 7, by + 7) == PcVideoBoard::kMonoOn &&
+                  g.pv->dotAt(bx + 9 + 8, by + 7) == PcVideoBoard::kMonoOn,
+              "C4 (C0-DF): the 9th dot repeats the 8th, so the line joins the next cell");
+        CHECK(g.pv->dotAt(bx + 18 + 7, by + 12) == PcVideoBoard::kMonoHi &&
+                  g.pv->dotAt(bx + 18 + 8, by + 12) == 0,
+              "'_' (outside C0-DF): the 9th dot stays dark; AT3 = intensity");
+        g.m.bus.memWrite16(SCREEN + 6, 'H', 0x00);
+        CHECK(g.pv->dotAt(bx + 27, by + 2) == PcVideoBoard::kMonoOn,
+              "attribute 00 shows the character: B/W follows the dots (the circuit, not Table 4)");
+        g.m.bus.memWrite16(SCREEN + 8, 'H', 0x70);      // REVERSE
+        CHECK(g.pv->dotAt(bx + 36 + 0, by + 2) == 0 && g.pv->dotAt(bx + 36 + 2, by + 2) == PcVideoBoard::kMonoOn &&
+                  g.pv->dotAt(bx + 36, by + 0) == PcVideoBoard::kMonoOn,
+              "70h: reverse -- the glyph dark on a lit cell");
+        g.m.bus.memWrite16(SCREEN + 10, ' ', 0x01);     // underline
+        CHECK(g.pv->dotAt(bx + 45, by + 12) == PcVideoBoard::kMonoOn &&
+                  g.pv->dotAt(bx + 45 + 8, by + 12) == PcVideoBoard::kMonoOn &&
+                  g.pv->dotAt(bx + 45, by + 11) == 0 && g.pv->dotAt(bx + 45, by + 13) == 0,
+              "01h: underline -- raster line 12 only, all 9 dots");
+        g.m.bus.memWrite16(SCREEN + 12, ' ', 0x09);
+        CHECK(g.pv->dotAt(bx + 54, by + 12) == PcVideoBoard::kMonoHi, "09h: intense underline");
+        g.m.bus.memWrite16(SCREEN + 14, ' ', 0x02);
+        CHECK(g.pv->dotAt(bx + 63, by + 12) == 0, "02h: no underline (AT2-0 must be 001)");
+        g.m.bus.memWrite16(SCREEN + 16, 0xDB, 0x87);    // a block, AT7
+        g.out(8, 0x29);                                 // ENBBLINK
+        bool shown = false, blanked = false;
+        for (int f = 0; f < 32; ++f) {
+            const uint8_t d = g.pv->dotAt(bx + 72, by);
+            shown = shown || d == PcVideoBoard::kMonoOn;
+            blanked = blanked || d == 0;
+            g.run(g.hz() / 50);
+            g.pv->catchUp();
+        }
+        CHECK(shown && blanked, "ENBBLINK 1, AT7 set: the block blinks");
+        uint32_t memMax = 0, memMin = 99;
+        for (int i = 0; i < 64; ++i) {
+            g.m.bus.takeWaitStates();
+            g.m.bus.memReadX(SCREEN);
+            const uint32_t w = g.m.bus.takeWaitStates();
+            memMax = std::max(memMax, w);
+            memMin = std::min(memMin, w);
+            g.run(1);
+        }
+        // At 2 MHz a host T-state is 8.13 master clocks; the 9-clock window (states 3-4) makes
+        // the worst 7 + 1 + 2 = 10 master clocks: 2 T-states.
+        CHECK(memMin >= 1 && memMax <= 2, "mono text: memory 1-2 T-states at 2 MHz");
+    }
+
+    SECTION("pcvideo: mono graphics -- 320 and 640 x 200 in black and white (Table 17, p. 66)");
+    {
+        Rig g({{"monitor", "mono"}});
+        g.text80();
+        g.crtc(0, 0x38);
+        g.crtc(1, 0x28);
+        g.crtc(2, 0x2D);
+        g.crtc(4, 0x7F);
+        g.crtc(6, 0x64);
+        g.crtc(7, 0x70);
+        g.crtc(9, 0x01);
+        g.out(8, 0x0E);                                 // 320 x 200 B/W (Table 17, mono)
+        g.run(g.hz() / 10);
+        g.m.bus.memWriteX(SCREEN, 0x1B);                // pixels 0, 1, 2, 3
+        g.out(9, 0x00);
+        const auto geo = g.pv->geometry();
+        const int bx = geo.borderX, by = geo.borderY;
+        CHECK(geo.width == 640 + 64 && geo.height == 200 + 32, "16 clocks a character: 640 dots");
+        auto px = [&](int p) { return g.pv->dotAt(bx + 2 * p, by); };
+        CHECK(px(0) == 0 && px(1) == PcVideoBoard::kMonoOn && px(2) == PcVideoBoard::kMonoOn &&
+                  px(3) == PcVideoBoard::kMonoOn,
+              "320 x 200: 00 dark, any other pixel lit");
+        g.out(9, 0x10);
+        CHECK(px(1) == PcVideoBoard::kMonoHi, "BAKHI = intensity");
+        g.out(8, 0x1E);                                 // 640 x 200
+        g.out(9, 0x00);
+        CHECK(g.pv->dotAt(bx + 3, by) == PcVideoBoard::kMonoOn && g.pv->dotAt(bx + 0, by) == 0,
+              "640 x 200: a set bit lit, a clear one dark");
+        g.out(9, 0x08);
+        CHECK(g.pv->dotAt(bx + 3, by) == PcVideoBoard::kMonoHi, "640 x 200: OVRHI = intensity");
+        CHECK(g.pv->windowHeight() == g.pv->barHeight() + (3 * geo.height + 1) / 2,
+              "mono: lines drawn 1.5x");
+    }
+
     SECTION("pcvideo: the title bar -- the title in the board's font; title and titlebar");
     {
         Rig g;
@@ -462,11 +573,12 @@ void test_pcvideo() {
         CHECK(g.pv->barHeight() == 0 && g.pv->windowHeight() == 464, "titlebar = false: no bar");
     }
 
-    SECTION("pcvideo: straps -- the font, mono refused, the address checks");
+    SECTION("pcvideo: straps -- the font, the monitor, the address checks");
     {
         Rig g;
         std::string err;
-        CHECK(!setProperty(*g.pv, "monitor", "mono", err), "monitor = mono is refused (stage 3)");
+        CHECK(setProperty(*g.pv, "monitor", "mono", err), ("monitor = mono (stage 3): " + err).c_str());
+        CHECK(setProperty(*g.pv, "monitor", "color", err), err.c_str());
         CHECK(!setProperty(*g.pv, "font", "builtin:nosuch", err), "an unknown built-in font");
         CHECK(!setProperty(*g.pv, "memory", "0B9000", err), "memory not on a 16K boundary");
         CHECK(!setProperty(*g.pv, "ports", "03D8", err), "ports not on a 16-port boundary");

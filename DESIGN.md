@@ -1339,8 +1339,7 @@ return "not supported" (`PCMODE.A86`).
   (the keyboard), `PCMODE.A86`, `GLOBAL.EQU`. It is not a source for the hardware.
 
 **Scope.** Color mode first (the user's choice, 2026-11-20). The monochrome half of the board
-(S2-9 ON) is a later stage: the strap exists from the start, and `mono` is refused until that
-stage is built.
+(S2-9 ON) was stage 3 (built 2026-11-21).
 
 #### What the board does (the facts the model needs)
 
@@ -1451,7 +1450,7 @@ are not in the manual. They are a model decision.
 
 **Straps (properties).** `memory` (S1-2..9: a 16K boundary below `400000`, default
 `0B8000`), `ports` (S2-1..8: a 16-port boundary below `1000`, default `03D0`), `wom` (S1-1 OFF), `phantom` (S2-10), `monitor`
-(`color` | `mono`, S2-9; `mono` refused until stage 3), `select` (J3, the bit of port 0, 0-7),
+(`color` | `mono`, S2-9), `select` (J3, the bit of port 0, 0-7),
 `flip` (J2, port 1 on or off), `vi` (J4, default 5, or `none`), `cursor_blink` (J5), `font`
 (the PROM image, default `builtin:pcvideo`), `lightpen`. Live status: the mode, the color
 register, the board select, the flip, the 6845's registers, the keyboard flag.
@@ -1481,7 +1480,32 @@ There are three ways, all real CompuPro ways (pp. 8-9):
    AUTO.BAT, and runs a PC Mode program (INT 21h) and a SPUZ task, typed on the board's keyboard.
    The rebuilt system stays out of the repository: DRI and CompuPro files.)
 3. Monochrome mode: the 9x14 PROM half, the 9th dot, underline and reverse (Table 31), the
-   16.257 MHz clock.
+   16.257 MHz clock. (DONE 2026-11-21: `monitor = mono`; tests in `tests/test_pcvideo.cpp`.
+   The CompuPro 4.1 XIOS rebuilt with `MONO_PC = 1`: see the board page.)
+
+**Settled for stage 3 (2026-11-21).**
+
+- **Mono timing** (pp. 41-45, Tables 21-22). MXSEL low selects X1, 16.257 MHz. A text character
+  is 9 master clocks: the PAL adds a "stretch" state at the start of the host phase and opens
+  the request window one clock longer, so a request is taken at state 3 or 4. Graphics stay at
+  16 clocks. The 40x25 mode does not exist on a mono monitor (Table 22: invalid); the model
+  draws it at 16 clocks and does not refuse it.
+- **Mono text** (pp. 9-10, 61-64, Tables 4, 29-31). U6 A12 = MXSEL = 0: the 9x14 half, 14
+  scan bytes a character. U3/U4 make the 9th dot: 0, or the 8th for C0-DF. Table 31:
+  underline = AT6-4 000, AT2-0 001 on raster line 12 (forces ADOTS); REVERSE = AT6-4 111, AT2-0
+  000 (XORed with ADOTS). The B/W line follows the multiplexer's group (pp. 65-66): lit = the
+  foreground group (intensity AT3); the background group (intensity INTENS) is dark.
+- **Two places where the manual contradicts itself; the model follows the circuit** (the
+  user's choice, 2026-11-21). Table 4 calls attribute 00 a blank character; the decoder has no
+  blank function, so 00 shows the character. Table 4 calls AT7 "intensify reverse character";
+  by the circuit AT7 (ENBBLINK 0) is the background group's intensity, which a mono monitor does
+  not show.
+- **Model decisions.** The monitor is green (IBM 5151-type P39): black, green, bright green;
+  video off is black whatever the intensity says (the user's choice, 2026-11-21). The border is
+  black on a mono monitor (MUXA high selects the background group, B/W low; p. 65). Mono lines
+  are drawn 1.5 times (720 x 350 near 4:3).
+- **Mono graphics** (Table 17, p. 66). 320x200: any pixel but 00 is lit, BAKHI = intensity.
+  640x200: a set bit is lit, OVRHI = intensity.
 
 **Out of scope.** The composite output, J1 (it moves the picture one character), up to eight
 boards behind the board select (the XIOS allows one), and the 32K boards that `GLOBAL.EQU`

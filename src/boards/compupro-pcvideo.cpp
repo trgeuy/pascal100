@@ -27,7 +27,10 @@ std::set<PcVideoBoard*> g_live;   // every board alive, for forOwner()
 // The 16 colors of Table 10, as an RGBI monitor shows them. THE LEVELS ARE A MODEL DECISION,
 // not the manual's: 2/3 for each color line, 1/3 more with intensity, and the green of color 6
 // at half, so that it is the brown Table 10 names (DESIGN.md 7.4.1).
-const Color kPalette[17] = {
+// 17 and 18 are the green phosphor of a monochrome (IBM 5151-type, P39) monitor: video, and
+// video with intensity. Video off is black whatever the intensity line says. ALSO A MODEL
+// DECISION (the user's choice, 2026-11-21): the board puts out B/W and intensity only.
+const Color kPalette[19] = {
     {0x00, 0x00, 0x00, 255}, {0x00, 0x00, 0xAA, 255}, {0x00, 0xAA, 0x00, 255},
     {0x00, 0xAA, 0xAA, 255}, {0xAA, 0x00, 0x00, 255}, {0xAA, 0x00, 0xAA, 255},
     {0xAA, 0x55, 0x00, 255}, {0xAA, 0xAA, 0xAA, 255}, {0x55, 0x55, 0x55, 255},
@@ -35,6 +38,8 @@ const Color kPalette[17] = {
     {0xFF, 0x55, 0x55, 255}, {0xFF, 0x55, 0xFF, 255}, {0xFF, 0xFF, 0x55, 255},
     {0xFF, 0xFF, 0xFF, 255},
     {0xB4, 0xB4, 0xB4, 255},  // 16: the title bar, the terminal windows' neutral gray
+    {0x28, 0xC8, 0x50, 255},  // 17: mono, video
+    {0x90, 0xFF, 0xA8, 255},  // 18: mono, video + intensity
 };
 
 // ---------------------------------------------------------------------------
@@ -129,8 +134,8 @@ void PcVideoBoard::catchUp() {
     const uint64_t hz = (uint64_t)clock_->hz();
     const uint64_t dt = now - anchorT_;
     anchorT_ = now;
-    const uint64_t part = (dt % hz) * (uint64_t)kMasterHz + rem_;
-    const uint64_t mclk = (dt / hz) * (uint64_t)kMasterHz + part / hz;
+    const uint64_t part = (dt % hz) * (uint64_t)masterHz() + rem_;
+    const uint64_t mclk = (dt / hz) * (uint64_t)masterHz() + part / hz;
     rem_ = part % hz;
     const uint64_t per = (uint64_t)mclkPerChar();
     const uint64_t total = mclkPhase_ + mclk;
@@ -139,8 +144,10 @@ void PcVideoBoard::catchUp() {
 }
 
 // PRDY (pp. 44-45, 48, 51-52). The request waits for the next transfer window of the
-// character clock: state 3 of an 8-clock cycle, states 4-11 of a 16-clock cycle. The transfer
-// starts one master clock later and takes 2 master clocks, or 8 for the 6845.
+// character clock: state 3 of an 8-clock cycle; states 3-4 of a 9-clock cycle (mono text: the
+// "stretch" state also stretches the request window by one master clock, p. 45); states 4-11
+// of a 16-clock cycle. The transfer starts one master clock later and takes 2 master clocks,
+// or 8 for the 6845.
 void PcVideoBoard::waitFor(bool crtcPort) {
     if (!clock_) return;
     const uint64_t per = (uint64_t)mclkPerChar();
@@ -148,11 +155,13 @@ void PcVideoBoard::waitFor(bool crtcPort) {
     uint64_t w;
     if (per == 8)
         w = (3 + 8 - ph) % 8;
+    else if (per == 9)
+        w = (ph == 3 || ph == 4) ? 0 : (ph < 3 ? 3 - ph : 9 - ph + 3);
     else
         w = (ph >= 4 && ph <= 11) ? 0 : (ph < 4 ? 4 - ph : 16 - ph + 4);
     const uint64_t mclk = w + 1 + (crtcPort ? 8 : 2);
     const uint64_t hz = (uint64_t)clock_->hz();
-    holdReady((uint32_t)((mclk * hz + (uint64_t)kMasterHz - 1) / (uint64_t)kMasterHz));
+    holdReady((uint32_t)((mclk * hz + (uint64_t)masterHz() - 1) / (uint64_t)masterHz()));
 }
 
 // ---------------------------------------------------------------------------
@@ -455,7 +464,10 @@ void PcVideoBoard::pointer(const Display::Pointer& p) {
     }
     penOn_ = true;
     penX_  = p.x;
-    penY_  = (p.y - barHeight()) / 2;        // below the title bar; each scan line twice
+    {                                        // below the title bar; lines drawn 2x or 1.5x
+        const int h = geometry().height, drawn = windowHeight() - barHeight();
+        penY_ = drawn > 0 ? (p.y - barHeight()) * h / drawn : 0;
+    }
     if (clock_ && penEvt_ != Clock::kNone) {
         clock_->cancel(penEvt_);
         penEvt_ = Clock::kNone;
@@ -474,7 +486,7 @@ void PcVideoBoard::armPen() {
     const uint64_t per = (uint64_t)mclkPerChar();
     const uint64_t mclk = cclk * per > mclkPhase_ ? cclk * per - mclkPhase_ : 1;
     const uint64_t hz = (uint64_t)clock_->hz();
-    const uint64_t t = std::max<uint64_t>(1, (mclk * hz + (uint64_t)kMasterHz - 1) / (uint64_t)kMasterHz);
+    const uint64_t t = std::max<uint64_t>(1, (mclk * hz + (uint64_t)masterHz() - 1) / (uint64_t)masterHz());
     penEvt_ = clock_->after(t, [this] {
         penEvt_ = Clock::kNone;
         penStrobe();
@@ -514,9 +526,14 @@ uint8_t PcVideoBoard::textDot(int col, int line, int dot) const {
     const uint32_t w = ma & 0x1FFF;          // CA0-CA12 (sheet 8)
     const uint8_t ch = ram_[2 * w];
     const uint8_t at = ram_[2 * w + 1];
-    const uint8_t glyph = prom_[0x1000 | ((uint32_t)ch << 4) | (ra & 0x0F)];   // MXSEL = 1
-    const int bit = mclkPerChar() == 8 ? dot : dot / 2;
-    bool on = (glyph >> (7 - bit)) & 1;
+    // U6 A12 = MXSEL: the color half (1) or the mono half (0) of the PROM (p. 42).
+    const uint8_t glyph = prom_[(mono_ ? 0u : 0x1000u) | ((uint32_t)ch << 4) | (ra & 0x0F)];
+    const int per = mclkPerChar();
+    bool on;
+    if (per == 9)        // mono: 9 dots; the 9th is 0, or the 8th again for C0-DF (U3, U4; p. 62)
+        on = dot < 8 ? ((glyph >> (7 - dot)) & 1) : (((ch & 0xE0) == 0xC0) && (glyph & 1));
+    else
+        on = (glyph >> (7 - (per == 8 ? dot : dot / 2))) & 1;
     const uint8_t fg = at & 0x0F;
     uint8_t bg = (at >> 4) & 0x07;
     if (mode_ & kBlink) {
@@ -526,6 +543,19 @@ uint8_t PcVideoBoard::textDot(int col, int line, int dot) const {
     }
     const bool curBlinkOn = !cursorBlink_ || ((crtc_.fields() / 16) & 1) == 0;   // /32, J5
     if (curBlinkOn && crtc_.cursorAt(ma, ra)) on = true;
+    if (mono_) {
+        // Table 31 (MXSEL = 0 only). Underline: AT6-4 = 000, AT2-0 = 001, raster row 12: ADOTS
+        // forced high. REVERSE: AT6-4 = 111, AT2-0 = 000: XORed with ADOTS (p. 64). The B/W
+        // line follows the group the multiplexer picks: lit = the foreground group, whose
+        // intensity is AT3; the background group (intensity INTENS = AT7) is dark, and a
+        // mono monitor shows video off as black (pp. 65-66; DESIGN.md 7.4.1). The color bits
+        // otherwise do not matter: attribute 00 shows the character, as the circuit does
+        // (Table 4 calls it blank; the user's choice, 2026-11-21).
+        if ((at & 0x77) == 0x01 && (ra & 0x0F) == 12) on = true;
+        const bool lit = on != ((at & 0x77) == 0x70);
+        if (!lit) return 0;
+        return (at & 0x08) ? kMonoHi : kMonoOn;
+    }
     return on ? fg : bg;
 }
 
@@ -538,11 +568,14 @@ uint8_t PcVideoBoard::graphicsDot(int col, int line, int dot) const {
     const uint8_t o = ram_[2 * w + 1];
     if (mode_ & kSbw2) {                     // 640 x 200: one bit a dot, even byte first
         const int bit = dot < 8 ? (e >> (7 - dot)) & 1 : (o >> (15 - dot)) & 1;
+        if (mono_) return bit ? ((color_ & 0x08) ? kMonoHi : kMonoOn) : 0;   // OVRHI
         return bit ? (color_ & 0x0F) : 0;
     }
     const int pix = dot / 2;                 // 320 x 200: two bits a pixel, two dots wide
     const uint8_t byte = pix < 4 ? e : o;
     const int p = (byte >> (6 - 2 * (pix & 3))) & 3;
+    if (mono_)                               // B/W: any pixel but 00 is lit; BAKHI = intensity
+        return p ? ((color_ & 0x10) ? kMonoHi : kMonoOn) : 0;
     if (p == 0) return color_ & 0x0F;        // the background color (Table 32)
     const int g = p & 1, r = (p >> 1) & 1;   // b0 green, b1 red (p. 13)
     const int b = (mode_ & kSbw1) ? g : (color_ >> 5) & 1;   // SELBLU (p. 66)
@@ -556,7 +589,9 @@ uint8_t PcVideoBoard::dotAt(int x, int y) const {
     const int dx = x - g.borderX, dy = y - g.borderY;
     if (g.cols == 0 || g.lines == 0 || dx < 0 || dy < 0 || dx >= g.cols * g.dotsPerChar ||
         dy >= g.lines)
-        return ((mode_ & kGrph) && (mode_ & kSbw2)) ? 0 : (color_ & 0x0F);   // the border
+        // The border: the color register, but black in 640x200 graphics, and always black on
+        // a mono monitor (MUXA high = the background group, B/W low; p. 65).
+        return (mono_ || ((mode_ & kGrph) && (mode_ & kSbw2))) ? 0 : (color_ & 0x0F);
     const int col = dx / g.dotsPerChar, dot = dx % g.dotsPerChar;
     return (mode_ & kGrph) ? graphicsDot(col, dy, dot) : textDot(col, dy, dot);
 }
@@ -776,15 +811,15 @@ std::vector<Property> PcVideoBoard::properties() {
     {
         Property x;
         x.name    = "monitor";
-        x.help    = "S2-9: color (OFF) or mono (ON). Only color is built so far";
+        x.help    = "S2-9: color (OFF: 14.31818 MHz, RGBI) or mono (ON: 16.257 MHz, 9x14 "
+                    "characters, underline and reverse, a green monitor)";
         x.kind    = Kind::Enum;
         x.choices = {"color", "mono"};
-        x.get     = [] { return Value::ofStr("color"); };
-        x.set     = [](const Value& v, std::string& err) {
-            if (v.s() == "mono") {
-                err = "monochrome mode (S2-9 ON) is not built yet: only color";
-                return false;
-            }
+        x.get     = [this] { return Value::ofStr(mono_ ? "mono" : "color"); };
+        x.set     = [this](const Value& v, std::string&) {
+            catchUp();                       // time so far ran on the old crystal
+            mono_  = v.s() == "mono";
+            dirty_ = true;
             return true;
         };
         p.push_back(std::move(x));

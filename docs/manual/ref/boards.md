@@ -839,7 +839,7 @@ CompuPro (Viasyn) PC Video (board 229D): 16K of screen RAM, a Motorola 6845, an 
 | `ports` | int | `0x3D0` | `0x0` .. `0xFF0` | S2-1..8: the 16 ports, A11-A4 (default 03D0, IBM's color ports). A multiple of 10 below 1000 |
 | `wom` | bool | `false` | `on` \| `off` | S1-1 OFF: write-only memory. The board takes writes; another RAM board at the same address answers reads (off: read and write) |
 | `phantom` | bool | `false` | `on` \| `off` | S2-10 ON: pull PHANTOM* while the screen RAM is addressed (off, as normally set) |
-| `monitor` | enum | `color` | `color` \| `mono` | S2-9: color (OFF) or mono (ON). Only color is built so far |
+| `monitor` | enum | `color` | `color` \| `mono` | S2-9: color (OFF: 14.31818 MHz, RGBI) or mono (ON: 16.257 MHz, 9x14 characters, underline and reverse, a green monitor) |
 | `select` | int | `0` | `0` .. `7` | J3: the bit of port 0 that enables this board, 0-7 (default 0) |
 | `flip` | bool | `true` | `on` \| `off` | J2 A-C: port 1 can move the board to the monochrome addresses (on). Off is J2 B-C |
 | `interrupt` | enum | `vi5` | `none` \| `int` \| `vi0` \| `vi1` \| `vi2` \| `vi3` \| `vi4` \| `vi5` \| `vi6` \| `vi7` | J4: the VI line the keyboard and light pen pull (vi5, CompuPro's standard) *(interrupt strap)* |
