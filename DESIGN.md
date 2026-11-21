@@ -343,8 +343,10 @@ Jade DD does (`JadeDdBoard::catchUp`, `runTo`):
    that point. The conversion is board T = host T x board crystal / host `hz()`, with the
    remainder carried. A host-visible event is a host cycle that the board decodes, or a host
    deadline.
-3. Host `hz()` is never 0 (§8). Flat out, the host still counts T-states at its nominal crystal.
-   So flat out gives the same ratio of board time to host time as a paced run.
+3. Host `hz()` is never 0 (§8). Flat out, the host counts T-states at the 2 MHz divisor of §8,
+   not at its card's crystal. (Corrected 2026-11-20: this said "its nominal crystal".) So flat
+   out gives the same ratio as a paced run at 2 MHz. On a CPU 286, sold at 8 MHz and up, the Z80
+   gets four times the T-states per host clock that it gets at `clock_hz = 8000000`.
 4. While the board can raise its VI line, a host deadline catches it up once each 1 ms of host
    time. The SPUZ can always raise VI0, so this deadline runs while its Z80 runs.
 
@@ -478,7 +480,11 @@ halts the Z80. With no task, it loops at FD00h. So an idle SPUZ costs as much as
    is a ring of its own and opt-in (`history = on`): a shared ring would show a burst of board
    instructions out of order with the host's, and the Z80 never halts.)
 5. Concurrent DOS: `SPZ`, `SW!SPUZ` as `SW!.CMD`, HELLO and MBASIC on one board; then the
-   measurement of the slave limit.
+   measurement of the slave limit. (DONE 2026-11-20 on Concurrent DOS 8-16 3.1D and 4.1, the
+   latter built from CompuPro's XIOS 4.1D source: four tasks per 256K board, a fifth refused,
+   tasks spread over boards; 1-16 boards run, 16 idle boards at 1.35x real time. Results:
+   `docs/boards/compupro-spuz.md`. CompuPro's `SLAVE.RSP` is not for this `SPZ.CMD`: it waits on
+   flag 99h, which `SPZ.CMD` gives to a bank, and two tasks end up in one bank.)
 
 ### 3.1 Core semantics
 

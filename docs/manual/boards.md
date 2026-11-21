@@ -450,8 +450,37 @@ the real board, this access stops the S-100 bus forever. `pascal100` lets the ac
 the board, write `08` to `FC41`, and then access the board. To load a program, halt the Z80
 first: put a `HLT` (`76`) at address 0, reset the Z80, and let it run again.
 
-The window pulls PHANTOM\*. RAM under the window that obeys PHANTOM\* for reads and writes
-(`honors_phantom = "all"`) gives the window to the SPUZ.
+**Leave a hole in the RAM for the window.** CompuPro's `SPZ.CMD` finds each board by writing
+`E0000` and reading it back. RAM under the window answers for a select that has no board, so every
+select looks like a board. With the window at `0E` and 1 MB of RAM:
+
+```toml
+[[board]]
+type = "memory"
+id   = "mem0"
+ext  = true
+honors_phantom = "read"   # for the Disk 1A boot ROM, as in the other Concurrent DOS machines
+  [[board.region]]
+  type = "ram"
+  at   = 000000
+  size = "896K"
+  [[board.region]]
+  type = "ram"
+  at   = 0F0000
+  size = "64K"
+```
+
+Concurrent DOS 8-16 then reports 896K. To run 8-bit programs on the board, install CompuPro's
+switch and start the SPUZ manager:
+
+1. Copy `SW!SPUZ.CMD` to `A:SW!.CMD`. Mark it with `SET A:SW?.CMD [SYS RO F1=ON F3=ON]` (CompuPro's
+   `SPUZ.BAT`; `!` separates commands on the command line, so `SW?` names the file).
+2. Put `SPZ` in `A:AUTO.BAT`, or type `SPZ` once after each boot.
+3. Mark each 8-bit program: `SET NAME.COM [F1=ON F2=ON F3=ON F4=ON SYS RO]` (CompuPro's `8BIT.SUB`).
+   Then type its name.
+
+Each board runs one task in each 64K bank: four on a 256K board. Concurrent DOS gives the next task
+to the board with the most free banks.
 
 `SHOW` gives the PC of the board's Z80, its state, the two banks and the interrupt line:
 

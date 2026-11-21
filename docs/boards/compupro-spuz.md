@@ -2,7 +2,8 @@
 
 **Status:** partial. The board, its window, its ports, its reset, its banks, its VI line and its
 2681 are done (stage 3 of DESIGN.md §3.0.4). The debugger reaches the board Z80 as `spuz0:z80`
-(stage 4). Concurrent DOS with `SPZ.CMD` and `SW!SPUZ` is not tested yet (stage 5).
+(stage 4). Concurrent DOS 8-16 3.1D and 4.1 run 8-bit programs on it with `SPZ.CMD` and `SW!SPUZ`
+(stage 5).
 
 ## The real hardware
 
@@ -191,8 +192,17 @@ starts at 0000h in bank 3.
 - **The board's time skips while its Z80 is held.** The host time that passes between the hit
   and the host boundary is run when the Z80 is let go, so board time stays host time x 8 MHz /
   host `hz()`.
-- **Performance is not measured yet.** CompuPro's scheduler never halts the Z80, so an idle SPUZ
-  costs as much as a busy one. Stage 5 measures 1, 2, 4, 8 and 16 boards.
+- **Every SPUZ costs host time, busy or idle.** CompuPro's scheduler never halts the Z80. Measured
+  2026-11-20 (Concurrent DOS 4.1, CPU 286 flat out, the Z80 at 8 MHz, an Apple Silicon Mac), the
+  emulated seconds per wall-clock second after the boot, with every board idle:
+
+  | Boards | 1 | 2 | 4 | 8 | 16 |
+  |---|---|---|---|---|---|
+  | Emulated s per wall s | 2.90 | 2.69 | 2.29 | 1.85 | 1.35 |
+
+- **Board time against host time follows the host divisor.** Flat out, every pascal100 CPU card
+  gives the clock a 2 MHz divisor (DESIGN.md §8), so the CPU 286 counts as a 2 MHz part and the
+  Z80 gets 4 T-states for each 80286 clock. At `clock_hz = 8000000` it gets 1.
 
 ## Verification
 
@@ -212,6 +222,12 @@ starts at 0000h in bank 3.
 - three boards share the window with no contention; two boards with one select are refused;
 - the window pulls PHANTOM\* over 1M of RAM; a bus reset deselects and resets the board;
 - a snapshot taken mid-loop restores and finishes at the same board T-state;
+- stage 5 (by hand, Concurrent DOS on the CPU 286 with an Interfacer 3; not in the test suite: the
+  disks are CompuPro and DRI files): `SPZ` finds 1-16 boards; `SW!SPUZ` runs a BDOS 9 program and
+  MBASIC 5.2; four tasks run at once in the four banks of one board, and a fifth gets "SW: No space
+  available for 8 bit program"; 4 tasks on 2 boards run 2 per board. A Z80-only loop of 86M T-states
+  takes 11.2 s alone, 22.4 s with 2 tasks on a board, 44.4 s with 4, 22.6-22.9 s with 4 on 2 boards and
+  11.8-12.1 s with 4 on 4 boards;
 - stage 4: `spuz0:z80` resolves in any case and tags its lines; a breakpoint on it holds the Z80
   and its clock, stops the host run, and is passed once on the next run; with no breakpoint the
   Z80 goes on; STEP runs the Z80 and not the host, and is refused in reset; `history` records
