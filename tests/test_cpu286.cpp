@@ -6,6 +6,7 @@
 
 #include "boards/compupro-cpu286.h"
 #include "boards/s100-memory.h"
+#include "cli/monitor.h"
 #include "core/debug.h"
 #include "core/machine.h"
 #include "core/statefile.h"
@@ -13,6 +14,7 @@
 #include <cstdio>
 #include <filesystem>
 #include <fstream>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -183,8 +185,32 @@ void test_cpu286() {
         CHECK(clocks("B", out) == clocks("", out) + 1, "B: one wait on the I/O cycle");
         CHECK(clocks("BE", out) == clocks("", out) + 3, "B + E: three");
         CHECK(clocks("H", wr) == clocks("", wr) + 1, "H: one on the memory write");
-        CHECK(clocks("A", wr) == clocks("", wr) + 4, "A: one on each of the 4 memory cycles "
-                                                    "(3 fetch bytes + the write)");
+        CHECK(clocks("A", wr) == clocks("", wr) + 3, "A: one on each of the 3 memory cycles "
+                                                    "(2 fetch words + the write)");
+    }
+
+    SECTION("cpu286: code is fetched a word at a time -- two NOPs in one word, one cycle");
+    {
+        auto clocks = [](const char* w, int steps) {
+            Rig286b g({{"waits", w}});
+            g.load(0x0FFFF0, {0x90, 0x90, 0x90, 0xF4});
+            return g.run((uint64_t)steps).tStates;
+        };
+        CHECK(clocks("A", 1) == clocks("", 1) + 1, "the first NOP: one word fetch");
+        CHECK(clocks("A", 2) == clocks("", 2) + 1, "the second NOP is in that word: no cycle");
+        CHECK(clocks("A", 3) == clocks("", 3) + 2, "the third NOP: the next word");
+    }
+
+    SECTION("cpu286: DISASM after reset reads FFFFF0 (CS base FF0000), not 0FFFF0");
+    {
+        Rig286b g({{"mm_lines", "0"}});
+        g.load(0xFFFFF0, {0xF4});                      // HLT where the 80286 fetches
+        g.load(0x0FFFF0, {0xFA});                      // CLI at CS*16+IP
+        Monitor mon(g.m);
+        std::ostringstream o;
+        mon.exec("DISASM", o);
+        CHECK(o.str().find("HLT") != std::string::npos && o.str().find("CLI") == std::string::npos,
+              ("DISASM decodes the bytes the 80286 fetches: " + o.str()).c_str());
     }
 
     SECTION("cpu286: RESET clears the memory manager");

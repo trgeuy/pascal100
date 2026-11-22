@@ -122,9 +122,12 @@ template <
 	// Currently a special case for descriptor loading; assumes an indirect operand and returns the
 	// address indicated. Unlike [source/destination]_r it doesn't read an IntT from that address,
 	// since those instructions load an atypical six bytes.
+	// pascal100: through the switch on the operand's form, as source_address does. Upstream
+	// always took Source::Indirect, so [disp16] (DirectAddress) and [BX] (IndirectNoBase)
+	// added registers that are not in the operand.
 	const auto source_indirect = [&]() -> AddressT {
 		return AddressT(
-			address<Source::Indirect, AddressT, AccessType::Read>(instruction, instruction.source(), context)
+			address<AddressT, AccessType::Read>(instruction, instruction.source(), context)
 		);
 	};
 
@@ -880,15 +883,14 @@ void fault(
 		context.registers.ip() = source_ip;
 	}
 
-	try {
-		InstructionSet::x86::interrupt(
-			exception,
-			context
-		);
-	} catch (const InstructionSet::x86::Exception exception) {
-		// TODO: unsure about this. Probably just recurse?
-		printf("DOUBLE FAULT TODO!");
-	}
+	// pascal100: a second exception while this one is delivered leaves here for the caller
+	// (the 80286 shuts down: real mode gives the double fault nowhere to go, it needs the
+	// same stack). Upstream caught it and printed "DOUBLE FAULT TODO!" to stdout, which
+	// is the JSON-RPC stream under --mcp, and ran on with the registers half changed.
+	InstructionSet::x86::interrupt(
+		exception,
+		context
+	);
 }
 
 }

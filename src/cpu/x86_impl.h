@@ -106,24 +106,31 @@ struct BusMemory {
         return w.wide && (address & 1) == 0 && next(address, base) == address + 1;
     }
 
-    template <typename IntT> IntT read2(uint32_t address, uint32_t base) {
+    // The address of the word after the one at `address` (a 32-bit value is two words).
+    static uint32_t nextWord(uint32_t address, uint32_t base) { return next(next(address, base), base); }
+
+    template <typename IntT> IntT read2(uint32_t address, uint32_t base, uint8_t status = kStRead) {
         if constexpr (sizeof(IntT) == 1) {
-            return rd(address);
+            return rd(address, status);
+        } else if constexpr (sizeof(IntT) == 4) {
+            // Only LGDT and LIDT (the base, after the limit): two words, low first.
+            const uint32_t lo = read2<uint16_t>(address, base, status);
+            return IntT(lo | (uint32_t(read2<uint16_t>(nextWord(address, base), base)) << 16));
         } else {
             if (oneCycle(address, base)) {
                 const uint32_t p = phys(address);
                 if (w.local && w.local->cycle(p, false))   // the card's 16-bit memory: one cycle
                     return IntT(w.local->read(p) | (w.local->read(p + 1) << 8));
-                Transfer16 t = w.bus->memRead16(p, kStRead);
+                Transfer16 t = w.bus->memRead16(p, status);
                 if (!t.sixtn) {
                     ++w.words;
                     if (w.local) (void)w.local->cycle(p + 1, false);   // the second cycle's waits
-                    t = w.bus->byteSerialRead16(p, true, kStRead);
+                    t = w.bus->byteSerialRead16(p, true, status);
                 }
                 return IntT(t.even | (t.odd << 8));
             }
             ++w.words;  // the 8088, or a word at an odd address: two byte cycles
-            const uint8_t lo = rd(address);
+            const uint8_t lo = rd(address, status);
             const uint8_t hi = rd(next(address, base));
             return IntT(lo | (hi << 8));
         }
@@ -182,6 +189,7 @@ struct BusMemory {
         const uint8_t* p = reinterpret_cast<const uint8_t*>(&bufs[cur]);
         if (wbSize >= 2) word(wbAddr, wbBase, p[0], p[1]);
         else             wr(wbAddr, p[0]);
+        if (wbSize == 4) word(nextWord(wbAddr, wbBase), wbBase, p[2], p[3]);
         wbSize = 0;
     }
 
@@ -189,6 +197,9 @@ struct BusMemory {
         address &= MaxAddress - 1;
         if constexpr (sizeof(IntT) >= 2) word(address, base, uint8_t(value), uint8_t(value >> 8));
         else                             wr(address, uint8_t(value));
+        // SGDT and SIDT store the base as 32 bits: the second word.
+        if constexpr (sizeof(IntT) == 4)
+            word(nextWord(address, base), base, uint8_t(value >> 16), uint8_t(value >> 24));
     }
 
     void preauthorise_read(uint32_t, uint32_t) {}
@@ -277,6 +288,13 @@ struct Impl {
     bool repActive = false; // a REP string instruction is part way through
     bool refill = false;    // 80286: the last step moved CS:IP; the next instruction pays
                             // 1 clock per byte (Programmer's Reference 8.2)
+    bool shutdown = false;  // 80286: stopped after an interrupt it could not deliver; only
+                            // NMI or RESET goes on (Programmer's Reference 11.6)
+    // The 16-bit bus fetches code a word at a time, from an even address. The last word
+    // fetched: the next instruction does not fetch it again when it starts in it. Not in a
+    // snapshot (the first word after RESTORE is fetched again).
+    uint32_t fetchWord = 0;
+    bool fetchWordValid = false;
 
     Impl() : memory(registers, segments, linear_memory), segments(registers, linear_memory),
              flow_controller{registers, segments} {}
@@ -287,12 +305,38 @@ struct Impl {
         return (csBase() + R.ip()) & (kMax - 1);
     }
     void resyncSegments() { segments.reset(); }
+    // One segment register changed by hand: only its base follows. resyncSegments() would
+    // also give CS the base CS*16, and the 80286 base after reset (FF0000) is not that.
+    void reloadSegment(x86::Source s) {
+        segments.descriptors[s].set_segment(registers.segment(s));
+    }
 
-    // An interrupt or exception, through the vector table at 0000:0000.
-    void interrupt(uint8_t vector) {
-        x86::interrupt(x86::Exception::interrupt(vector), *this);
-        halted = false;
+    // THE 80286 SHUTS DOWN when it cannot deliver an interrupt or exception: "the 80286 will
+    // shut down if the SP = 1, 3, or 5 before executing the INT or INTO instruction" (INT
+    // n), and a fault while it delivers a double fault (9.6.2). It stops as HLT does; INTR
+    // cannot end it, NMI or RESET can (11.6). CLK throws before it pushes anything, so the
+    // registers are as they were.
+    void enterShutdown() {
+        shutdown = true;
+        halted = true;
         repActive = false;
+        fetchWordValid = false;
+    }
+
+    // An interrupt or exception, through the vector table at 0000:0000. False: the 80286
+    // could not push FLAGS, CS and IP, and shut down.
+    bool interrupt(uint8_t vector) {
+        try {
+            x86::interrupt(x86::Exception::interrupt(vector), *this);
+        } catch (const x86::Exception&) {
+            enterShutdown();
+            return false;
+        }
+        halted = false;
+        shutdown = false;
+        repActive = false;
+        fetchWordValid = false;
+        return true;
     }
 };
 
@@ -306,11 +350,13 @@ template <x86::Model M> void jumpFar(Impl<M>& c, uint16_t cs, uint16_t ip) {
     c.registers.ip() = ip;
     c.resyncSegments();
     c.repActive = false;
+    c.fetchWordValid = false;
 }
 
 // setPc keeps CS when the address is in the 64K that CS covers, and otherwise loads
-// CS = address/16, IP = address%16. Returns false, changing nothing, for an address no
-// real-mode CS can reach (above FFFFF on the 80286; the caller handles it).
+// CS = address/16, IP = address%16. On the 80286, 100000-10FFEF is FFFF:0010-FFFF:FFFF (24
+// address lines: real mode does not wrap at 1 MB). Returns false, changing nothing, for an
+// address no real-mode CS can reach (above 10FFEF on the 80286; the caller handles it).
 template <x86::Model M> bool setPc(Impl<M>& c, uint32_t v) {
     constexpr uint32_t kMask = Impl<M>::kMax - 1;
     v &= kMask;
@@ -318,13 +364,19 @@ template <x86::Model M> bool setPc(Impl<M>& c, uint32_t v) {
     const uint32_t off = (v - c.csBase()) & kMask;   // modulo the address space: wraps
     if (off <= 0xFFFF) {
         R.ip() = uint16_t(off);
-    } else {
-        if (v > 0xFFFFF) return false;
+    } else if (v <= 0xFFFFF) {
         R.cs() = uint16_t(v >> 4);
         R.ip() = uint16_t(v & 0xF);
-        c.resyncSegments();
+        c.reloadSegment(x86::Source::CS);
+    } else if (M >= x86::Model::i80286 && v <= 0x10FFEF) {
+        R.cs() = 0xFFFF;
+        R.ip() = uint16_t(v - 0xFFFF0);
+        c.reloadSegment(x86::Source::CS);
+    } else {
+        return false;
     }
     c.repActive = false;
+    c.fetchWordValid = false;
     return true;
 }
 
@@ -342,6 +394,8 @@ template <x86::Model M> void reset(Impl<M>& c) {
     c.shadow = false;
     c.repActive = false;
     c.refill = false;
+    c.shutdown = false;
+    c.fetchWordValid = false;
     c.flow_controller.halted = c.flow_controller.repeat = false;
     // nmiLast is NOT reset: a line held through reset is not a new edge.
 }
@@ -363,11 +417,11 @@ StepResult step(Impl<M>& c, Bus& bus, uint32_t high, uint32_t highMask, bool wid
     c.nmiLast = nmi;
     if (nmiEdge) {
         c.shadow = false;
-        c.interrupt(2);
+        const bool taken = c.interrupt(2);   // false: shut down (again)
         if constexpr (M >= x86::Model::i80286) {
             // As INT n (23, Programmer's Reference), 2 more per word that took two cycles.
             c.refill = true;
-            return {uint32_t(23 + 2 * c.wire.words), RunStatus::Ok};
+            return {uint32_t(23 + 2 * c.wire.words), taken ? RunStatus::Ok : RunStatus::Halted};
         }
         // As INT n (50, timing8088.h) plus the 8088's 4 per word moved.
         return {uint32_t(50 + 4 * c.wire.words), RunStatus::Ok};
@@ -375,15 +429,17 @@ StepResult step(Impl<M>& c, Bus& bus, uint32_t high, uint32_t highMask, bool wid
 
     // ---- INTR (pINT): a level, taken when IF is set and not in a shadow ----
     // Two acknowledge cycles; the first only freezes the 8259A, the second reads the vector.
-    if (!c.shadow && c.flags.template flag<x86::Flag::Interrupt>() && bus.intPending()) {
+    // A shut-down 80286 ignores INTR (Programmer's Reference 11.6).
+    if (!c.shadow && !c.shutdown && c.flags.template flag<x86::Flag::Interrupt>() &&
+        bus.intPending()) {
         (void)bus.intAck(kStInta);
         const uint8_t vector = bus.intAck(kStInta);
-        c.interrupt(vector);
+        const bool taken = c.interrupt(vector);   // false: shut down
         if constexpr (M >= x86::Model::i80286) {
             // As INT n (23) plus the two INTA bus cycles, 2 clocks each (Hardware Reference
             // pp. 3-14, 3-15). Derived, not a published count.
             c.refill = true;
-            return {uint32_t(27 + 2 * c.wire.words), RunStatus::Ok};
+            return {uint32_t(27 + 2 * c.wire.words), taken ? RunStatus::Ok : RunStatus::Halted};
         }
         // Intel: 61 clocks for the INTR response on the 8086, which moves its three pushes
         // and the two vector words as single cycles; the 8088 adds 4 for each.
@@ -411,8 +467,31 @@ StepResult step(Impl<M>& c, Bus& bus, uint32_t high, uint32_t highMask, bool wid
 
     const bool continuing = c.repActive;
     if (!continuing) {
-        // The instruction's bytes cross the bus as fetch cycles; the first carries M1.
-        for (int i = 0; i < len; ++i) (void)c.linear_memory.rd(at(i), i == 0 ? kStFetch : kStRead);
+        if (c.wire.wide) {
+            // THE 16-BIT BUS FETCHES WORDS (the 8086, the 80286): one cycle for each even
+            // word the instruction's bytes are in, the first with M1. A word the previous
+            // instruction ended in was fetched already. These cycles are code, not data:
+            // `words` (the data transfers that took two cycles) does not count them.
+            const int dataWords = c.wire.words;
+            const uint16_t last = uint16_t(startIp + len - 1) & 0xFFFE;
+            bool first = true;
+            for (uint16_t off = startIp & 0xFFFE;; off = uint16_t(off + 2)) {
+                const uint32_t lin = (csBase + off) & kMask;
+                if (!(c.fetchWordValid && lin == c.fetchWord)) {
+                    (void)c.linear_memory.template read2<uint16_t>(lin, csBase,
+                                                                    first ? kStFetch : kStRead);
+                    first = false;
+                }
+                c.fetchWord = lin;
+                c.fetchWordValid = true;
+                if (off == last) break;
+            }
+            c.wire.words = dataWords;
+        } else {
+            // The 8088: a byte per cycle; the first carries M1.
+            for (int i = 0; i < len; ++i)
+                (void)c.linear_memory.rd(at(i), i == 0 ? kStFetch : kStRead);
+        }
     }
 
     const bool trap = c.flags.template flag<x86::Flag::Trap>();
@@ -422,7 +501,19 @@ StepResult step(Impl<M>& c, Bus& bus, uint32_t high, uint32_t highMask, bool wid
     c.registers.ip() = uint16_t(startIp + len);
     c.flow_controller.repeat = false;
     c.flow_controller.jumped = false;
-    x86::perform(d.second, c, startIp);
+    try {
+        x86::perform(d.second, c, startIp);
+    } catch (const x86::Exception&) {
+        // The 80286 could not deliver the exception this instruction raised (CLK's fault()
+        // lets the second one out): INT n with SP = 1, 3 or 5, a fault on the way to a
+        // fault handler. It shuts down with CS:IP on the instruction. The time is the fetch
+        // alone: Intel gives no count for the way to a shutdown.
+        c.flow_controller.halted = false;
+        c.flow_controller.repeat = false;
+        c.enterShutdown();
+        return {uint32_t(std::max(2, (len + 1) & ~1)), RunStatus::Halted};
+    }
+    if (c.flow_controller.jumped || c.registers.cs() != startCs) c.fetchWordValid = false;
     if (c.flow_controller.halted) {
         c.flow_controller.halted = false;
         c.halted = true;
@@ -446,7 +537,10 @@ StepResult step(Impl<M>& c, Bus& bus, uint32_t high, uint32_t highMask, bool wid
                        code[p] == 0xF0 || code[p] == 0xF2 || code[p] == 0xF3))
         ++p;
     const uint8_t op = code[p];
-    if ((op == 0xFB && !if0) || op == 0x8E || op == 0x07 || op == 0x17 || op == 0x1F || op == 0x0F)
+    // 0F is POP CS on the 8088 and 8086, a segment load; on the 80286 it starts a two-byte
+    // opcode (LMSW, LGDT, ...), which loads no segment register.
+    if ((op == 0xFB && !if0) || op == 0x8E || op == 0x07 || op == 0x17 || op == 0x1F ||
+        (op == 0x0F && M < x86::Model::i80286))
         c.shadow = true;
 
     // ---- Time ----
@@ -507,12 +601,14 @@ template <x86::Model M> std::vector<RegDef> registers(Impl<M>* c) {
         d.line = line;
         return d;
     };
-    auto seg = [c](const char* n, const char* help, uint16_t* p) {
+    // A segment register set by hand: only its own base follows (reloadSegment).
+    auto seg = [c](const char* n, const char* help, uint16_t* p, x86::Source src) {
         RegDef d{n, 16, "", RegShow::Field, help, [p] { return (uint32_t)*p; },
-                 [c, p](uint32_t v) {
+                 [c, p, src](uint32_t v) {
                      *p = (uint16_t)v;
-                     c->resyncSegments();
+                     c->reloadSegment(src);
                      c->repActive = false;
+                     c->fetchWordValid = false;
                  }};
         d.line = 2;
         return d;
@@ -538,6 +634,7 @@ template <x86::Model M> std::vector<RegDef> registers(Impl<M>* c) {
               [c](uint32_t v) {
                   c->registers.ip() = (uint16_t)v;
                   c->repActive = false;
+                  c->fetchWordValid = false;
               }};
     ip.line = 2;
     RegDef fl{"FLAGS", 16, "", RegShow::Off, "the flags word",
@@ -561,10 +658,10 @@ template <x86::Model M> std::vector<RegDef> registers(Impl<M>* c) {
         r16("BP", "base pointer", &R.bp(), 1),
         r16("SI", "source index", &R.si(), 1),
         r16("DI", "destination index", &R.di(), 1),
-        seg("CS", "code segment", &R.cs()),
-        seg("DS", "data segment", &R.ds()),
-        seg("SS", "stack segment", &R.ss()),
-        seg("ES", "extra segment", &R.es()),
+        seg("CS", "code segment", &R.cs(), x86::Source::CS),
+        seg("DS", "data segment", &R.ds(), x86::Source::DS),
+        seg("SS", "stack segment", &R.ss(), x86::Source::SS),
+        seg("ES", "extra segment", &R.es(), x86::Source::ES),
         ip,
         fl,
         half("AL", &R.al()), half("AH", &R.ah()), half("BL", &R.bl()), half("BH", &R.bh()),
@@ -594,6 +691,7 @@ template <x86::Model M> void deserialize(Impl<M>& c, StateReader& r) {
     c.nmiLast = r.boolean();
     c.shadow = r.boolean();
     c.resyncSegments();
+    c.fetchWordValid = false;
     // A REP part way through restarts its decode (the bytes are the same); only its base
     // time is charged again.
     c.repActive = false;

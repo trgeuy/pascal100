@@ -26,15 +26,23 @@ every test gives the real chip's registers and RAM. Not yet offered upstream.
    in `Arithmetic.hpp`.
 
 The 80286 (`src/cpu/cpu80286.*`, model `i80286`) was checked against the SingleStepTests
-80286 v1_real_mode suite (about 1.48 M tests from a real Harris 80C286-12). These two changes
+80286 v1_real_mode suite (about 1.48 M tests from a real Harris 80C286-12). Changes 5 and 6
 apply to the 80286 model only. With them, 99.997% of the tests give the real chip's
-registers and RAM.
+registers and RAM. Changes 7 and 8 came from a code review.
 
 5. `Implementation/LoadStore.hpp`, LEA: a register operand (mod 11) is an invalid opcode
    (INT 6) from the 80286 on.
 6. `Implementation/PerformImplementation.hpp`, `interrupt()` in real mode: the 80286 pushes
    FLAGS, CS and IP first, then reads the vector. Upstream read the vector first (the
    values were right, the bus order wrong).
+7. `Implementation/PerformImplementation.hpp`, `fault()`: a second exception while the first
+   is delivered is not caught. It leaves `perform()`, and pascal100 shuts the 80286 down
+   (`src/cpu/x86_impl.h`). Upstream caught it, printed "DOUBLE FAULT TODO!" to stdout (the
+   JSON-RPC stream under `--mcp`) and ran on.
+8. `Implementation/PerformImplementation.hpp`, `source_indirect()` (LGDT, LIDT, SGDT, SIDT):
+   the operand's address goes through the switch on its form. Upstream always used the
+   base + index form, so `[disp16]` and `[BX]` gave a wrong address. The hardware suite has
+   no test of these instructions.
 
 The 49 tests that still fail are corner cases: an instruction longer than 10 bytes (2),
 ENTER with a large level (1), AAM 0 (9), the IDIV quotient limit (4), and ESC with no 80287

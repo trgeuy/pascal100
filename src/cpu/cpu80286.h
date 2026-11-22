@@ -61,6 +61,12 @@ public:
     bool halted() const override;
     bool interruptsEnabled() const override;
     bool haltCanEnd(bool pint, bool eventsQueued) const override;
+    // Stopped after an interrupt it could not deliver (SP = 1, 3 or 5): a halt that only NMI
+    // or RESET ends (Programmer's Reference 11.6).
+    bool shutdown() const;
+    // Segment `seg` as the core fetches from it: CS keeps its base (FF0000 after reset), any
+    // other value is seg*16, up to 10FFEF (no wrap at 1 MB).
+    uint32_t segBase(uint16_t seg) const override;
 
     void serialize(StateWriter& w) const override;
     void deserialize(StateReader& r) override;

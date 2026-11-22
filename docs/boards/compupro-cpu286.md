@@ -84,8 +84,14 @@ cycle.
 - **No 80287.** ESC instructions do nothing. Its ports read FF.
 - **Timing.** The core uses Intel's clock counts, checked against a real chip
   (`docs/sources.md`). It does not model the prefetch queue: Intel says real code runs 5-10%
-  over its counts. Every wait state from J1 adds a clock, also on writes and fetches, where
-  the real chip can sometimes hide one.
+  over its counts. Code is fetched a word per bus cycle, from an even address, and an
+  instruction that starts in the word the previous one ended in does not fetch that word
+  again. Every wait state from J1 adds a clock, also on writes and fetches, where the real
+  chip can sometimes hide one.
+- **Shutdown is shown as a halt.** When the 80286 cannot push FLAGS, CS and IP for an
+  interrupt or exception (SP = 1, 3 or 5), it shuts down, as Intel describes: it stops, INTR
+  cannot wake it, NMI or RESET can. The run stops with `halt`. The HALT bus cycle with A1 low
+  is not modeled.
 - **Only EPROMs in the sockets.** J8 and J9 (SRAM, EEPROM) are not modeled.
 - **CDSB*** (pin 19) is not modeled.
 - **The disassembler** knows the 8086 instructions only. It does not show the 80286 additions
@@ -94,5 +100,7 @@ cycle.
 ## Tests
 
 `tests/test_cpu80286.cpp` runs the hardware sample and the 80286's reset, 24-bit and fault
-checks. `tests/test_cpu286.cpp` covers the board: the reset through J3-J6, the memory manager,
-J2, the sockets, J1, RESET, the snapshot and the starts of the Disk 1 and Disk 1A boots.
+checks, the shutdown, the PC and segment edits, the interrupt shadow and the snapshot of the
+MSW and IDTR. `tests/test_cpu286.cpp` covers the board: the reset through J3-J6, the memory manager,
+J2, the sockets, J1, the word fetch, DISASM at the reset address, RESET, the snapshot and the
+starts of the Disk 1 and Disk 1A boots.

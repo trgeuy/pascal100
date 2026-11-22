@@ -135,7 +135,9 @@ as 8086 instructions, and it does not boot.
   standard I/O-only setting.
 - **No prefetch queue** (the 8086's is 6 bytes). The manual warns that an OUT to the Memory
   Manager takes effect after "the next several instructions are fetched", so the bytes after it
-  must be the same in both pages. Here it takes effect at the next instruction.
+  must be the same in both pages. Here it takes effect at the next instruction. Code is
+  fetched a word per bus cycle, from an even address, and an instruction that starts in the
+  word the previous one ended in does not fetch that word again.
 - **MWRT (S3-7) and ΦDSB* (S3-8)** are not modelled: the bus has no MWRT line of its own, and
   no slave processor board exists yet.
 - **The System Support 1 change for MP/M** (pull U28, bend out pin 4) is not needed. U28 pin 4

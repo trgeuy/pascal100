@@ -177,7 +177,7 @@ std::vector<MapEntry> CompuProCpu286Board::ioMap() const {
     std::vector<MapEntry> m;
     if (j2_) return m;
     m.push_back({0x00F8, 0x00FF, "read/write",
-                 "80287 ports (no 80287 fitted: reads float; the card's own ports, A0-A15)"});
+                 "80287 ports (no 80287 fitted: reads float; the board's own ports, A0-A15)"});
     m.push_back({0x01F8, 0x01FF, "write",
                  "Memory Manager: a byte to an even port, D0-D3 = A20-A23 (the card's own "
                  "ports, A0-A15)"});

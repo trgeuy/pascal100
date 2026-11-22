@@ -156,6 +156,10 @@ public:
         (void)seg; (void)off;
         return false;
     }
+    // Where segment `seg` starts, as the core fetches from it (a segmented core only): the
+    // linear address seg:0000. seg*16 on the 8088 and 8086; the 80286 keeps the CS base it
+    // has, which is not CS*16 after reset (FF0000). Add the offset, then mask with pcMask().
+    virtual uint32_t segBase(uint16_t seg) const { return uint32_t(seg) << 4; }
 
     virtual bool halted() const = 0;
     virtual bool interruptsEnabled() const = 0;

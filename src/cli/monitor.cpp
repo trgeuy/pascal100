@@ -2955,9 +2955,13 @@ static bool csIp(CpuCore* c, uint16_t& cs, uint16_t& ip) {
 }
 
 // A byte at seg:off, as the 8088 would fetch it -- through the card when there is one (the
-// CPU 8085/88 adds its A20-A23 latch), else straight off the bus.
+// CPU 8085/88 adds its A20-A23 latch), else straight off the bus. An x86 core gives the
+// segment's base (CpuCore::segBase): the 80286's CS base after reset is FF0000, not CS*16,
+// and its real mode reaches past FFFFF.
 uint8_t Monitor::peek8088(CpuCore* c, uint16_t seg, uint16_t off) {
-    const uint32_t lin = (((uint32_t)seg << 4) + off) & 0xFFFFF;
+    const bool x86 = c && CpuCore::isX86(c->isa());
+    const uint32_t lin = x86 ? (c->segBase(seg) + off) & c->pcMask()
+                             : (((uint32_t)seg << 4) + off) & 0xFFFFF;
     CpuCard* card = m_.cpuCard();
     return card && c ? card->peekCodeByte(c, m_.bus, lin) : m_.bus.peekX(lin);
 }

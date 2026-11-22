@@ -2193,12 +2193,13 @@ Json callTool(Machine& m, McpSession& sess, const std::string& name, const Json&
                 for (const RegDef& r : x86core->registers())
                     if (r.name == "CS") seg = r.get() & 0xFFFF;
             }
-            segBase = seg << 4;
+            // The core's own base for the segment (the 80286's CS after reset is FF0000).
+            segBase = x86core ? x86core->segBase((uint16_t)seg) : seg << 4;
         }
         CpuCard* card = m.cpuCard();
         auto peek = [&](uint16_t a) {
             if (!x86) return view ? m.peekCode(view, a) : m.bus.peek(a);
-            const uint32_t lin = (segBase + a) & 0xFFFFF;
+            const uint32_t lin = (segBase + a) & (x86core ? x86core->pcMask() : 0xFFFFFu);
             return card && x86core ? card->peekCodeByte(x86core, m.bus, lin) : m.bus.peekX(lin);
         };
 
