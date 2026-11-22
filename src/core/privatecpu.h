@@ -73,7 +73,8 @@ public:
     }
     // A run starts: a held core goes on, and the breakpoint it sits on is not hit again
     // until the core has stepped once. A hit the run loop has not taken yet (the last run
-    // ended at that boundary for another reason) stays held, so it is still reported.
+    // ended at that boundary for another reason) stays held, so it is still reported --
+    // unless its breakpoint is no longer in the list: call setBreaks() first.
     void resume();
 
     // ---- history ----

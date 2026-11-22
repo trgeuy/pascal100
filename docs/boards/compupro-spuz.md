@@ -122,7 +122,11 @@ answers every I/O cycle with the 2681. This is the pattern of the Jade Double D
   nowhere), logs the cycle and the PC, and calls `Bus::requestBusHang()`. The run stops at the
   instruction boundary with `StopReason::BusHang` (MCP: `bus-hang`).
 - **Two boards with one select.** `Board::backplaneConflict()` reports it. The loader refuses the
-  file, and RUN refuses to start, as for a TMA conflict.
+  file, and RUN refuses to start with `StopReason::BackplaneConflict` (MCP:
+  `backplane-conflict`), not as a TMA conflict: no DMA board is involved.
+- **A halted Z80 with an interrupt pending.** The 1 ms host deadline also runs while the Z80 is
+  halted with interrupts on and ZINT\* low, so an interrupt with no 2681 event behind it (a CTS
+  change, a host write to the IMR) still wakes it with no host access.
 - **Units.** `z80` is the board Z80 (a `cpu` unit). `a` and `b` are the 2681's channels A and
   B, each a `ByteStream` (`CONNECT spuz0:a`).
 
@@ -133,7 +137,10 @@ The board publishes its Z80 through `Board::privateCpus()`, as a `PrivateCpu`
 takes a core takes it.
 
 - **REGS, DISASM, DUMP** read the Z80 through `PrivateCpu::peekCode`: its own bus, in the bank
-  that OP5/OP4 select. No cycle runs.
+  that OP5/OP4 select. No cycle runs. A bare DISASM or DUMP goes on in the core the last one
+  named. The monitor keeps the core's name, not a pointer, so BOARDS REMOVE cannot leave it
+  pointing at freed memory; a removed core is the bus again. SAVE FORMAT=PRN always lists
+  the S-100 bus.
 - **STEP spuz0:z80** runs one Z80 instruction and no host instruction. The board clock then is
   ahead of the host, and `runTo` does nothing until the host passes it. In reset, STEP is
   refused.
@@ -141,7 +148,9 @@ takes a core takes it.
   breakpoints bound to its Z80. `runTo` asks `shouldStop(pc)` before each step. A hit holds the
   Z80 and its clock. The run loop takes the hit at the next host boundary, so the host is at
   most one instruction past it, and `RunResult::bpCore` names the core. The next run lets the
-  Z80 go, and the first step from the breakpoint is not checked again. A held Z80 keeps the 1 ms
+  Z80 go, and the first step from the breakpoint is not checked again. A hit that a run did not
+  take (it stopped first for another reason) is reported by the next run, unless BREAK CLEAR or
+  a disable removed its breakpoint in between: then it is dropped. A held Z80 keeps the 1 ms
   deadline, so the next run catches it up. A breakpoint on the board Z80 takes no IF and no
   TRACE: the run loop judges those against its own registers at a host boundary.
 - **HISTORY CPU spuz0:z80** reads the board's own ring (8192 records, as the host's). It records
@@ -232,7 +241,11 @@ starts at 0000h in bank 3.
   and its clock, stops the host run, and is passed once on the next run; with no breakpoint the
   Z80 goes on; STEP runs the Z80 and not the host, and is refused in reset; `history` records
   only when on; the monitor's REGS, DISASM, DUMP, STEP, HISTORY and BREAK take the core, and RUN
-  names the board's core and both PCs; STEP on a host core that is not active is refused.
+  names the board's core and both PCs; STEP on a host core that is not active is refused;
+  `DISASM spuz0:z80 CPU=z80` starts at the core's PC, a bare DUMP goes on in the core, SAVE PRN
+  lists the bus, and BOARDS REMOVE leaves no stale core; a pending hit on a cleared breakpoint
+  is dropped; an untimed 2681 interrupt wakes a halted Z80 by the deadline; two boards with one
+  select stop the run as `backplane-conflict`.
 
 `test_ieee696` checks that every other board decodes A0-A7 only, now also with A8-A15 = FCh.
 

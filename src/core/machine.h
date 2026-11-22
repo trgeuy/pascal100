@@ -249,8 +249,10 @@ public:
     // refuses to start (StopReason::TmaConflict), because a board can be added or a
     // switch set after the load. One or no DMA board is always fine.
     // It also asks each board for a backplane rule of its own (Board::backplaneConflict),
-    // refused the same way: the SPUZ refuses a second board with its select.
+    // refused the same way: the SPUZ refuses a second board with its select. The run loop
+    // asks that part first, alone, to stop with StopReason::BackplaneConflict.
     bool tmaConflict(std::string& why);
+    bool backplaneConflict(std::string& why);
 
     // True only while the debugger's run loop is turning. This is a DIFFERENT thing
     // from setRunning() above: this flag is false whenever pump() runs (pump() is

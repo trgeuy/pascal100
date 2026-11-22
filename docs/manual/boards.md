@@ -447,8 +447,12 @@ of the 2681's output port.
 **Do not read or write the window or ports `FC30`-`FC3F` while the board's Z80 is in reset.** On
 the real board, this access stops the S-100 bus forever. `pascal100` lets the access go nowhere
 (a read gives `FF`), prints the address and the PC, and stops the run with **bus-hang**. Select
-the board, write `08` to `FC41`, and then access the board. To load a program, halt the Z80
+the board, write `0B` to `FC41`, and then access the board. To load a program, halt the Z80
 first: put a `HLT` (`76`) at address 0, reset the Z80, and let it run again.
+
+`0B` sets D3 (the Z80 runs) and gives the host bank 3 (D1-D0), the bank the Z80 runs from after
+a reset. With `08`, the host writes the `HLT` into bank 0 and the Z80 does not see it. A 64K
+board has one bank, so `08` also works there.
 
 **Leave a hole in the RAM for the window.** CompuPro's `SPZ.CMD` finds each board by writing
 `E0000` and reading it back. RAM under the window answers for a select that has no board, so every

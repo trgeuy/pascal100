@@ -140,8 +140,10 @@ void SpuzBoard::runTo(uint64_t target) {
 }
 
 // The 1 ms host deadline. It runs while the Z80 can still change the VI line by itself: out
-// of reset and running, or halted with a 2681 event that can wake it. Otherwise it queues
-// nothing, so a host HLT with every SPUZ idle is still a final halt (Clock::queued()).
+// of reset and running, or halted with a 2681 event that can wake it, or halted with ZINT*
+// already low and interrupts on (an interrupt with no timed event behind it: a CTS change
+// found by pump(), a host write to the IMR). Otherwise it queues nothing, so a host HLT with
+// every SPUZ idle is still a final halt (Clock::queued()).
 void SpuzBoard::rearmHost() {
     if (!clock_) return;
     clock_->cancel(hostWake_);
@@ -149,7 +151,7 @@ void SpuzBoard::rearmHost() {
     // A core held at a breakpoint keeps its deadline: the next run lets it go
     // (PrivateCpu::resume), and nothing else would catch the board up again.
     if (!enabled_ || inReset()) return;
-    if (cpu_.halted() && duart_.nextEvent(bclk_) == 0) return;
+    if (cpu_.halted() && duart_.nextEvent(bclk_) == 0 && !cpu_.haltCanEnd(zint_, false)) return;
     uint64_t dt = std::max<uint64_t>(1, clock_->tStatesPer(1000));
     hostWake_ = clock_->after(dt, [this] { hostWake(); });
 }

@@ -17,6 +17,9 @@
 #include <algorithm>
 #include <cstdint>
 #include <cstdio>
+#include <filesystem>
+#include <fstream>
+#include <iterator>
 #include <initializer_list>
 #include <sstream>
 #include <string>
@@ -283,6 +286,28 @@ void test_spuz() {
         CHECK(r.sp->ram(0x32000) == 0xAA, "the handler at 0100h ran");
     }
 
+    SECTION("spuz: an untimed 2681 interrupt wakes a halted Z80 by the 1 ms deadline");
+    {
+        // EI / HALT, then the host unmasks an interrupt that is already pending: TxRDYA
+        // (ISR bit 0) after the transmitter is enabled. No 2681 event is due, so only the
+        // host deadline can catch the board up.
+        Rig r;
+        r.quiesce();
+        r.load({0x00, 0x01}, 0xFBFF);                          // vector -> 0100h
+        r.load({0x3E, 0xAA, 0x32, 0x00, 0x20, 0x76}, 0x0100);  // LD A,AAh / LD (2000h),A
+        r.load({0x3E, 0xFB, 0xED, 0x47,                        // LD A,FBh / LD I,A
+                0xED, 0x5E, 0xFB, 0x76},                       // IM 2 / EI / HALT
+               0x0000);
+        r.out(PTLATCH, 0x03);
+        r.out(PTLATCH, ZRST | 0x03);
+        r.run(MS);
+        CHECK(r.sp->z80().halted() && r.sp->ram(0x32000) == 0x00, "waiting in HALT");
+        r.out(DUART + 0x2, 0x04);                              // CRA: enable the transmitter
+        r.out(DUART + 0x5, 0x01);                              // IMR: TxRDYA
+        r.run(2 * MS);                                         // no host cycle to the board
+        CHECK(r.sp->ram(0x32000) == 0xAA, "the handler at 0100h ran without a host access");
+    }
+
     SECTION("spuz: board time = host time x 8 MHz / host hz()");
     {
         Rig r;
@@ -483,6 +508,77 @@ void test_spuz() {
         CHECK(mon(m, "BREAK spuz0:z80 3 IF A=1").find("no IF") != std::string::npos,
               "BREAK on a private core refuses IF");
         CHECK(mon(m, "REGS spuz0:nope").find("no core") != std::string::npos, "an unknown core");
+    }
+
+    SECTION("spuz: DISASM and DUMP keep a named core by name; SAVE PRN reads the bus");
+    {
+        Rig r;
+        addSpinningHost(r);                                    // host: JR $ at 0000h
+        Monitor m(r.m);
+        r.start(kCountLoop);                                   // board: LD A,0 / INC A / JR
+        r.load({0xA5}, 0x0010);
+        r.run(MS);
+        // CPU= first: the listing still starts at the core's PC.
+        mon(m, "DISASM 0100 1");
+        char want[8];
+        std::snprintf(want, sizeof want, "%04X", (unsigned)(r.sp->z80().pc() & 0xFFFF));
+        const std::string cpuEq = mon(m, "DISASM spuz0:z80 CPU=z80");
+        CHECK(cpuEq.rfind(want, 0) == 0,
+              ("DISASM spuz0:z80 CPU=z80 starts at the core's PC " + std::string(want) + ": " +
+               cpuEq).c_str());
+        // A bare DUMP goes on in the core it named.
+        mon(m, "DUMP spuz0:z80 0-F");
+        const std::string more = mon(m, "DUMP");
+        CHECK(more.rfind("000010  A5 ", 0) == 0,
+              ("a bare DUMP continues in the Z80's bank: " + more).c_str());
+        CHECK(mon(m, "DUMP spuz0:z80 10000").find("spuz0:z80 reaches 0000-FFFF") !=
+                  std::string::npos,
+              "past the core's addresses: its own limit, not the bus's");
+        // SAVE PRN after DISASM <core>: the listing is the bus's memory (the host's JR $).
+        mon(m, "DISASM spuz0:z80 0 1");
+        const auto prn = std::filesystem::temp_directory_path() / "spuz-save.prn";
+        mon(m, "SAVE \"" + prn.string() + "\" 0-1 FORMAT=PRN");
+        std::ifstream f(prn);
+        const std::string listing((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
+        CHECK(listing.find("JR") != std::string::npos && listing.find("LD") == std::string::npos,
+              ("SAVE PRN lists the host bus, not the board's bank: " + listing).c_str());
+        std::filesystem::remove(prn);
+        // The named core is freed: a bare DISASM and DUMP fall back to the bus.
+        mon(m, "DISASM spuz0:z80 0 1");
+        mon(m, "DUMP spuz0:z80 0-F");
+        mon(m, "BOARDS REMOVE spuz0");
+        const std::string after = mon(m, "DISASM");
+        const std::string dumpAfter = mon(m, "DUMP");
+        CHECK(!after.empty() && !dumpAfter.empty(), "no use of the removed core");
+    }
+
+    SECTION("spuz: a pending board-core hit on a cleared breakpoint is dropped");
+    {
+        Rig r;
+        r.start(kCountLoop);
+        r.run(MS);
+        PrivateCpu* p = r.m.privateCpus().at(0).second;
+        const uint32_t at = r.sp->z80().pc();
+        p->setBreaks({{7, at, at}});
+        CHECK(p->shouldStop(at) && p->held(), "the breakpoint holds the core");
+        p->setBreaks({});                                      // BREAK CLEAR before the next run
+        p->resume();
+        CHECK(!p->held() && p->takeHit() == 0, "the next run neither reports nor holds it");
+        p->setBreaks({{8, at, at}});
+        p->resume();
+        CHECK(!p->held(), "not held, and nothing to drop");
+        CHECK(p->shouldStop(at + 0) == false, "the first step from the spot is not a hit");
+    }
+
+    SECTION("spuz: two boards with one select stop the run as backplane-conflict");
+    {
+        Rig r(2);
+        addSpinningHost(r);
+        setProperty(*r.board(1), "select", "0", err);
+        RunResult rr = r.m.debug.run(10);
+        CHECK(rr.why == StopReason::BackplaneConflict, "StopReason::BackplaneConflict");
+        CHECK(r.m.debug.tmaConflictWhy().find("select 0") != std::string::npos,
+              "and the words say which select");
     }
 
     SECTION("spuz: RUN reports a private breakpoint with both PCs");

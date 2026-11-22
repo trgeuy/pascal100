@@ -216,9 +216,12 @@ private:
     // The byte at `a` as core `c` fetches it, without a bus cycle: through a private core's
     // own bus and bank, through the card's map for a host core.
     uint8_t peekFor(CpuCore* c, uint32_t a);
-    // The core DISASM is decoding for while a command names one (null: the active core,
-    // through the S-100 bus). It stays for a bare DISASM that continues the listing.
-    CpuCore* viewCore_ = nullptr;
+    // The core DISASM is decoding for while a command names one (empty: the active core,
+    // through the S-100 bus). It stays for a bare DISASM that continues the listing. Kept
+    // as the name typed, not a pointer, and looked up at each use: BOARDS REMOVE or a new
+    // machine can free the core in between, and a gone core is the active one.
+    std::string viewRef_;
+    CpuCore* viewCore() { return viewRef_.empty() ? nullptr : coreArg(viewRef_); }
 
     // The "C0Z0... A=00 BC=0000 ... PC=0000  <insn>" status line -- flags clustered, then
     // fields -- built from a register set and a source for each register's value. Shared by
@@ -336,6 +339,9 @@ private:
 
     // Where a bare DUMP resumes. A range moves it; nothing else does.
     uint32_t dumpNext_ = 0;
+    // The core a bare DUMP goes on in after DUMP <board>:<unit> (empty: the bus). By name,
+    // as viewRef_, for the same reason.
+    std::string dumpRef_;
 
     // Where a bare DISASM resumes -- its own cursor, for the same reason EXAMINE
     // has one: you disassemble forward through a routine while dumping the table
@@ -349,7 +355,7 @@ private:
     // disasmNext_ through setDisasmNext, which drops that, so the next DI starts at CS:IP.
     uint16_t disasm88Seg_ = 0;
     bool disasm88Set_ = false;
-    void setDisasmNext(uint32_t a) { disasmNext_ = a; disasm88Set_ = false; viewCore_ = nullptr; }
+    void setDisasmNext(uint32_t a) { disasmNext_ = a; disasm88Set_ = false; viewRef_.clear(); }
 
     // EXAMINE HAS NO CURSOR HERE, AND MUST NOT GROW ONE. The panel has no address
     // latch of its own: it jams the switches into the PROGRAM COUNTER and lets the CPU

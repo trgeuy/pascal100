@@ -22,7 +22,12 @@ bool PrivateCpu::shouldStop(uint32_t pc) {
 }
 
 void PrivateCpu::resume() {
-    if (!held_ || hit_ != 0) return;
+    if (!held_) return;
+    // A hit not taken yet is still reported -- while its breakpoint is still set. One that
+    // BREAK CLEAR (or a disable) removed is dropped, and the core goes on.
+    if (hit_ != 0 && std::any_of(breaks_.begin(), breaks_.end(),
+                                 [this](const Break& b) { return b.id == hit_; }))
+        return;
     held_   = false;
     hit_    = 0;
     skip_   = true;

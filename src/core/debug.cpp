@@ -559,6 +559,13 @@ RunResult Debugger::run(uint64_t maxSteps, bool clearPending) {
     // a board can be added or its dma_priority set after the load, so ask again here. A
     // walk of the backplane per run() call, not per instruction. The words stay in
     // tmaWhy_ for the caller (tmaConflictWhy()).
+    // A board's own rule (two SPUZ boards on one select) has its own reason: no DMA board
+    // is involved.
+    if (m_.backplaneConflict(tmaWhy_)) {
+        r.why = StopReason::BackplaneConflict;
+        r.pc  = cpu->pc();
+        return r;
+    }
     if (m_.tmaConflict(tmaWhy_)) {
         r.why = StopReason::TmaConflict;
         r.pc  = cpu->pc();
@@ -596,14 +603,15 @@ RunResult Debugger::run(uint64_t maxSteps, bool clearPending) {
     privArmed_.clear();
     for (auto& [owner, p] : m_.privateCpus()) {
         (void)owner;
-        p->resume();
         std::vector<PrivateCpu::Break> list;
         for (const Breakpoint& b : bps_)
             if (b.enabled && b.kind == BreakKind::Pc && b.action == BreakAction::Stop && !b.cond &&
                 b.coreAt == &p->core())
                 list.push_back({b.id, b.lo, b.hi});
-        if (!list.empty() || p->held()) privArmed_.push_back(p);
+        const bool hasBreaks = !list.empty();
         p->setBreaks(std::move(list));
+        p->resume();   // after setBreaks: a pending hit on a cleared breakpoint is dropped
+        if (hasBreaks || p->held()) privArmed_.push_back(p);
     }
 
     // PRE-ACCESS VETO for the CYCLE breakpoints. Installed only when at least one

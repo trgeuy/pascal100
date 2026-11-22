@@ -9,14 +9,14 @@
 // and the counter; the serial channels are here anyway, because a chip built from one
 // program's subset looks finished and is not (DESIGN.md 7.8, 3.0.4).
 //
-// It knows nothing about S-100 or about the SPUZ. It has a clock (whatever Clock its card
+// It knows nothing about S-100 or about the SPUZ. It has a clock (whatever Clock its board
 // attaches it to -- the SPUZ's private board clock), its own crystal on X1 (`x1Hz`), sixteen
 // registers on A3-A0, seven input pins, eight output pins, an interrupt pin and two
 // ByteStreams.
 //
 // TIME. Everything is computed from the attached Clock's now(): a character occupies a line
 // for its frame time at the programmed baud rate, the counter/timer counts ticks of its
-// source between two T-states. Nothing advances on its own. The card calls poll() before
+// source between two T-states. Nothing advances on its own. The board calls poll() before
 // it looks at a pin, and asks nextEvent() for the next T-state at which a pin can move.
 //
 // THE CHOICES THE DATA SHEETS DO NOT MAKE are listed in the .cpp, each where it is made, and
@@ -24,7 +24,7 @@
 //   - a ByteStream carries bytes: no parity bit, no framing, no break, no A/D bit. So PE, FE
 //     and received break stay 0 on a stream line, and a character from a stream has A/D = 0.
 //     The channel's own loopback carries all of them;
-//   - reads whose data no sheet gives (2, A, C, E, F) are reported as NOT DRIVEN, so the card
+//   - reads whose data no sheet gives (2, A, C, E, F) are reported as NOT DRIVEN, so the board
 //     can let the bus float instead of inventing a byte (DESIGN.md 4.6.1);
 //   - after RESET the counter/timer is stopped (the RESET pin text; the sheets disagree).
 
@@ -69,7 +69,7 @@ public:
     void powerOn(const Clock& clk);
 
     // ---- the pins ----
-    // IP6-IP0 as the card drives them, 1 = high. Unset: IP0/IP1 follow the two lines' CTS
+    // IP6-IP0 as the board drives them, 1 = high. Unset: IP0/IP1 follow the two lines' CTS
     // (CTSAN/CTSBN, active low), IP2-IP6 read high (the internal pull-ups, 1998 pin table).
     std::function<uint8_t()> inputPins;
     // An external clock on IP2-IP6 (counter/timer IP2, TxCA IP3, RxCA IP4, TxCB IP5, RxCB IP6),
@@ -82,10 +82,10 @@ public:
     uint8_t isr(const Clock& clk);     // the interrupt status, as a read of 5 would give it
 
     // Bring the chip up to clk.now(): characters that finished, the counter, the input
-    // change detectors. The card calls it before it looks at a pin.
+    // change detectors. The board calls it before it looks at a pin.
     void poll(const Clock& clk);
     // The next absolute T-state at which a pin or the ISR can change without a register
-    // access, or 0 for none. The card sets a deadline on it.
+    // access, or 0 for none. The board sets a deadline on it.
     uint64_t nextEvent(const Clock& clk);
 
     // ---- the two lines (ch 0 = A, 1 = B) ----
@@ -101,7 +101,7 @@ public:
     void serialize(StateWriter& w) const;
     void deserialize(StateReader& r);
 
-    // ---- reflection, for the card's SHOW and for tests ----
+    // ---- reflection, for the board's SHOW and for tests ----
     uint8_t opr() const { return opr_; }
     uint8_t imr() const { return imr_; }
     uint8_t acr() const { return acr_; }

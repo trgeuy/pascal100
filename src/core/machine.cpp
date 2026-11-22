@@ -483,11 +483,16 @@ std::vector<Board*> Machine::masters() {
 // The CPU card is the PERMANENT master and inherits BusMaster instead (board.h), so it
 // never shows up here. Walks the backplane, not boards_: a test rig may attach a card
 // to the bus by hand.
+bool Machine::backplaneConflict(std::string& why) {
+    for (Board* b : bus.boards())
+        if (b->enabled() && b->backplaneConflict(bus.boards(), why)) return true;
+    return false;
+}
+
 bool Machine::tmaConflict(std::string& why) {
     // A board's own backplane rule first (Board::backplaneConflict): two SPUZ boards with
     // one select would both answer every cycle meant for one of them.
-    for (Board* b : bus.boards())
-        if (b->enabled() && b->backplaneConflict(bus.boards(), why)) return true;
+    if (backplaneConflict(why)) return true;
 
     std::vector<Board*> tma;
     for (Board* b : bus.boards())

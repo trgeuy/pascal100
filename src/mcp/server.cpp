@@ -703,6 +703,7 @@ const char* stopReasonName(StopReason w) {
     case StopReason::StepTarget:   return "step-target";
     case StopReason::Unclaimed:    return "unclaimed";
     case StopReason::TmaConflict:  return "tma-conflict";
+    case StopReason::BackplaneConflict: return "backplane-conflict";
     case StopReason::BusHang:      return "bus-hang";
     }
     return "?";
@@ -1187,6 +1188,7 @@ bool sliceStops(StopReason w) {
     case StopReason::Breakpoint:
     case StopReason::NoCpu:
     case StopReason::TmaConflict:
+    case StopReason::BackplaneConflict:
     case StopReason::StopRequested:
     case StopReason::Unclaimed:
     case StopReason::BusHang:
@@ -1777,7 +1779,8 @@ Json callTool(Machine& m, McpSession& sess, const std::string& name, const Json&
             text = "not running -- nothing was started";
         } else {
             if (f.stopped == "unclaimed") text = unclaimedLine(f.last) + "\n";
-            if (f.stopped == "tma-conflict") text = tmaConflictLine(m) + "\n";
+            if (f.stopped == "tma-conflict" || f.stopped == "backplane-conflict")
+                text = tmaConflictLine(m) + "\n";
             text += (was ? "stopped" : "not running; the free run had already stopped") +
                     std::string(": ") + f.stopped + ", " + std::to_string(f.steps) + " insn, " +
                     std::to_string(f.tStates) + " T";
@@ -2038,7 +2041,7 @@ Json callTool(Machine& m, McpSession& sess, const std::string& name, const Json&
             if (!text.empty() && text.back() != '\n') text += '\n';
             text += unclaimedLine(last);
         }
-        if (stopped == "tma-conflict") {
+        if (stopped == "tma-conflict" || stopped == "backplane-conflict") {
             if (!text.empty() && text.back() != '\n') text += '\n';
             text += tmaConflictLine(m);
         }
@@ -2095,12 +2098,21 @@ Json callTool(Machine& m, McpSession& sess, const std::string& name, const Json&
         Board* owner = nullptr;
         if (PrivateCpu* p = named ? m.privateOf(named, &owner) : nullptr) {
             // A core on a board's own bus steps alone; the host does not run (DESIGN.md 3.0.4).
-            uint64_t n = args.has("count") ? (uint64_t)args.at("count").integer() : 1;
-            if (n == 0) n = 1;
+            // A stop request (the client's cancel) ends it, as it ends a host step.
+            const long long cnt = args.has("count") ? args.at("count").integer() : 1;
+            if (cnt < 0) return textResult("count must be 1 or more.", true);
+            const uint64_t n = cnt == 0 ? 1 : (uint64_t)cnt;
             uint64_t done = 0;
             std::string serr;
-            for (; done < n; ++done)
+            bool interrupted = false;
+            for (; done < n; ++done) {
+                if (Debugger::stopRequested()) {
+                    Debugger::clearStopRequest();   // consumed: answered below
+                    interrupted = true;
+                    break;
+                }
                 if (!p->step(serr)) break;
+            }
             Json d = Json::obj();
             std::string text;
             d["registers"] = regsObject(named, text);
@@ -2115,8 +2127,9 @@ Json callTool(Machine& m, McpSession& sess, const std::string& name, const Json&
                 d["error"] = Json(serr);
                 text += serr + "\n";
             }
+            if (interrupted) d["stopped"] = Json(stopReasonName(StopReason::StopRequested));
             text += "[" + std::to_string(done) + " insn on " + owner->id + ":" + p->unit() +
-                    "; the host did not run]";
+                    (interrupted ? "; interrupted" : "") + "; the host did not run]";
             return dataResult(d, text);
         }
         CpuCore* c = m.cpu();
@@ -2126,8 +2139,9 @@ Json callTool(Machine& m, McpSession& sess, const std::string& name, const Json&
                               "the active core steps: the board's processor select decides "
                               "which one runs.", true);
         if (std::string h = haltRefusal(m, c, false); !h.empty()) return textResult(h, true);
-        uint64_t n = args.has("count") ? (uint64_t)args.at("count").integer() : 1;
-        if (n == 0) n = 1;
+        const long long cnt = args.has("count") ? args.at("count").integer() : 1;
+        if (cnt < 0) return textResult("count must be 1 or more.", true);
+        const uint64_t n = cnt == 0 ? 1 : (uint64_t)cnt;
 
         RunResult r;
         uint64_t steps = 0, tStates = 0;
@@ -2154,7 +2168,8 @@ Json callTool(Machine& m, McpSession& sess, const std::string& name, const Json&
         d["pc"]       = Json((long long)c->pc());
         d["halted"]   = Json(c->halted());
         d["stopped"]  = Json(stopReasonName(r.why));
-        if (r.why == StopReason::TmaConflict) text += tmaConflictLine(m) + "\n";
+        if (r.why == StopReason::TmaConflict || r.why == StopReason::BackplaneConflict)
+            text += tmaConflictLine(m) + "\n";
         privateHit(m, r, d, text);
         text += "[" + std::to_string(steps) + " insn, " + std::to_string(tStates) +
                 " T; stopped: " + stopReasonName(r.why) + "]";

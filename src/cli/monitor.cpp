@@ -2937,7 +2937,8 @@ CpuCore* Monitor::coreArg(const std::string& t) {
 uint8_t Monitor::peekFor(CpuCore* c, uint32_t a) { return m_.peekCode(c, a); }
 
 Insn Monitor::insnAt(uint32_t at, const Disassembler& d) {
-    auto peek = [this](uint16_t a) { return viewCore_ ? peekFor(viewCore_, a) : m_.bus.peek(a); };
+    CpuCore* const v = viewCore();
+    auto peek = [this, v](uint16_t a) { return v ? peekFor(v, a) : m_.bus.peek(a); };
     return d.at((uint16_t)at, peek, octalMode() ? 8 : 16);
 }
 
@@ -2981,7 +2982,7 @@ Insn Monitor::insnAtPc(CpuCore* c, const Disassembler& d) {
 // names are by OFFSET -- what an 8086 .SYM or .PRN holds.
 uint8_t Monitor::disasmLine8088(uint16_t seg, uint16_t off, const Disassembler& d,
                                 std::ostream& out) {
-    CpuCore* c = viewCore_ ? viewCore_ : m_.cpu();
+    CpuCore* c = viewCore() ? viewCore() : m_.cpu();
     auto peek = [this, c, seg](uint16_t o) { return peek8088(c, seg, o); };
     Insn in = d.at(off, peek, octalMode() ? 8 : 16);
 
@@ -3021,7 +3022,8 @@ std::string Monitor::annotateOperands(const Insn& in) const {
 }
 
 uint8_t Monitor::disasmLine(uint32_t at, const Disassembler& d, std::ostream& out) {
-    auto peek = [this](uint16_t a) { return viewCore_ ? peekFor(viewCore_, a) : m_.bus.peek(a); };
+    CpuCore* const v = viewCore();
+    auto peek = [this, v](uint16_t a) { return v ? peekFor(v, a) : m_.bus.peek(a); };
     Insn in = insnAt(at, d);
 
     // A program label at this address heads its own line, the way an assembler listing
@@ -3189,17 +3191,13 @@ static void reportStop(const RunResult& r, const Debugger& dbg, std::ostream& ou
         if (r.bpCore) {
             // A core on a board's own bus: it stopped at its breakpoint, inside its board's
             // catch-up, and the host stopped at the next boundary (DESIGN.md 3.0.4).
-            std::snprintf(buf, sizeof buf,
-                          "breakpoint %d (%s) -- the board's core stopped at %s; the host "
-                          "stopped at %s. RUN resumes both.",
-                          r.bp, what.c_str(), fmtPcAt(r.bpCore, r.bpCore->pc()).c_str(),
-                          at.c_str());
-            out << buf << "\n";
+            // A std::string, not buf: describe() and the board id have no fixed length.
+            out << "breakpoint " << r.bp << " (" << what << ") -- the board's core stopped at "
+                << fmtPcAt(r.bpCore, r.bpCore->pc()) << "; the host stopped at " << at
+                << ". RUN resumes both.\n";
             break;
         }
-        std::snprintf(buf, sizeof buf, "breakpoint %d (%s) -- stopped at %s", r.bp,
-                      what.c_str(), at.c_str());
-        out << buf << "\n";
+        out << "breakpoint " << r.bp << " (" << what << ") -- stopped at " << at << "\n";
         break;
     }
     case StopReason::Halted:
@@ -3240,8 +3238,10 @@ static void reportStop(const RunResult& r, const Debugger& dbg, std::ostream& ou
         out << "no CPU in this machine.  BOARDS ADD z80 cpu0\n";
         break;
     case StopReason::TmaConflict:
+    case StopReason::BackplaneConflict:
         // The run never started: two bus masters this backplane cannot arbitrate
-        // (IEEE 696 2.8.3). Say which two, and how to fix it.
+        // (IEEE 696 2.8.3), or two boards a board's own rule refuses (the SPUZ select).
+        // Say which two, and how to fix it.
         out << "the machine did not run: " << dbg.tmaConflictWhy() << "\n";
         break;
     case StopReason::StepTarget:
@@ -4844,8 +4844,16 @@ bool Monitor::exec(const std::string& line, std::ostream& out) {
         // and SAVE, where a bare address quietly meaning a page would be a footgun.
         // DUMP <board>:<unit> ...: memory as that core sees it -- through its own bus and bank
         // (spuz0:z80, DESIGN.md 3.0.4) or the card's map. It peeks: no cycle runs.
+        // A bare DUMP after one goes on in the same core; an address with no core is the bus.
         CpuCore* view = nullptr;
-        if (a.size() >= 2 && (view = coreArg(a[1])) != nullptr) a.erase(a.begin() + 1);
+        if (a.size() >= 2 && (view = coreArg(a[1])) != nullptr) {
+            dumpRef_ = a[1];
+            a.erase(a.begin() + 1);
+        } else if (a.size() >= 2) {
+            dumpRef_.clear();
+        } else if (!dumpRef_.empty() && (view = coreArg(dumpRef_)) == nullptr) {
+            dumpRef_.clear();  // the core has gone (BOARDS REMOVE): back to the bus
+        }
         const uint32_t lim = view ? view->pcMask() : amax;
         auto rdView = [&](uint32_t x) -> uint8_t { return view ? peekFor(view, x) : rdX(x); };
         uint32_t lo, hi;
@@ -4855,7 +4863,13 @@ bool Monitor::exec(const std::string& line, std::ostream& out) {
         } else if (a[1].find('-') == std::string::npos && a[1].find('/') == std::string::npos) {
             if (!addrSym(a[1], lo, out)) return true;
             if (lo > lim) {
-                out << addrLimit() << "\n";
+                if (view) {
+                    const int digits = lim > 0xFFFFF ? 6 : lim > 0xFFFF ? 5 : 4;
+                    char lb[32];
+                    std::snprintf(lb, sizeof lb, "%0*X-%0*X", digits, 0u, digits, (unsigned)lim);
+                    out << dumpRef_ << " reaches " << lb << "\n";
+                } else
+                    out << addrLimit() << "\n";
                 failed_ = true;
                 return true;
             }
@@ -5599,10 +5613,15 @@ bool Monitor::exec(const std::string& line, std::ostream& out) {
             std::snprintf(hb, sizeof hb, "; pascal100 disassembly  %04X-%04X\n",
                           (unsigned)lo, (unsigned)hi);
             f << hb;
+            // SAVE writes the S-100 bus's memory: a core named by an earlier DISASM (its
+            // own bus or bank) does not decide what the listing reads.
+            const std::string keepView = viewRef_;
+            viewRef_.clear();
             for (uint32_t at = lo; at <= hi;) {
                 at += disasmLine(at, *prnDis, f);
                 if (at > 0xFFFF) break;  // ran off the top of memory; do not wrap silently
             }
+            viewRef_ = keepView;
             fmtName = "listing";
         } else {
             for (auto v : img.flat()) f.put((char)v);
@@ -5644,14 +5663,7 @@ bool Monitor::exec(const std::string& line, std::ostream& out) {
         // DISASM <board>:<unit> ...: decode as that core fetches -- its instruction set, its
         // map or its own bus (spuz0:z80), from its PC unless an address follows. A bare DISASM
         // after one continues in the same core.
-        CpuCore* named = nullptr;
-        if (a.size() >= 2 && (named = coreArg(a[1])) != nullptr) a.erase(a.begin() + 1);
-        if (named) {
-            if (a.size() < 2) setDisasmNext(named->pc() & 0xFFFF);  // from its PC
-            viewCore_ = named;
-        } else if (a.size() >= 2) {
-            viewCore_ = nullptr;  // an address with no core: the active core, on the bus
-        }
+        // CPU= first, so that "DISASM spuz0:z80 CPU=8080" still starts at the core's PC.
         std::string want;
         for (size_t i = 1; i < a.size(); ++i) {
             if (upper(a[i]).rfind("CPU=", 0) == 0) {
@@ -5660,7 +5672,17 @@ bool Monitor::exec(const std::string& line, std::ostream& out) {
                 break;
             }
         }
-        if (want.empty() && viewCore_) want = viewCore_->isa();
+        CpuCore* named = nullptr;
+        if (a.size() >= 2 && (named = coreArg(a[1])) != nullptr) {
+            const std::string ref = a[1];
+            a.erase(a.begin() + 1);
+            if (a.size() < 2) setDisasmNext(named->pc() & 0xFFFF);  // from its PC
+            viewRef_ = ref;
+        } else if (a.size() >= 2) {
+            viewRef_.clear();  // an address with no core: the active core, on the bus
+        }
+        CpuCore* const view = viewCore();
+        if (want.empty() && view) want = view->isa();
         if (want.empty()) want = m_.isa();
         if (want.empty()) {
             out << "no CPU in this machine, so I do not know how to decode these bytes.\n"
@@ -5682,7 +5704,7 @@ bool Monitor::exec(const std::string& line, std::ostream& out) {
         // 8088 DI, and starts at CS:IP after anything that moved the PC (setDisasmNext).
         if (std::string(d->name()) == "8088") {
             uint16_t cs = 0, ip = 0;
-            const bool live = csIp(viewCore_ ? viewCore_ : m_.cpu(), cs, ip);
+            const bool live = csIp(view ? view : m_.cpu(), cs, ip);
             uint16_t seg = disasm88Set_ ? disasm88Seg_ : cs;
             uint32_t lo = disasm88Set_ ? disasmNext_ : ip, hi = 0;
             uint32_t n = 16;  // a count, so DECIMAL, as on the 8080
@@ -5726,7 +5748,7 @@ bool Monitor::exec(const std::string& line, std::ostream& out) {
             disasm88Set_ = true;
             return true;
         }
-        CpuCore* const keepView = viewCore_;
+        const std::string keepView = viewRef_;
 
         uint32_t lo = disasmNext_, hi = 0;
         uint32_t n = 16;  // a screenful, and a count -- so it is DECIMAL
@@ -5747,7 +5769,7 @@ bool Monitor::exec(const std::string& line, std::ostream& out) {
             if (at > 0xFFFF) break;  // ran off the top of memory; do not wrap silently
         }
         setDisasmNext(at & 0xFFFF);
-        viewCore_ = keepView;  // a bare DISASM goes on in the same core
+        viewRef_ = keepView;  // a bare DISASM goes on in the same core
         return true;
     }
 
