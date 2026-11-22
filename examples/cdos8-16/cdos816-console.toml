@@ -1,0 +1,192 @@
+# CompuPro Concurrent DOS 8-16 4.1 on a CPU 286, from a Quantum Q540 hard disk: tty1 on stdio.
+#
+#     cd examples/cdos8-16 && pascal100 cdos816-console.toml
+#     -> your terminal is tty1 (console 1). Wait a few seconds for the system to start, then
+#        press Enter: 0A> comes back. tty2 and tty3 are not connected. On a build with SDL3 the
+#        PC Video still opens its window (console 0); on a build without, it runs unseen.
+#
+# THE DRIVES (README.md, "The drives"). The hard disk is A: to E:, five parts of the Q540 with
+# different sizes. The floppy drives are empty: README.md, "A blank floppy", tells how to add one.
+#
+# HOW IT BOOTS. The Disk 1A boot ROM (routine 5) reads the loader from the hard disk, and the
+# loader reads CCPM.SYS from A:. AUTO.BAT on A: starts the SPUZ (SPZ) and the print manager.
+#
+# THE SAME MACHINE AND DISK AS cdos816.toml, with tty1 on the terminal you started pascal100 in.
+#> CompuPro Concurrent DOS 8-16 4.1: you are tty1 (console 1). Press Enter for 0A>.
+#> STOP (^E) returns here; RUN resumes.
+
+[machine]
+name    = "cdos816-console"
+startup = ["RUN"]
+
+[display]
+crt   = true
+focus = true
+
+# THE CPU 286 (80286, 8 MHz). Concurrent DOS runs on it; the SPUZ runs the 8-bit programs.
+[[board]]
+type = "cpu286"
+id   = "cpu"
+
+# An Interfacer 1 at 00-01, as in the machine this example was made on. Nothing is connected.
+[[board]]
+type = "interfacer1"
+id   = "if1"
+  [board.unit.a]
+  connect = "null"
+
+# THE SYSTEM SUPPORT 1 at 50: the interrupt controllers and the clock. Its serial port is not
+# a console in this system.
+[[board]]
+type = "ss1"
+id   = "ss1"
+base = 50
+  [board.unit.serial]
+  connect = "null"
+
+# THE DISK 1A at C0. Routine 5 boots from the hard disk and never looks for a floppy.
+#   8-inch drives 0 and 1 are I: and J:; 5.25-inch drives 2 and 3 are K: and L:. All are empty.
+[[board]]
+type      = "disk1a"
+id        = "fd0"
+port      = C0
+routine   = 5
+interrupt = "vi4"
+
+# THE DISK 3 hard disk controller, with a Quantum Q540 (40 MB). ATTN on VI1.
+[[board]]
+type      = "disk3"
+id        = "hd0"
+interrupt = "vi1"
+  [[board.drive]]
+  unit  = 0
+  mount = "cdos816.dsk"
+
+# THE HOST BRIDGE at B0, for R, W and HDIR on A:. hostdir "" = the folder you started pascal100 in.
+[[board]]
+type    = "hostbridge"
+id      = "hb0"
+port    = B0
+hostdir = ""
+
+# TWO INTERFACER 4s (users 0-3 and 4-7) and an INTERFACER 3 (users 8-15), as the XIOS tables
+# expect (README.md, "Consoles and printers"):
+#   console 1 = user 7, console 2 = user 3, console 3 = user 2
+#   printer 0 = user 4 (Centronics), printer 1 = user 5, printer 2 = user 8
+[[board]]
+type  = "interfacer4"
+id    = "if4lo"
+users = "0-3"
+  [board.unit.centronics]
+  tx_int = "vi3"
+  [board.unit.parallel]
+  rx_int = "vi2"
+  [board.unit.user1]
+  tx_int  = "vi3"
+  rx_int  = "vi2"
+  connect = "null"
+  [board.unit.user2]
+  tx_int  = "vi3"
+  rx_int  = "vi2"
+  connect = "null"
+  [board.unit.user3]
+  tx_int  = "vi3"
+  rx_int  = "vi2"
+  connect = "null"
+
+[[board]]
+type  = "interfacer4"
+id    = "if4hi"
+users = "4-7"
+  # Printer 0 (the default): the Centronics port. Output goes to a file beside this one.
+  [board.unit.centronics]
+  tx_int  = "vi3"
+  connect = "out:print0.txt"
+  [board.unit.parallel]
+  rx_int = "vi2"
+  # Printer 1: serial port 5.
+  [board.unit.user1]
+  tx_int  = "vi3"
+  rx_int  = "vi2"
+  connect = "out:print1.txt"
+  [board.unit.user2]
+  tx_int  = "vi3"
+  rx_int  = "vi2"
+  connect = "null"
+  [board.unit.user3]
+  tx_int  = "vi3"
+  rx_int  = "vi2"
+  connect = "console"   # tty1 = your terminal
+
+[[board]]
+type  = "interfacer3"
+id    = "if3"
+users = "8-15"
+  # Printer 2: the Interfacer 3's first serial port.
+  [board.unit.user0]
+  tx_int  = "vi3"
+  rx_int  = "vi2"
+  connect = "out:print2.txt"
+  [board.unit.user1]
+  tx_int  = "vi3"
+  rx_int  = "vi2"
+  connect = "null"
+  [board.unit.user2]
+  tx_int  = "vi3"
+  rx_int  = "vi2"
+  connect = "null"
+  [board.unit.user3]
+  tx_int  = "vi3"
+  rx_int  = "vi2"
+  connect = "null"
+  [board.unit.user4]
+  tx_int  = "vi3"
+  rx_int  = "vi2"
+  connect = "null"
+  [board.unit.user5]
+  tx_int  = "vi3"
+  rx_int  = "vi2"
+  connect = "null"
+  [board.unit.user6]
+  tx_int  = "vi3"
+  rx_int  = "vi2"
+  connect = "null"
+  [board.unit.user7]
+  tx_int  = "vi3"
+  rx_int  = "vi2"
+  connect = "null"
+
+# THE SPUZ: a Z80 with its own 256K. SPZ (in AUTO.BAT) starts it; then 8080 .COM files run on it.
+[[board]]
+type = "spuz"
+id   = "spuz0"
+
+# 944K of RAM, with two holes: 0B8000-0BBFFF is the PC Video's screen RAM, and 0E0000-0EFFFF
+# is the SPUZ's window into its own memory.
+[[board]]
+type           = "memory"
+id             = "mem0"
+ext            = true
+fill           = "zero"
+honors_phantom = "read"   # the Disk 1A boot ROM answers every read; writes must still reach RAM
+  [[board.region]]
+  type = "ram"
+  at   = 000000
+  size = "736K"           # 000000-0B7FFF
+  [[board.region]]
+  type = "ram"
+  at   = 0BC000
+  size = "144K"           # 0BC000-0DFFFF
+  [[board.region]]
+  type = "ram"
+  at   = 0F0000
+  size = "64K"            # 0F0000-0FFFFF
+
+# THE PC VIDEO: console 0, in color. Type in its window.
+[[board]]
+type  = "pcvideo"
+id    = "pcv0"
+title = "Console 0 -- PC Video"
+width = 900
+  [board.unit.kbd]
+  connect = "null"        # the window is the keyboard

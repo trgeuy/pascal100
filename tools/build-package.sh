@@ -17,7 +17,8 @@
 #   examples/cpm22/          \
 #   examples/cpm86/           |
 #   examples/cpm8-16/         |  the examples, each a self-contained folder: a machine file
-#   examples/mpm8-16/         |  and the media it mounts, lying beside it (docs/package.map
+#   examples/mpm8-16/         |
+#   examples/cdos8-16/        |  and the media it mounts, lying beside it (docs/package.map
 #   examples/pascal/          |  lists them)
 #   examples/debugger/        |
 #   examples/ai-mcp/         /

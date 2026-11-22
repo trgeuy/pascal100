@@ -80,7 +80,7 @@ disk that you format, does not. The package has the three programs in `hostbridg
    `R W.COM` and `R HDIR.COM`.
 
 On CP/M-86, CP/M 8-16 and MP/M 8-16 (the CPU 8085/88), use the 8086 versions `R.CMD`, `W.CMD`
-and `HDIR.CMD`: the disks in `examples/cpm86`, `cpm8-16` and `mpm8-16` have them. On a disk
+and `HDIR.CMD`: the disks in `examples/cpm86`, `cpm8-16` and `mpm8-16` have them, and so do the Concurrent DOS 8-16 disks in `examples/cdos8-16` (CPU 286). On a disk
 without them, paste `hostbridge/R.H86` and run `GENCMD R` instead of `LOAD R`. On MP/M, only one
 user at a time may run them.
 

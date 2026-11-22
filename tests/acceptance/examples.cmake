@@ -221,7 +221,8 @@ else()
                   "terminal: this build has no window")
 endif()
 
-# ---- 1c. examples/cpm86, cpm8-16, mpm8-16 -- CompuPro CP/M-86 (CPU 86/87) and 8-16 (CPU 8085/88). --
+# ---- 1c. examples/cpm86, cpm8-16, mpm8-16, cdos8-16 -- CompuPro CP/M-86 (CPU 86/87), 8-16 (CPU 8085/88)
+# and Concurrent DOS 8-16 (CPU 286). --
 #
 # Each console twin boots from a COPY over MCP (MCP does not run the startup: `run from` 0, or
 # from FFFF0 = 1048560, the 8086's reset address, for cpm86) and
@@ -300,6 +301,28 @@ execute_process(
 expect_contains("${out}" "the mpm8-16 example did not boot MP/M from the hard disk as its README says"
                 "Hard Disk MP/M 8-16 Loader Rev. 1.0D." "CompuPro MP/M 8-16 V2.1F"
                 "A: MPM      SYS" "A: TTYS" "System Files Exist")
+
+# Concurrent DOS 8-16 4.1 on the CPU 286 from the Q540. The console twin puts tty1 (console 1,
+# an Interfacer 4 port) on the console line: the shell's sign-on and 0A> come out there by
+# themselves. DIR proves A: on the Disk 3, and HELLO80 on B: proves the SPUZ runs an 8080
+# program. Both window files (color and mono PC Video) must load.
+example_816(cdos8-16 cdos816-console.toml cdos816.toml "pcvideo")
+example_816(cdos8-16 cdos816-console.toml cdos816-mono.toml "pcvideo")
+mcp_session("${dist}/cdos816.jsonl"
+  [=[{"name":"run","arguments":{"from":0,"until":"0A>","timeout_ms":120000}}]=]
+  [=[{"name":"run","arguments":{"input":"DIR\r","until":"0A>","timeout_ms":60000}}]=]
+  [=[{"name":"run","arguments":{"input":"B:HELLO80\r","until":"0B>","timeout_ms":60000}}]=])
+execute_process(
+  COMMAND           "${SIM}" cdos816-console.toml --mcp
+  WORKING_DIRECTORY "${dist}/examples/cdos8-16"
+  INPUT_FILE        "${dist}/cdos816.jsonl"
+  OUTPUT_VARIABLE   out
+  ERROR_VARIABLE    out
+  TIMEOUT           180
+)
+expect_contains("${out}" "the cdos8-16 example did not boot Concurrent DOS from the Disk 3 as its README says"
+                "CompuPro Concurrent DOS 8-16" "CCPM     SYS" "System files exist"
+                "Hello from ASM and LOAD on the SPUZ")
 
 # ---- 2. examples/debugger -- the walkthrough, symbols and hex loaded from beside the file. ----
 #

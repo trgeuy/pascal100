@@ -15,6 +15,7 @@ pascal100 examples/cpm22/cpm22.toml           # CompuPro CP/M 2.2K, in a VT100 w
 pascal100 examples/cpm86/cpm86.toml           # CompuPro CP/M-86 1.1 on the CPU 86/87, in a window  
 pascal100 examples/cpm8-16/cpm816.toml        # CompuPro CP/M 8-16 1.1PD from a Disk 3 hard disk
 pascal100 examples/mpm8-16/mpm816.toml        # CompuPro MP/M 8-16 2.1F from a hard disk, 3 users
+pascal100 examples/cdos8-16/cdos816.toml      # CompuPro Concurrent DOS 8-16 4.1 on the CPU 286, 4 consoles
 pascal100 examples/pascal/pascal.toml         # UCSD Pascal III.0 on the Pascal-100, in a VT52 window
 pascal100 examples/debugger/debugger.toml     # a bench for learning the symbolic debugger
 ```
@@ -25,6 +26,7 @@ pascal100 examples/debugger/debugger.toml     # a bench for learning the symboli
 | [`cpm86/`](cpm86/) | CompuPro **CP/M-86 1.1** on the CPU 86/87: the 8086 boots and runs CP/M-86. 8086 programs (`.CMD`) only. `cpm86-console.toml` puts the console on stdio. |
 | [`cpm8-16/`](cpm8-16/) | CompuPro **CP/M 8-16 1.1PD** from a 40 MB Quantum Q540 hard disk on a **Disk 3**: CP/M-86 plus CompuPro's `SW!`, which runs 8080 programs (`.COM`) on the 8085 beside the 8086 ones. The floppy boots `CPM340.SYS`, and `A:` to `E:` are the hard disk. `cpm816-console.toml` puts the console on stdio. |
 | [`mpm8-16/`](mpm8-16/) | CompuPro **MP/M 8-16 2.1F**, multi-user, from a Fujitsu M20 hard disk on a Disk 2 and Selector Channel: the console, tty1 and tty2 in three windows, two printers to files. Type `SYNC` before you stop. `mpm816-console.toml` puts the console on stdio. |
+| [`cdos8-16/`](cdos8-16/) | CompuPro **Concurrent DOS 8-16 4.1** on the CPU 286, from a Quantum Q540 on a Disk 3: console 0 on the **PC Video** (four virtual consoles, PC Mode, graphics), three VT100 terminals, 8080 programs on the **SPUZ**, three printers to files with the print manager, and the XIOS build kit. `cdos816-mono.toml` has a monochrome PC Video; `cdos816-console.toml` puts tty1 on stdio. The disks are not covered by the MIT license. |
 | [`pascal/`](pascal/) | **UCSD Pascal III.0** on the Digicomp Pascal-100 (Z80 and MicroEngine), booted from an 8" floppy in a **built-in VT52 window**. `pascal-console.toml` puts the console on stdio instead. The disk is not covered by the MIT license. |
 | [`debugger/`](debugger/) | A 46-byte program with its **symbols** and a guided walk through the monitor's debugger: `SYMBOLS LOAD`, symbolic `DISASM`, single-step, break on a label, run. |
 | [`ai-mcp/`](ai-mcp/) | A working directory for an **AI assistant driving pascal100 over MCP**: a CP/M machine and a tiny `HELLO.ASM` with one deliberate bug the assistant assembles, runs, single-steps to find, and fixes — all through the simulator's MCP tools. See `DRIVING-WITH-AI.md`, or the `pascal100` Agent Skill, which an assistant that reads skills loads by itself: `skills/pascal100/` in the package, `.claude/skills/pascal100/` in this repository. |

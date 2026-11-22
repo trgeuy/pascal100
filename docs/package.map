@@ -64,6 +64,7 @@ DIR  examples/cpm22      <=  examples/cpm22
 DIR  examples/cpm86      <=  examples/cpm86
 DIR  examples/cpm8-16    <=  examples/cpm8-16
 DIR  examples/mpm8-16    <=  examples/mpm8-16
+DIR  examples/cdos8-16   <=  examples/cdos8-16
 DIR  examples/pascal     <=  examples/pascal
 DIR  examples/debugger   <=  examples/debugger
 DIR  examples/ai-mcp     <=  examples/ai-mcp

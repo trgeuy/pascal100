@@ -45,6 +45,7 @@ make your own.
 | `examples/cpm86/cpm86.toml` | CompuPro CP/M-86 1.1 on the CPU 86/87, in a window. |
 | `examples/cpm8-16/cpm816.toml` | CompuPro CP/M 8-16 1.1PD from a Quantum Q540 hard disk on a Disk 3: 8086 programs on the 8088, 8080 programs on the 8085. |
 | `examples/mpm8-16/mpm816.toml` | CompuPro MP/M 8-16 2.1F from a Fujitsu M20 hard disk: three users in three windows. |
+| `examples/cdos8-16/cdos816.toml` | CompuPro Concurrent DOS 8-16 4.1 on the CPU 286 from a Q540 hard disk: the PC Video and three terminals, PC Mode, the SPUZ, three printers. |
 | `examples/pascal/pascal.toml` | The Pascal-100 system: the Pascal-100 card, Disk 1, Interfacer 1, 128K, in a VT52 window. |
 | `examples/debugger/debugger.toml` | A small program and its symbols, to learn the monitor's debugger. |
 | `examples/ai-mcp/cpm-ai.toml` | A CP/M machine for an AI assistant that drives pascal100 over MCP. |

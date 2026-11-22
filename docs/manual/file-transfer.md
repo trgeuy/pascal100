@@ -452,7 +452,8 @@ the 8080 versions in this chapter. There are two small differences:
 The disks in [`examples/cpm86`](../../examples/cpm86/), [`examples/cpm8-16`](../../examples/cpm8-16/)
 and [`examples/mpm8-16`](../../examples/mpm8-16/) have the three programs, and each machine file
 has the `hb0` board. On MP/M they are on the hard disk, drive `A:`, with the SYS attribute, so
-every user number finds them.
+every user number finds them. Concurrent DOS 8-16 on the CPU 286 runs them too: the disks in
+[`examples/cdos8-16`](../../examples/cdos8-16/) have them on `A:` with the SYS attribute.
 
 CP/M 8-16 and MP/M 8-16 can also run the 8080 `.COM` versions through CompuPro's `SW!`. Use the
 `.CMD` versions. `SW!` is for a CP/M program that has no 8086 version.
