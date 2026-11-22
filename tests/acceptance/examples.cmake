@@ -311,7 +311,7 @@ example_816(cdos8-16 cdos816-console.toml cdos816-mono.toml "pcvideo")
 mcp_session("${dist}/cdos816.jsonl"
   [=[{"name":"run","arguments":{"from":0,"until":"0A>","timeout_ms":120000}}]=]
   [=[{"name":"run","arguments":{"input":"DIR\r","until":"0A>","timeout_ms":60000}}]=]
-  [=[{"name":"run","arguments":{"input":"B:HELLO80\r","until":"0B>","timeout_ms":60000}}]=])
+  [=[{"name":"run","arguments":{"input":"B:HELLO80\r","until":"LOAD on the SPUZ","timeout_ms":60000}}]=])
 execute_process(
   COMMAND           "${SIM}" cdos816-console.toml --mcp
   WORKING_DIRECTORY "${dist}/examples/cdos8-16"
