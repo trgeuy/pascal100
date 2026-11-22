@@ -37,6 +37,7 @@ usually a System Support 1.
 | `291B_1.HEX` | `roms/DISK1A/` | The boot EPROM, all sixteen routines. |
 | CompuPro `ROM1.ASM` (August 1984) | not tracked | Routine 0 of an earlier EPROM revision. It agrees with `291B_1.HEX` on the ports and the Read Data command. Its Specify bytes differ. |
 | CompuPro `HMXBIOS.ASM`, `ACTIVE.LIB` | not tracked | The disk formats in the `MAKEDPB` table. The size probe uses them. |
+| CompuPro XIOS 4.1D `FD.A86` (Concurrent DOS 8-16 4.1) | not tracked | The second two-sided 8″ layout: cylinder 0 single density on both heads (`FD8FNL`). |
 
 `docs/sources.md` has the provenance of each one.
 
@@ -113,6 +114,21 @@ A raw image has no geometry, so the byte count gives the format. The formats com
 Each format can have one side or two. Two sides are cylinder-interleaved (C0H0, C0H1, C1H0…),
 the order of the CompuPro BIOS. The directory of the two-sided `CCPM22Q` disk is where this
 order puts it.
+
+**A two-sided 8″ double-density disk has a second layout.** Concurrent DOS 8-16 4.1 makes all of
+cylinder 0 single density, on both heads. Its XIOS (`FD.A86`, `FD8FNL`) tests the cylinder, not
+the track, and its `FORMAT` writes the disk that way. Cylinder 0 head 1 is then 26 × 128 (3,328
+bytes), and the disk is one double-density track smaller:
+
+| Format | CP/M 2.2 layout | Concurrent DOS 4.1 layout |
+|---|---|---|
+| DSDD 26 × 256 | 1,021,696 | 1,018,368 |
+| DSDD 15 × 512 | 1,178,368 | 1,174,016 |
+| DSDD 8 × 1024 | 1,256,704 | 1,251,840 |
+
+No two sizes of the probe are within 128 bytes of each other, so the size gives the layout. A
+`media` value takes both layouts. Before this layout was in the probe, a disk that Concurrent DOS
+had formatted mounted as a blank at the next start, and the XIOS answered "Invalid Drive".
 
 Three 5.25″ formats have 327,680 bytes, and two have 655,360 bytes. Without `media`, the probe
 refuses these two sizes, because a raw image cannot say which format it is. The error names the
@@ -248,6 +264,9 @@ The `[[board.drive]]` table takes these keys:
   - a DMA read, a DMA write and the 24-bit counter
   - the size probe, the refusal of a blank with no `media`, a `5ds` and an `8ss` blank
     formatted, the TS line from the media, and a `5ds` blank run by motor bit 7
+  - the Concurrent DOS 4.1 layout: a 1,251,840-byte image reads cylinder 0 head 1 at FM and
+    cylinder 1 at MFM, and an `8ds` blank formatted that way mounts again, with and without
+    `media`
   - `media`: a 655,360-byte image mounts as `5ds-dd512` and reads side 1, 327,680 bytes mounts
     as `5ss-dd256` and as `5ds-sd`, a `5ds` blank reads two-sided, and an 8″ image is refused as
     5.25″ media

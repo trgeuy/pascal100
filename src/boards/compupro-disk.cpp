@@ -36,6 +36,10 @@ int driveIndex(const std::string& unit) {
 //   8"    77 cylinders. Cylinder 0 head 0 is always SD 26 x 128 (the IBM 3740 index
 //         track, and what the boot ROM reads). Every other track is the disk's format:
 //         SD 26 x 128, or DD 26 x 256, 15 x 512, 8 x 1024.
+//         A two-sided DD disk has a second layout: cylinder 0 is SD on BOTH heads. That is
+//         Concurrent DOS 8-16 4.1's (XIOS 4.1D FD.A86, FD8FNL: it makes cylinder 0, not
+//         track 0, single density), and its FORMAT writes it. It is 3,328 bytes larger on
+//         cylinder 0 head 1 and one DD track smaller, so no two sizes in this table meet.
 //   5.25" 80 cylinders, one format throughout: SD 16 x 128, or DD 16 x 256, 8 x 512,
 //         5 x 1024. (The BIOS blocks every 5.25" track; there is no SD track 0.)
 //
@@ -73,16 +77,23 @@ constexpr SizeFormat kFormats[] = {
     {false, Density::DD,  8, 512},  {false, Density::DD,  5, 1024},
 };
 
-uint64_t formatBytes(const SizeFormat& f, int heads) {
+// sdCylinder0: the Concurrent DOS layout, SD on both heads of cylinder 0 (see above).
+uint64_t formatBytes(const SizeFormat& f, int heads, bool sdCylinder0 = false) {
     const uint64_t track = (uint64_t)f.sectors * (uint64_t)f.size;
     if (!f.eightInch) return 80ull * (uint64_t)heads * track;
+    if (sdCylinder0) return 2ull * 26 * 128 + (77ull * 2 - 2) * track;
     return 26ull * 128 + (77ull * (uint64_t)heads - 1) * track;
 }
 
-std::string describe(const SizeFormat& f, int heads) {
+// Only a two-sided 8" DD disk has the second layout: on an SD disk both are one layout.
+bool hasSdCylinder0(const SizeFormat& f, int heads) {
+    return f.eightInch && heads == 2 && f.density == Density::DD;
+}
+
+std::string describe(const SizeFormat& f, int heads, bool sdCylinder0 = false) {
     return std::string(f.eightInch ? "8\" " : "5.25\" ") + (heads == 2 ? "DS" : "SS") +
            (f.density == Density::SD ? "SD " : "DD ") + std::to_string(f.sectors) + " x " +
-           std::to_string(f.size);
+           std::to_string(f.size) + (sdCylinder0 ? ", cylinder 0 SD on both heads" : "");
 }
 
 // A `media` value: a shape (size and sides), and for a full format one kFormats row too.
@@ -146,17 +157,21 @@ bool CompuProDiskBoard::probe(DiskImage& img, const std::string& forced, bool& e
     const SizeFormat*  hit   = nullptr;
     const SizeFormat*  big   = nullptr;
     int            hitHeads = 0;
+    bool           hitSd0   = false;
     std::string    all, names;
     int            count = 0;
     for (const SizeFormat& f : kFormats) {
         if (!takes(f)) continue;
         if (!big || formatBytes(f, 2) > formatBytes(*big, 2)) big = &f;
         for (int h = 1; h <= 2; ++h)
-            if (heads(h) && sizeMatches(bytes, formatBytes(f, h))) {
-                if (!hit) { hit = &f; hitHeads = h; }
-                all += (count ? ", " : "") + describe(f, h);
-                names += (count ? ", " : "") + mediaName(f.eightInch, h, &f);
-                ++count;
+            for (bool sd0 : {false, true}) {
+                if (sd0 && !hasSdCylinder0(f, h)) continue;
+                if (heads(h) && sizeMatches(bytes, formatBytes(f, h, sd0))) {
+                    if (!hit) { hit = &f; hitHeads = h; hitSd0 = sd0; }
+                    all += (count ? ", " : "") + describe(f, h, sd0);
+                    names += (count ? ", " : "") + mediaName(f.eightInch, h, &f);
+                    ++count;
+                }
             }
     }
     if (count > 1) {
@@ -170,7 +185,9 @@ bool CompuProDiskBoard::probe(DiskImage& img, const std::string& forced, bool& e
         img.init(cyls, hitHeads, true);
         if (eightInch) {
             img.initFormat(0, 0, 0, 0, Density::SD, 26, 128, 1);
-            if (hitHeads == 2)
+            if (hitHeads == 2 && hitSd0)
+                img.initFormat(0, 0, 1, 1, Density::SD, 26, 128, 1);
+            else if (hitHeads == 2)
                 img.initFormat(0, 0, 1, 1, hit->density, hit->sectors, hit->size, 1);
             img.initFormat(1, cyls - 1, 0, hitHeads - 1, hit->density, hit->sectors, hit->size, 1);
         } else {
@@ -181,19 +198,21 @@ bool CompuProDiskBoard::probe(DiskImage& img, const std::string& forced, bool& e
     // A disk this board reads, but not the forced media or not a size the board takes, is
     // refused, not taken for a blank.
     for (const SizeFormat& f : kFormats)
-        for (int h = 1; h <= 2; ++h) {
-            if (!sizeMatches(bytes, formatBytes(f, h))) continue;
-            if (m && (f.eightInch ? takes8() : takes525())) {
-                err = std::to_string(bytes) + " bytes is a " + describe(f, h) +
-                      " disk, not media = " + m->name + ".";
-                return false;
+        for (int h = 1; h <= 2; ++h)
+            for (bool sd0 : {false, true}) {
+                if (sd0 && !hasSdCylinder0(f, h)) continue;
+                if (!sizeMatches(bytes, formatBytes(f, h, sd0))) continue;
+                if (m && (f.eightInch ? takes8() : takes525())) {
+                    err = std::to_string(bytes) + " bytes is a " + describe(f, h, sd0) +
+                          " disk, not media = " + m->name + ".";
+                    return false;
+                }
+                if (!m && !takes(f)) {
+                    err = std::to_string(bytes) + " bytes is a " + describe(f, h, sd0) + " disk. This " +
+                          traits_.name + " is built for " + (takes8() ? "8\"" : "5.25\"") + " drives.";
+                    return false;
+                }
             }
-            if (!m && !takes(f)) {
-                err = std::to_string(bytes) + " bytes is a " + describe(f, h) + " disk. This " +
-                      traits_.name + " is built for " + (takes8() ? "8\"" : "5.25\"") + " drives.";
-                return false;
-            }
-        }
     const int      sides   = m ? m->heads : 2;
     const uint64_t largest = formatBytes(*big, sides);
     if (bytes < largest) {

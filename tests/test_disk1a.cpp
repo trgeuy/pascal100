@@ -293,6 +293,35 @@ void test_disk1a() {
               "cylinder 2 head 0 is at 27,904 -- where CCPM22Q.DSK keeps its directory");
     }
     {
+        // Concurrent DOS 8-16 4.1's layout: cylinder 0 is SD on BOTH heads (XIOS 4.1D FD8FNL),
+        // then 152 tracks of 8 KB. 2 x 3,328 + 152 x 8,192 = 1,251,840 bytes.
+        withRampDisk(1251840);
+        Rig k;
+        std::string err;
+        CHECK(k.fdc->mount("drive0", "c.dsk", false, err),
+              "1,251,840 bytes is 8\" DSDD 8 x 1024 with cylinder 0 SD on both heads");
+        k.home();
+        k.dmaAt(0x2000);
+        k.command({0x06, 0x04, 0, 1, 26, 0, 26, 7, 128});  // cylinder 0 head 1, sector 26, FM
+        auto r = k.results(7);
+        CHECK(r[1] == 0x80, "cylinder 0 head 1 reads at FM, 26 x 128 (no TC: ends at EOT with EN)");
+        CHECK(k.m.bus.memRead(0x2000) == stamp(3328 + 25 * 128),
+              "cylinder 0 head 1 is the file's second track (3,328), single density");
+        k.dmaAt(0x2000);
+        k.command({0x46, 0x04, 0, 1, 1, 3, 1, 0x1B, 0xFF});
+        r = k.results(7);
+        CHECK((r[0] & 0xC0) != 0 && (r[1] & 0x01) != 0,
+              "...and it does not read at MFM: Missing Address Mark");
+        k.command({0x0F, 0x00, 1});  // Seek to cylinder 1
+        k.out(DATA, 0x08);
+        k.results(2);
+        k.dmaAt(0x2000);
+        k.command({0x46, 0x00, 1, 0, 1, 3, 1, 0x1B, 0xFF});
+        r = k.results(7);
+        CHECK(r[1] == 0x80 && k.m.bus.memRead(0x2000) == stamp(6656),
+              "cylinder 1 head 0 reads at MFM, 8 x 1024, from 6,656");
+    }
+    {
         Rig k;
         std::string err;
         const struct { uint64_t bytes; bool ok; const char* what; } sizes[] = {
@@ -300,6 +329,8 @@ void test_disk1a() {
             {625920, true, "8\" SSDD 8 x 1024"},     {587008, true, "8\" SSDD 15 x 512"},
             {509184, true, "8\" SSDD 26 x 256"},     {163840, true, "5.25\" SSSD 16 x 128"},
             {409600, true, "5.25\" SSDD 5 x 1024"},
+            {1018368, true, "8\" DSDD 26 x 256, cylinder 0 SD on both heads"},
+            {1174016, true, "8\" DSDD 15 x 512, cylinder 0 SD on both heads"},
             {0, false, "a blank (0-byte) disk with no media (#777)"},
             {327680, false, "327,680 (three 5.25\" formats)"},
             {655360, false, "655,360 (two 5.25\" formats)"},
@@ -378,6 +409,54 @@ void test_disk1a() {
                   "an 8\" SSSD format of cylinders 0 and 1 lays out end to end: 6,656 bytes");
             k.out(DATA, 0x04); k.out(DATA, 0x01);
             CHECK((k.in(DATA) & 0x08) == 0, "...and it still reads one-sided");
+        }
+        {
+            // Concurrent DOS 4.1's FORMAT on a blank 8ds disk: both heads of cylinder 0 at FM,
+            // 26 x 128, every other track 8 x 1024 at MFM. The image must mount again.
+            std::vector<uint8_t> saved;
+            {
+                Rig         k;
+                std::string err;
+                CHECK(k.fdc->mountWith("drive1", "cdos8.dsk", false, {{"media", "8ds"}}, err),
+                      "a blank 8ds disk mounts");
+                k.home(1);
+                bool ok = true;
+                for (uint8_t c = 0; c < 77; ++c)
+                    for (uint8_t h = 0; h < 2; ++h) {
+                        auto r = c == 0 ? format(k, c, h, 0, 26, false) : format(k, c, h, 3, 8, true);
+                        if (r[0] & 0xC0) ok = false;
+                    }
+                CHECK(ok && blank->bytes().size() == 1251840,
+                      "the Concurrent DOS format lays out end to end: 1,251,840 bytes");
+                saved = blank->bytes();
+            }
+            setMediaResolver([&saved](const std::string& path, bool ro, std::string&) {
+                return std::make_unique<MemoryMedia>(path, saved, ro);
+            });
+            {
+                Rig         k;  // a new drive: no media from an earlier mount
+                std::string err;
+                CHECK(k.fdc->mount("drive1", "cdos8.dsk", false, err),
+                      "the formatted image mounts with no media: its size says what it is");
+            }
+            Rig         k;
+            std::string err;
+            CHECK(k.fdc->mountWith("drive1", "cdos8.dsk", false, {{"media", "8ds"}}, err),
+                  "...and with media = 8ds, not as a blank (the reads below prove it)");
+            k.home(1);
+            k.dmaAt(0x2000);
+            k.command({0x06, 0x05, 0, 1, 1, 0, 1, 7, 128});  // unit 1, cylinder 0 head 1, FM
+            auto r = k.results(7);
+            CHECK(r[1] == 0x80 && k.m.bus.memRead(0x2000) == 0xE5,
+                  "cylinder 0 head 1 reads back at FM");
+            k.command({0x0F, 0x01, 1});
+            k.out(DATA, 0x08);
+            k.results(2);
+            k.dmaAt(0x2000);
+            k.command({0x46, 0x01, 1, 0, 8, 3, 8, 0x1B, 0xFF});  // cylinder 1 head 0, sector 8
+            r = k.results(7);
+            CHECK(r[1] == 0x80 && k.m.bus.memRead(0x2000) == 0xE5,
+                  "cylinder 1 head 0 reads back at MFM, 8 x 1024");
         }
     }
 
