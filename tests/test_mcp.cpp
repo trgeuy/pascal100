@@ -2027,9 +2027,9 @@ void test_mcp() {
         req(R"({"name":"mem_fill","arguments":{"lo":8192,"hi":8207,"byte":171}})");        // AB x16
         req(R"({"name":"mem_deposit","arguments":{"addr":8200,"bytes":"DE AD BE EF"}})");
         req(R"({"name":"mem_search","arguments":{"lo":0,"hi":16384,"bytes":"DE AD BE EF"}})");
-        req(R"({"name":"mem_save","arguments":{"path":")" + hex + R"(","lo":8192,"hi":8207}})");
+        req(R"({"name":"mem_save","arguments":{"path":)" + Json(hex).dump() + R"(,"lo":8192,"hi":8207}})");
         req(R"({"name":"mem_fill","arguments":{"lo":8192,"hi":8207,"byte":0}})");           // wipe
-        req(R"({"name":"mem_load","arguments":{"path":")" + hex + R"("}})");                 // reload
+        req(R"({"name":"mem_load","arguments":{"path":)" + Json(hex).dump() + R"(}})");      // reload
         req(R"({"name":"mem_dump","arguments":{"lo":8200,"hi":8203}})");
         auto rep = runScript(m, s.str());
 
@@ -2084,8 +2084,8 @@ void test_mcp() {
             s << R"({"jsonrpc":"2.0","id":)" << ++id
               << R"(,"method":"tools/call","params":)" << params << "}\n";
         };
-        req(R"({"name":"snapshot","arguments":{"path":")" + path + R"("}})");
-        req(R"({"name":"restore","arguments":{"path":")" + path + R"("}})");
+        req(R"({"name":"snapshot","arguments":{"path":)" + Json(path).dump() + R"(}})");
+        req(R"({"name":"restore","arguments":{"path":)" + Json(path).dump() + R"(}})");
         auto rep = runScript(m, s.str());
         CHECK(rep[1].at("result").at("structuredContent").at("ok").boolean(), "snapshot wrote");
         CHECK(rep[2].at("result").at("structuredContent").at("ok").boolean(),

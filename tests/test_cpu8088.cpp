@@ -272,6 +272,20 @@ void test_cpu8088() {
         CHECK(q.irq->acks == 0 && q.get("IP") == 0x101, "IF clear: no acknowledge, the NOP runs");
     }
 
+    SECTION("8088: MUL word -- FFFFh x FFFFh = FFFE0001h, no signed overflow on the way (CLK change 9)");
+    {
+        Rig r;
+        r.code(0x100, {0xF7, 0xE3, 0xF7, 0xE3});   // MUL BX ; MUL BX
+        r.set("AX", 0xFFFF); r.set("BX", 0xFFFF);
+        r.step();
+        CHECK(r.get("DX") == 0xFFFE && r.get("AX") == 0x0001, "DX:AX = FFFE:0001");
+        CHECK((r.get("FLAGS") & 0x0801) == 0x0801, "CF and OF set: the high word is not 0");
+        r.set("AX", 0x0002); r.set("BX", 0x7FFF);
+        r.step();
+        CHECK(r.get("DX") == 0 && r.get("AX") == 0xFFFE && (r.get("FLAGS") & 0x0801) == 0,
+              "2 x 7FFFh = 0000:FFFE, CF and OF clear");
+    }
+
     SECTION("8088: the interrupt shadow after STI and after MOV SS");
     {
         Rig r;

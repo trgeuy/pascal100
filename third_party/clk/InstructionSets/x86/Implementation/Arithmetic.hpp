@@ -14,7 +14,9 @@
 
 #include "Numeric/Carry.hpp"
 
+#include <cstdint>      // pascal100: for MUL below
 #include <limits>  // pascal100: for the 8086 IDIV check below
+#include <type_traits>  // pascal100: for MUL below
 
 namespace InstructionSet::x86::Primitive {
 
@@ -124,8 +126,12 @@ void mul(
 		The OF and CF flags are cleared to 0 if the upper half of the result is 0;
 		otherwise, they are set to 1. The SF, ZF, AF, and PF flags are undefined.
 	*/
-	destination_high = (destination_low * source) >> (8 * sizeof(IntT));
-	destination_low *= source;
+	// pascal100: multiply in an unsigned type twice as wide. Upstream multiplied in IntT, which
+	// promotes a uint16_t to int: FFFFh x FFFFh overflows int (undefined; UBSan reports it).
+	using WideT = std::conditional_t<sizeof(IntT) <= 2, uint32_t, uint64_t>;
+	const WideT product = WideT(destination_low) * WideT(source);
+	destination_high = IntT(product >> (8 * sizeof(IntT)));
+	destination_low = IntT(product);
 	context.flags.template set_from<Flag::Overflow, Flag::Carry>(destination_high);
 }
 

@@ -28,7 +28,7 @@ every test gives the real chip's registers and RAM. Not yet offered upstream.
 The 80286 (`src/cpu/cpu80286.*`, model `i80286`) was checked against the SingleStepTests
 80286 v1_real_mode suite (about 1.48 M tests from a real Harris 80C286-12). Changes 5 and 6
 apply to the 80286 model only. With them, 99.997% of the tests give the real chip's
-registers and RAM. Changes 7 and 8 came from a code review.
+registers and RAM. Changes 7 and 8 came from a code review, and change 9 from a UBSan run.
 
 5. `Implementation/LoadStore.hpp`, LEA: a register operand (mod 11) is an invalid opcode
    (INT 6) from the 80286 on.
@@ -43,6 +43,10 @@ registers and RAM. Changes 7 and 8 came from a code review.
    the operand's address goes through the switch on its form. Upstream always used the
    base + index form, so `[disp16]` and `[BX]` gave a wrong address. The hardware suite has
    no test of these instructions.
+9. `Implementation/Arithmetic.hpp`, `mul()`: the product is made in an unsigned type twice
+   as wide. Upstream multiplied two `uint16_t` values, which C++ promotes to `int`, so a
+   word MUL with a product above 7FFFFFFFh was a signed overflow: undefined behavior, which
+   UBSan reported. The results were right on every compiler tried. Found 2026-11-21.
 
 The 49 tests that still fail are corner cases: an instruction longer than 10 bytes (2),
 ENTER with a large level (1), AAM 0 (9), the IDIV quotient limit (4), and ESC with no 80287
