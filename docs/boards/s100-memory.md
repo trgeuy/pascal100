@@ -104,6 +104,7 @@ ddboot      DDBOOT.HEX       581  631C3AD5  F000-F24D  Jade Double D host boot P
 ddboot-2sio DDBOOT2.HEX      581  A017E174  F000-F24D  Jade Double D host boot PROM (DDBOOT), patched for an 88-2SIO console at ports 10/11 -- starts the board Z80, loads CP/M
 disk1       DISK1.HEX       2048  EBA8EE41  0000-07FF  CompuPro Disk 1 boot EPROM (2716; routines 4-7 for the 8080/Z80, 0-3 for the 8086)
 disk1a      291B_1.HEX      8192  93DBAEF4  0000-1FFF  CompuPro Disk 1A boot EPROM (2764, sixteen 512-byte routines)
+pcvideo     PCVIDEO.BIN     8192  6555EFCD  0000-1FFF  CompuPro PC Video character generator (2764: 9x14 monochrome, 8x8 color; Modern DOS font, CC0)
 ssm-8080mon SSM-8080MON.HEX 2008  27636BB0  F000-F7FF  SSM 8080 System Monitor V1.0 by C. E. Ohme (2K EPROM, F000-F7FF)
 tarbell-sd  TARPROM.HEX       32  55E3446D  0000-001F  Tarbell floppy boot PROM -- 32-byte cold-start bootstrap (reads T0/S1 to 0000, jumps 07D)
 

@@ -135,7 +135,7 @@ When you type HELP you are almost always hunting for a name you half-remember, a
 pascal100> HELP D
 
   D[UMP]
-  DUMP [<addr>|<range>] [WIDTH=16]
+  DUMP [<board>:<unit>] [<addr>|<range>] [WIDTH=16]
 
   Hex and ASCII. A bare address runs to the END OF ITS PAGE, and a bare DUMP
   continues from there -- so the rows and the columns both stay page-aligned
@@ -144,9 +144,14 @@ pascal100> HELP D
     D 100        ; 0100-01FF, a whole page
     D 0001       ; 0001-00FF: stops on the boundary, last line full
     D            ; the next page
-    D FF00-FF0F  ; an explicit range means exactly what it says
+    D 0-F        ; an explicit range means exactly what it says
     D 100/20     ; 0100-011F (LEN is part of the address expression: hex)
     D 0 WIDTH=8  ; eight bytes per line
+
+  A core first (<board>:<unit>) reads memory as that core fetches it, with a peek:
+  through its board's own bus and bank for a processor such as the SPUZ's Z80.
+
+    D spuz0:z80 0  ; page 0 of the bank the SPUZ's Z80 runs in
 ```
 
 Note that `HELP D` works — the argument goes through the same prefix resolver as everything else, so you never have to spell a command out just to ask about it.

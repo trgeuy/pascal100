@@ -27,7 +27,7 @@ a single name.
 pascal100> SYMBOLS LOAD HELLO.PRN
 12 symbol(s) from HELLO.PRN
 pascal100> LOAD HELLO.HEX
-loaded 46 bytes (1 page) from HELLO.HEX (0100-012D)
+loaded 46 bytes (1 page) from HELLO.HEX (000100-00012D)
 ```
 
 ## 2 — Disassemble it, and read it by name
@@ -93,13 +93,14 @@ the machine, with the next instruction disassembled symbolically:
 ```
 pascal100> EXAMINE START
 0100  31  1  00110001
+C0Z0M0E0I0V0K0 A=00 BC=0000 DE=0000 HL=0000 SP=0000 IE=0 PC=0100  LXI SP,STACK
 pascal100> STEP 3
-C0Z0M0E0I0 A=00 B=0000 D=0000 H=0000 S=013E IE=0 P=0103  LXI H,MSG
-C0Z0M0E0I0 A=00 B=0000 D=0000 H=011F S=013E IE=0 P=0106  MOV A,M
-C0Z0M0E0I0 A=48 B=0000 D=0000 H=011F S=013E IE=0 P=0107  ORA A
+C0Z0M0E0I0V0K0 A=00 BC=0000 DE=0000 HL=0000 SP=013E IE=0 PC=0103  LXI H,MSG
+C0Z0M0E0I0V0K0 A=00 BC=0000 DE=0000 HL=011F SP=013E IE=0 PC=0106  MOV A,M
+C0Z0M0E0I0V0K0 A=48 BC=0000 DE=0000 HL=011F SP=013E IE=0 PC=0107  ORA A
 ```
 
-Read down the `P=` column: the stack pointer `S=` fills in after `LXI SP,STACK`, `H=` becomes
+Read down the `PC=` column: the stack pointer `SP=` fills in after `LXI SP,STACK`, `HL=` becomes
 `011F` (that is `MSG`) after `LXI H,MSG`, and `A=48` after `MOV A,M` — `48` is `'H'`, the
 first byte of the string. `STEP` with no count does one instruction; `NEXT` is the same but
 runs a `CALL` to its return instead of descending into it.
@@ -111,12 +112,13 @@ A breakpoint takes a symbol, too. Set one on the subroutine and run:
 ```
 pascal100> EXAMINE START
 0100  31  1  00110001
+C0Z0M0E0I0V0K0 A=48 BC=0000 DE=0000 HL=011F SP=013E IE=0 PC=0100  LXI SP,STACK
 pascal100> BREAK PUTC
 breakpoint 1: pc     0113
 pascal100> RUN
 breakpoint 1 (pc     0113) -- stopped at 0113
 6 instructions, 58 T-states.
-C0Z0M0E1I0 A=48 B=0000 D=0000 H=011F S=013C IE=0 P=0113  PUSH PSW
+C0Z0M0E1I0V0K0 A=48 BC=0000 DE=0000 HL=011F SP=013C IE=0 PC=0113  PUSH PSW
 ```
 
 It stopped the first time the program reached `PUTC`, with `A=48` — the `'H'` it was about to
@@ -127,13 +129,14 @@ pascal100> NOBREAK 1
 breakpoint 1 cleared.
 pascal100> EXAMINE START
 0100  31  1  00110001
+C0Z0M0E1I0V0K0 A=48 BC=0000 DE=0000 HL=011F SP=013C IE=0 PC=0100  LXI SP,STACK
 pascal100> BREAK DONE
-breakpoint 2: pc     0112
+breakpoint 1: pc     0112
 pascal100> RUN
 HELLO, WORLD
-
-breakpoint 2 (pc     0112) -- stopped at 0112
-C0Z1M0E1I0 A=00 B=0000 D=0000 H=012D S=013E IE=0 P=0112  HLT
+breakpoint 1 (pc     0112) -- stopped at 0112
+1097 instructions, 9882 T-states.
+C0Z1M0E1I0V0K0 A=00 BC=0000 DE=0000 HL=012D SP=013E IE=0 PC=0112  HLT
 ```
 
 There it is: the program ran, printed `HELLO, WORLD` through the 2SIO, and stopped exactly at

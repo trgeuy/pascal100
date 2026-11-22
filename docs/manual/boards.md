@@ -65,11 +65,17 @@ has no default, and has no line:
 
 ```
 pascal100> SHOW BOARD 2sio
+  2sio  MITS 88-2SIO: two 6850 ACIAs, units 'a' and 'b'. Four ports at
+        BASE+0..3
+
   PROPERTY  HELP
   --------  ------------------------------------------------------------------
   port      Base address. The board decodes four ports: BASE+0 .. BASE+3
             values: 0x0 .. 0xFC
             default: 0x10
+
+  This board has units: a, b
+  SHOW BOARD 2sio UNITS for their properties.
 ```
 
 Add `UNITS` to see only the units. Each unit has a heading with its **kind**, and after the
@@ -84,7 +90,10 @@ pascal100> SHOW BOARD disk1 units
   --------  ------------------------------------------------------------------
   baud      Line rate: the far end's setting, and what the guest's delay loop
             must match. 8 data bits, no parity, 1 stop bit
+            values: 50 .. 115200
+            default: 9600
   connect   The endpoint on the other end of the line (CONNECT sets this)
+            default: null
   ...
 
   [[board.drive]]  (in a machine file)
@@ -899,6 +908,7 @@ fd0: jadedd added
 pascal100> MOUNT fd0:drive0 CPM22DD.DSK
 fd0:drive0: mounted CPM22DD.DSK
 pascal100> SET fd0 interrupt=vi2
+fd0: interrupt=vi2
 pascal100> SHOW fd0
 ```
 

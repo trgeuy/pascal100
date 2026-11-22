@@ -739,7 +739,7 @@ it first on a machine that you built. This is the `default` machine:
 ```
 pascal100> SHOW BUS
 MEMORY
-  000000-0000FF  fd0      boot ROM one 256-byte routine of the EPROM, over PHANTOM* until OUT BASE+3 with D0 = 0  all segments
+  000000-00FFFF  fd0      boot ROM every memory read gets byte A0-A7 of one 256-byte routine, over PHANTOM* until OUT BASE+3 with D0 = 0  all segments
   000000-00FFFF  mem0     ram  ext  16-bit
   other segments: only the boards marked "all segments" answer
 I/O
