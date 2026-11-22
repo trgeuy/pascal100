@@ -102,8 +102,8 @@ public:
     void deserialize(StateReader& r);
 
 private:
-    // T-states from a frame's start to `halfBits` half bit times into it.
-    uint64_t at(int halfBits) const;
+    // The T-state `halfBits` half bit times after `start` (a frame's start), in real time.
+    uint64_t at(uint64_t start, int halfBits) const;
     void     programLine();
     void     arm();
     void     finishFrame();

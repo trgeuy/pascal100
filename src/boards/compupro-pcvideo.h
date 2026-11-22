@@ -218,6 +218,7 @@ private:
     // The master clock against host time.
     uint64_t anchorT_ = 0;            // host T-state caught up to
     uint64_t rem_ = 0;                // the remainder of the conversion, carried
+    long long remHz_ = 0;             // the host rate rem_ is in (0: none yet)
     uint64_t mclkPhase_ = 0;          // master clocks into the present character clock
 
     // The light pen (host side; does not travel in a snapshot).

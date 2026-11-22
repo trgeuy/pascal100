@@ -87,8 +87,9 @@ The status byte of a strobe read is the one from before the strobes act (see *Li
 - **Lazy catch-up.** The board Z80 does not run on every host step. A host cycle that the board
   decodes (the port or the window) first runs the board Z80 up to the host's present, converted
   to board T-states: board T = host T × board hz / host `hz()`. The remainder carries from one
-  call to the next. A `SET clock_hz` between two calls splits the interval at
-  `Clock::rateChangedAt()`. Nothing the host can see changes between two of its cycles, so no
+  call to the next. Every change of the host's `hz()` between two calls (a `SET clock_hz`, each
+  processor swap of a CPU 8085/88) splits the interval, and each part converts at its own rate
+  (`Clock::forEachRate`). Nothing the host can see changes between two of its cycles, so no
   event is lost.
 - **Halted costs nothing.** A halted board Z80, or one stopped because the host has the RAM, does
   not step. The private clock jumps to the next FD1791 edge or to the target.

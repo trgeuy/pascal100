@@ -220,11 +220,21 @@ bool Machine::remove(const std::string& id, std::string& err) {
         err = "no board '" + id + "'";
         return false;
     }
-    if (dynamic_cast<CpuCard*>(b)) debug.forgetCores();   // its cores are about to go
+    const bool cpu = dynamic_cast<CpuCard*>(b) != nullptr;
+    if (cpu) debug.forgetCores();   // its cores are about to go
     bus.detach(b);
     boards_.erase(std::remove_if(boards_.begin(), boards_.end(),
                                  [&](const std::unique_ptr<Board>& p) { return p.get() == b; }),
                   boards_.end());
+    // The clock's rate and pacing are the CPU board's to publish. With none left, they go back
+    // to a machine with no processor: flat out, the 88-CPU's 2 MHz (Clock::setHz), and not the
+    // removed board's 8 or 6 MHz for every UART and disk still on the backplane.
+    if (cpu && std::none_of(boards_.begin(), boards_.end(), [](const std::unique_ptr<Board>& p) {
+            return dynamic_cast<CpuCard*>(p.get()) != nullptr;
+        })) {
+        clock.setHz(0);
+        clock.setIdle(true);
+    }
     return true;
 }
 

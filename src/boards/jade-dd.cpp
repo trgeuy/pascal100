@@ -49,11 +49,11 @@ JadeDdBoard::~JadeDdBoard() {
 // HOST TIME -> BOARD TIME.
 //
 // board T = host T x boardHz / host hz(). The host's hz() is its crystal, and it is never 0
-// (Clock::setHz): flat out it is the host card's as-sold crystal, so a flat-out host gets the
+// (Clock::setHz): flat out it is the host CPU board's as-sold crystal, so a flat-out host gets the
 // same board time per host T-state as a paced one at that crystal. The remainder carries from one call to
-// the next, so no board T-state is lost to rounding. A SET clock_hz between two calls splits
-// the interval at Clock::rateChangedAt(): the part before it at the old rate, the rest at
-// the new.
+// the next, so no board T-state is lost to rounding. Every change of hz() between two calls
+// (a SET clock_hz, each processor swap of a CPU 8085/88) splits the interval: each part
+// converts at its own rate (Clock::forEachRate).
 // ---------------------------------------------------------------------------
 void JadeDdBoard::catchUp() {
     if (inCatchUp_) return;
@@ -73,17 +73,18 @@ void JadeDdBoard::catchUp() {
         return q * bhz + n / r;
     };
 
-    uint64_t adv  = 0;
-    uint64_t from = anchorH_;
-    if (lastHz_ != hz) {
-        uint64_t at = std::clamp(h.rateChangedAt(), from, now);
-        adv += convert(at - from, lastHz_);
-        rem_ = 0;  // a remainder in old-rate units means nothing at the new rate
-        from = at;
-    }
-    adv += convert(now - from, hz);
+    // Each run of host T-states at one rate, oldest first (Clock::forEachRate: a CPU 8085/88
+    // changes hz() at every processor swap). The remainder is in units of the rate it was
+    // carried at, so a change of rate drops it.
+    uint64_t adv = 0;
+    h.forEachRate(anchorH_, now, [&](uint64_t dh, long long rate) {
+        if (rate != lastHz_) {
+            rem_    = 0;
+            lastHz_ = rate;
+        }
+        adv += convert(dh, rate);
+    });
     anchorH_ = now;
-    lastHz_  = hz;
     targetB_ += adv;
 
     inCatchUp_ = true;

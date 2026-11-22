@@ -89,8 +89,55 @@ void Clock::advance(uint64_t dt) {
 void Clock::power() {
     t_      = 0;
     rateAt_ = 0;
+    rates_.clear();
     heap_.clear();
     live_.clear();
+}
+
+uint64_t Clock::scaled(uint64_t from, uint64_t to, uint64_t perSecond) const {
+    uint64_t  whole = 0, rem = 0;   // rem is in units of 1/prev of a unit
+    long long prev  = 0;
+    forEachRate(from, to, [&](uint64_t dt, long long rate) {
+        const uint64_t r = (uint64_t)rate;
+        if (prev && prev != rate) rem = rem * r / (uint64_t)prev;   // into the new rate's units
+        const uint64_t q = dt / r, m = dt % r;
+        const uint64_t n = m * perSecond + rem;
+        whole += q * perSecond + n / r;
+        rem  = n % r;
+        prev = rate;
+    });
+    return whole;
+}
+
+uint64_t Clock::tAfter(uint64_t from, uint64_t perSecond, uint64_t count) const {
+    if (count == 0 || perSecond == 0) return from;
+    uint64_t  got = 0, rem = 0, t = from, found = 0;
+    long long prev = 0;
+    bool      done = false;
+    // One segment at `rate`: either the count is reached inside it, or all of it counts.
+    auto step = [&](uint64_t dt, long long rate) {
+        if (done) return;
+        const uint64_t r = (uint64_t)rate;
+        if (prev && prev != rate) rem = rem * r / (uint64_t)prev;
+        prev = rate;
+        // T-states for the units still needed: the least d with got + (d*per + rem)/r >= count.
+        const uint64_t need = count - got;
+        const uint64_t num  = need * r > rem ? need * r - rem : 0;
+        const uint64_t d    = (num + perSecond - 1) / perSecond;
+        if (d <= dt) {
+            found = t + d;
+            done  = true;
+            return;
+        }
+        const uint64_t q = dt / r, m = dt % r;
+        const uint64_t n = m * perSecond + rem;
+        got += q * perSecond + n / r;
+        rem = n % r;
+        t += dt;
+    };
+    if (from < t_) forEachRate(from, t_, step);
+    if (!done) step(UINT64_MAX - t, hz_);   // on from now at today's rate
+    return found;
 }
 
 void Clock::serialize(StateWriter& w) const {
@@ -108,6 +155,7 @@ void Clock::deserialize(StateReader& r) {
     // against the restored time.
     heap_.clear();
     live_.clear();
+    rates_.clear();
     t_    = r.u64();
     // Forward only. Moving it back would re-issue numbers handed out since the snapshot,
     // which a board may still hold and is about to cancel.

@@ -38,9 +38,12 @@ void BitSerialLine::attachClock(Clock* c) {
     arm();
 }
 
-uint64_t BitSerialLine::at(int halfBits) const {
-    if (!clock_ || baud <= 0) return 0;
-    return (uint64_t)halfBits * (uint64_t)clock_->hz() / (2 * (uint64_t)baud);
+// The T-state `halfBits` half bit times after `start`, in real time: across every change of
+// hz() since then (Clock::tAfter), so a CPU 8085/88 processor swap in the middle of a
+// character moves no sample point.
+uint64_t BitSerialLine::at(uint64_t start, int halfBits) const {
+    if (!clock_ || baud <= 0) return start;
+    return clock_->tAfter(start, 2 * (uint64_t)baud, (uint64_t)halfBits);
 }
 
 // ---------------------------------------------------------------------------
@@ -78,22 +81,28 @@ void BitSerialLine::arm() {
     if (!clock_) return;
     clock_->cancel(wake_);
     wake_ = Clock::kNone;
-    if (txBusy_) wake_ = clock_->at(txStart_ + at(kStopMid), [this] {
+    if (txBusy_) wake_ = clock_->at(at(txStart_, kStopMid), [this] {
         wake_ = Clock::kNone;
+        // Armed at the rate of that moment: if hz() has gone up since, the stop bit's middle
+        // is still ahead in real time.
+        if (clock_->now() < at(txStart_, kStopMid)) {
+            arm();
+            return;
+        }
         finishFrame();
     });
 }
 
 void BitSerialLine::finishFrame() {
     txBusy_ = false;
-    if (txLevelAt(txStart_ + at(kStartMid))) {  // the start bit was gone by its middle
+    if (txLevelAt(at(txStart_, kStartMid))) {  // the start bit was gone by its middle
         txEdges_.clear();
         return;
     }
     uint8_t b = 0;
     for (int i = 0; i < 8; ++i)
-        if (txLevelAt(txStart_ + at(dataMid(i)))) b |= (uint8_t)(1u << i);
-    const bool stop = txLevelAt(txStart_ + at(kStopMid));
+        if (txLevelAt(at(txStart_, dataMid(i)))) b |= (uint8_t)(1u << i);
+    const bool stop = txLevelAt(at(txStart_, kStopMid));
     txEdges_.clear();
     if (stop) {
         stream_->write(&b, 1);
@@ -113,7 +122,7 @@ void BitSerialLine::finishFrame() {
 // the wire. The deadline does this on time; this covers a write that lands on the same
 // T-state.
 void BitSerialLine::catchUp() {
-    if (txBusy_ && clock_ && clock_->now() >= txStart_ + at(kStopMid)) {
+    if (txBusy_ && clock_ && clock_->now() >= at(txStart_, kStopMid)) {
         clock_->cancel(wake_);
         wake_ = Clock::kNone;
         finishFrame();
@@ -146,7 +155,8 @@ void BitSerialLine::setTx(bool mark) {
 bool BitSerialLine::rx() {
     if (!clock_ || baud <= 0) return true;
     const uint64_t now = clock_->now();
-    if (rxBusy_ && now >= rxStart_ + at(kFrame)) rxBusy_ = false;
+    if (rxBusy_ && clock_->scaled(rxStart_, now, 2 * (uint64_t)baud) >= (uint64_t)kFrame)
+        rxBusy_ = false;
     if (!rxBusy_) {
         if (!stream_->readable()) return true;
         uint8_t b = 0;
@@ -156,7 +166,7 @@ bool BitSerialLine::rx() {
         rxBusy_  = true;
         ++rxCount_;
     }
-    const uint64_t bit = (now - rxStart_) * (uint64_t)baud / (uint64_t)clock_->hz();
+    const uint64_t bit = clock_->scaled(rxStart_, now, (uint64_t)baud);   // across rate changes
     if (bit == 0) return false;                    // the start bit
     if (bit <= 8) return (rxByte_ >> (bit - 1)) & 1;
     return true;                                   // the stop bit

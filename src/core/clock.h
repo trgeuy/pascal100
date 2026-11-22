@@ -49,9 +49,12 @@
 // is exactly one such thing: a wire.
 // ---------------------------------------------------------------------------
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <deque>
 #include <functional>
+#include <iterator>
 #include <unordered_map>
 #include <vector>
 
@@ -118,9 +121,10 @@ public:
     void unwatch(Clock** p);
     bool pending(Handle h) const;
 
-    // The crystal on the CPU card. Defaults to the 88-CPU's 2 MHz so that a
+    // The crystal on the CPU board. Defaults to the 88-CPU's 2 MHz so that a
     // machine with no processor in it still gives a board a sane number to divide
-    // by instead of a zero to divide by.
+    // by instead of a zero to divide by. Removing the last CPU board puts it back
+    // (Machine::remove).
     //
     // hz() IS A DIVISOR. free() IS A POLICY. They are not the same question, and
     // fusing them into one number is how `clock_hz = 0` came to be documented as
@@ -137,26 +141,59 @@ public:
     // T-states simply elapse as fast as the host can retire them, which is the whole
     // point: the tape is period-correct, the WAIT is not.
     //
-    // FLAT OUT DIVIDES BY THE CARD'S AS-SOLD CRYSTAL (`nominal`, 2026-11-20). A card sold at
-    // 8 MHz that runs flat out is still an 8 MHz part to every board that converts real time:
-    // a 9600-baud character, a disk revolution, a slave processor's clock. Before this, every
-    // flat-out card divided by 2 MHz, so a flat-out CPU 286 counted as a 2 MHz 80286 and a
-    // CompuPro SPUZ's Z80 got four T-states per 80286 clock. A card with no product behind it
-    // (the 88-CPU and its generic twins) keeps the 88-CPU's 2 MHz.
+    // FLAT OUT DIVIDES BY THE CPU BOARD'S AS-SOLD CRYSTAL (`nominal`, 2026-11-20). A board
+    // sold at 8 MHz that runs flat out is still an 8 MHz part to every board that converts
+    // real time: a 9600-baud character, a disk revolution, a slave processor's clock. Before
+    // this, every flat-out CPU board divided by 2 MHz, so a flat-out CPU 286 counted as a
+    // 2 MHz 80286 and a CompuPro SPUZ's Z80 got four T-states per 80286 clock. A CPU board
+    // with no product behind it (the 88-CPU and its generic twins) keeps the 88-CPU's 2 MHz.
     long long hz() const { return hz_; }
     bool      free() const { return free_; }
     void      setHz(long long hz, long long nominal = 2000000) {
         bool      f = (hz <= 0);
         long long h = hz > 0 ? hz : (nominal > 0 ? nominal : 2000000);
         if (f != free_ || h != hz_) rateAt_ = t_;
+        if (h != hz_) {
+            rates_.push_back({t_, hz_, h});
+            if (rates_.size() > kRateHistory) rates_.pop_front();
+        }
         free_ = f;
         hz_   = h;
     }
 
-    // The T-state at which hz() or free() last changed. A count of real time kept in
-    // T-states (core/busclock.h) counts up to here at the old rate and on from here at
-    // the new one, whenever it next looks.
+    // The T-state at which hz() or free() last changed.
     uint64_t rateChangedAt() const { return rateAt_; }
+
+    // THE RATE IN FORCE OVER AN INTERVAL, segment by segment. A CPU 8085/88 changes hz() at
+    // every processor swap, so a board that converts host time to real time can see many
+    // changes between two looks; splitting only at the last one (rateChangedAt) converts
+    // the earlier part at the wrong rate. forEachRate(from, to, f) calls f(dt, hz) for each
+    // run of T-states in [from, to) at one hz(), oldest first. The clock keeps the last
+    // kRateHistory changes; time before the oldest kept one counts at that change's old rate.
+    template <typename F> void forEachRate(uint64_t from, uint64_t to, F&& f) const {
+        if (to <= from) return;
+        auto it = std::upper_bound(rates_.begin(), rates_.end(), from,
+                                   [](uint64_t v, const RateChange& c) { return v < c.at; });
+        long long rate = it == rates_.begin() ? (rates_.empty() ? hz_ : rates_.front().before)
+                                              : std::prev(it)->after;
+        uint64_t t = from;
+        for (; it != rates_.end() && it->at < to; ++it) {
+            if (it->at > t) {
+                f(it->at - t, rate);
+                t = it->at;
+            }
+            rate = it->after;
+        }
+        f(to - t, rate);
+    }
+
+    // How many units of a per-second rate (bits at a baud rate) pass between T-states
+    // `from` and `to`, across every rate change. Integer and exact to well under a unit:
+    // the remainder carries from one segment to the next.
+    uint64_t scaled(uint64_t from, uint64_t to, uint64_t perSecond) const;
+    // The first T-state at or after `from` at which `count` units of `perSecond` have
+    // passed: scaled(from, t, perSecond) >= count. Past now() it assumes hz() goes on.
+    uint64_t tAfter(uint64_t from, uint64_t perSecond, uint64_t count) const;
 
     // THE SECOND POLICY, AND IT IS ORTHOGONAL TO THE FIRST (Patrick, 2026-07-13).
     //
@@ -238,6 +275,12 @@ private:
 
     uint64_t t_    = 0;
     uint64_t rateAt_ = 0;       // see rateChangedAt()
+    struct RateChange {
+        uint64_t  at;            // the T-state of the change
+        long long before, after; // hz() up to it, and from it on
+    };
+    static constexpr size_t kRateHistory = 4096;
+    std::deque<RateChange> rates_;  // see forEachRate(); emptied by power() and a restore
     long long hz_  = 2000000;   // the DIVISOR. Never 0. See setHz().
     bool     free_ = true;      // ...and by default we do not pace against it.
     bool     idle_ = true;      // ...but we DO stand down when the guest is only waiting.

@@ -47,16 +47,22 @@ uint64_t BusClock::counted(const Clock& clk) const {
 
 uint64_t BusClock::now(const Clock& clk) const {
     if (!primed_) anchor(clk, 0);
-    // The CPU board changed its pacing or its crystal at T-state `at`: count up to
-    // there the old way, and on from there the new way.
+    // The CPU board changed its pacing or its crystal: count up to the change the old way,
+    // and on from there the new way. Paced, the T-states since the anchor count at each
+    // rate in force (Clock::scaled): a CPU 8085/88 changes hz() at every processor swap, so
+    // there can be many changes since the last look, not one.
     if (clk.free() != free_ || clk.hz() != hz_) {
-        uint64_t at = clk.rateChangedAt();
-        if (at < anchorT_) at = anchorT_;
-        if (at > clk.now()) at = clk.now();
-        uint64_t tick = free_ ? counted(clk)
-                              : anchorTick_ + scale(at - anchorT_, (uint64_t)kHz, (uint64_t)hz_);
-        anchor(clk, tick);
-        anchorT_ = at;
+        if (free_) {
+            anchor(clk, counted(clk));
+        } else {
+            // Paced up to now, or, if the run is now flat out, up to the change that made it so.
+            uint64_t to = clk.free() ? clk.rateChangedAt() : clk.now();
+            if (to < anchorT_) to = anchorT_;
+            if (to > clk.now()) to = clk.now();
+            const uint64_t tick = anchorTick_ + clk.scaled(anchorT_, to, (uint64_t)kHz);
+            anchor(clk, tick);
+            anchorT_ = to;
+        }
     }
     uint64_t n = counted(clk);
     if (n < last_) n = last_;

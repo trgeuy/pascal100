@@ -177,6 +177,43 @@ void test_bitserial() {
     atRate(4000000);
     atRate(0);
 
+    SECTION("BitSerialLine: the rate changes in the middle of a character (CPU 8085/88 swap)");
+    {
+        // 9600 baud: a bit is 625 T-states at 6 MHz and 833 at 8 MHz. The guest's bits are
+        // real-time bits; the clock goes from 6 MHz to 8 MHz after the fourth data bit.
+        const uint8_t v = 0xB4;
+        Bench b(6000000);
+        b.line.setTx(false);
+        b.clk.advance(625);
+        for (int i = 0; i < 8; ++i) {
+            if (i == 4) b.clk.setHz(8000000);
+            b.line.setTx((v >> i) & 1);
+            b.clk.advance(b.bit());
+        }
+        b.line.setTx(true);
+        b.clk.advance(b.bit() * 2);
+        CHECK(b.s->out() == std::string(1, (char)v) && b.log().empty(),
+              "transmit: every bit sampled at its real-time middle");
+
+        Bench r(6000000);
+        r.s->feed(std::string(1, (char)v));
+        CHECK(!r.line.rx(), "receive: the start bit");
+        r.clk.advance(312);                    // to its middle at 6 MHz
+        int got = 0;
+        for (int i = 0; i < 8; ++i) {
+            if (i == 4) {
+                // Half a bit at 6 MHz, then the swap, then half a bit at 8 MHz.
+                r.clk.advance(313);
+                r.clk.setHz(8000000);
+                r.clk.advance(417);
+            } else {
+                r.clk.advance(r.bit());
+            }
+            if (r.line.rx()) got |= 1 << i;
+        }
+        CHECK(got == v, "receive: every bit at its real-time middle");
+    }
+
     SECTION("BitSerialLine: 1200 baud at 4 MHz is 3333 T-states a bit");
     {
         Bench b(4000000, 1200);

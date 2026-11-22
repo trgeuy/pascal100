@@ -318,6 +318,24 @@ void test_spuz() {
         CHECK(r.sp->boardClock().now() - b0 == 4000, "1000 host T at 2 MHz = 4000 board T");
     }
 
+    SECTION("spuz: two rate changes between catch-ups -- each part at its own rate");
+    {
+        // A flat-out CPU 8085/88: the 8085 at 6 MHz, the 8088 at 8 MHz, the 8085 again.
+        Rig r;
+        r.quiesce();
+        r.m.clock.setHz(0, 6000000);
+        r.sp->catchUp();
+        const uint64_t b0 = r.sp->boardClock().now();
+        r.run(600);
+        r.m.clock.setHz(0, 8000000);
+        r.run(800);
+        r.m.clock.setHz(0, 6000000);
+        r.run(600);
+        r.sp->catchUp();
+        CHECK(r.sp->boardClock().now() - b0 == 2400,
+              "100 us + 100 us + 100 us = 2400 board T (not 2000 host T at 6 MHz = 2666)");
+    }
+
     SECTION("spuz: sixteen boards share the window; SLAVESEL picks the one that answers");
     {
         Rig r(3);

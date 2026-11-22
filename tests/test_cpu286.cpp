@@ -305,6 +305,16 @@ void test_cpu286() {
         CHECK(!g.m.clock.free() && g.m.clock.hz() == 12500000, "clock_hz 12500000: paced at it");
     }
 
+    SECTION("cpu286: BOARDS REMOVE of the CPU board puts the clock back to 2 MHz, flat out");
+    {
+        Rig286b g;
+        std::string err;
+        CHECK(g.m.clock.hz() == 8000000, "flat out at 8 MHz with the board");
+        CHECK(g.m.remove("cpu", err), err.c_str());
+        CHECK(g.m.clock.free() && g.m.clock.hz() == 2000000,
+              "no CPU board: the 88-CPU's 2 MHz, flat out, for the boards left");
+    }
+
     SECTION("cpu286: BREAK IO on a 16-bit port -- FC3E stops on OUT DX to FC3E, 3E still matches the low byte");
     {
         // The 80286 puts all 16 bits of DX on A0-A15 for OUT DX. A breakpoint above FF names

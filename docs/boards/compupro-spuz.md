@@ -202,16 +202,23 @@ starts at 0000h in bank 3.
   and the host boundary is run when the Z80 is let go, so board time stays host time x 8 MHz /
   host `hz()`.
 - **Every SPUZ costs host time, busy or idle.** CompuPro's scheduler never halts the Z80. Measured
-  2026-11-20 (Concurrent DOS 4.1, CPU 286 flat out, the Z80 at 8 MHz, an Apple Silicon Mac), the
-  emulated seconds per wall-clock second after the boot, with every board idle:
+  2026-11-21 (Concurrent DOS 4.1, CPU 286 flat out, so 8 MHz to the boards; the Z80 at 8 MHz, one
+  Z80 T-state per 80286 clock; an Apple Silicon Mac), the emulated seconds per wall-clock second
+  after the boot, with every board idle:
 
   | Boards | 1 | 2 | 4 | 8 | 16 |
   |---|---|---|---|---|---|
-  | Emulated s per wall s | 2.90 | 2.69 | 2.29 | 1.85 | 1.35 |
+  | Emulated s per wall s | 0.69 | 0.69 | 0.67 | 0.61 | 0.54 |
 
-- **Board time against host time follows the host divisor.** Flat out, every pascal100 CPU card
-  gives the clock a 2 MHz divisor (DESIGN.md §8), so the CPU 286 counts as a 2 MHz part and the
-  Z80 gets 4 T-states for each 80286 clock. At `clock_hz = 8000000` it gets 1.
+  An emulated second is 8,000,000 80286 clocks. The figures from 2026-11-20 (2.90 for one board
+  to 1.35 for 16) counted 2 MHz seconds, with four Z80 T-states per 80286 clock. In 80286 clocks
+  per wall second, one board is as fast as before, and 16 boards are about 60% faster.
+
+- **Board time against host time follows the host divisor.** Flat out, the clock divides by the
+  CPU board's as-sold crystal (DESIGN.md §8): 8 MHz on a CPU 286, so the Z80 gets 1 T-state for
+  each 80286 clock, as at `clock_hz = 8000000`. (Before 2026-11-20 the divisor was 2 MHz flat
+  out, and it got 4.) A CPU 8085/88 changes the divisor at each processor swap; each run of host
+  time converts at its own rate.
 
 ## Verification
 

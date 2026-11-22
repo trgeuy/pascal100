@@ -74,8 +74,8 @@ SpuzBoard::~SpuzBoard() {
 }
 
 // ---------------------------------------------------------------------------
-// HOST TIME -> BOARD TIME: board T = host T x 8 MHz / host hz(), the remainder carried, a
-// SET clock_hz split at Clock::rateChangedAt(). The same conversion as JadeDdBoard::catchUp
+// HOST TIME -> BOARD TIME: board T = host T x 8 MHz / host hz(), the remainder carried, each
+// run of host time at its own hz() (Clock::forEachRate). The same conversion as JadeDdBoard::catchUp
 // (DESIGN.md 3.0.4, "One thread, and the board catches up").
 // ---------------------------------------------------------------------------
 void SpuzBoard::catchUp() {
@@ -95,17 +95,18 @@ void SpuzBoard::catchUp() {
         return q * bhz + n / r;
     };
 
-    uint64_t adv  = 0;
-    uint64_t from = anchorH_;
-    if (lastHz_ != hz) {
-        uint64_t at = std::clamp(h.rateChangedAt(), from, now);
-        adv += convert(at - from, lastHz_);
-        rem_ = 0;
-        from = at;
-    }
-    adv += convert(now - from, hz);
+    // Each run of host T-states at one rate, oldest first (Clock::forEachRate: a CPU 8085/88
+    // changes hz() at every processor swap). The remainder is in units of the rate it was
+    // carried at, so a change of rate drops it.
+    uint64_t adv = 0;
+    h.forEachRate(anchorH_, now, [&](uint64_t dh, long long rate) {
+        if (rate != lastHz_) {
+            rem_    = 0;
+            lastHz_ = rate;
+        }
+        adv += convert(dh, rate);
+    });
     anchorH_ = now;
-    lastHz_  = hz;
     targetB_ += adv;
 
     inCatchUp_ = true;

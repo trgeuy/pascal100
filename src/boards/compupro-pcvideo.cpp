@@ -131,12 +131,20 @@ void PcVideoBoard::catchUp() {
         anchorT_ = now;
         return;
     }
-    const uint64_t hz = (uint64_t)clock_->hz();
-    const uint64_t dt = now - anchorT_;
+    // Each run of host time at its own hz() (Clock::forEachRate: a SET clock_hz, a CPU
+    // 8085/88's processor swaps). rem_ is in units of remHz_, so a change of rate drops it.
+    uint64_t mclk = 0;
+    clock_->forEachRate(anchorT_, now, [&](uint64_t dt, long long rate) {
+        const uint64_t hz = (uint64_t)rate;
+        if (rate != remHz_) {
+            rem_   = 0;
+            remHz_ = rate;
+        }
+        const uint64_t part = (dt % hz) * (uint64_t)masterHz() + rem_;
+        mclk += (dt / hz) * (uint64_t)masterHz() + part / hz;
+        rem_ = part % hz;
+    });
     anchorT_ = now;
-    const uint64_t part = (dt % hz) * (uint64_t)masterHz() + rem_;
-    const uint64_t mclk = (dt / hz) * (uint64_t)masterHz() + part / hz;
-    rem_ = part % hz;
     const uint64_t per = (uint64_t)mclkPerChar();
     const uint64_t total = mclkPhase_ + mclk;
     crtc_.advance(total / per);
@@ -706,6 +714,7 @@ void PcVideoBoard::power() {
     nextKeyAt_ = 0;
     anchorT_   = clock_ ? clock_->now() : 0;
     rem_       = 0;
+    remHz_     = 0;
     mclkPhase_ = 0;
     reset(Reset::PowerOn);
 }

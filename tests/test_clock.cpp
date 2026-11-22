@@ -329,4 +329,34 @@ void test_clock() {
         c.setHz(0, 0);
         CHECK(c.free() && c.hz() == 2000000, "a nominal of 0 is no nominal: never a 0 divisor");
     }
+
+    SECTION("Clock -- the rate history: each run of T-states at its own hz()");
+    {
+        // A CPU 8085/88 swapping processors: 6 MHz, 8 MHz, 6 MHz.
+        Clock c;
+        c.setHz(0, 6000000);
+        const uint64_t t0 = c.now();
+        c.advance(600);
+        c.setHz(0, 8000000);
+        c.advance(800);
+        c.setHz(0, 6000000);
+        c.advance(600);
+        std::vector<std::pair<uint64_t, long long>> seg;
+        c.forEachRate(t0, c.now(), [&](uint64_t dt, long long hz) { seg.push_back({dt, hz}); });
+        CHECK(seg.size() == 3 && seg[0] == std::make_pair(uint64_t(600), 6000000LL) &&
+                  seg[1] == std::make_pair(uint64_t(800), 8000000LL) &&
+                  seg[2] == std::make_pair(uint64_t(600), 6000000LL),
+              "three runs: 600 at 6 MHz, 800 at 8 MHz, 600 at 6 MHz");
+        CHECK(c.scaled(t0, c.now(), 1000000) == 300, "300 us of real time, not 2000/6 = 333");
+        CHECK(c.scaled(t0 + 300, t0 + 1000, 1000000) == 100, "50 us at 6 MHz + 50 us at 8 MHz");
+        CHECK(c.tAfter(t0, 1000000, 150) == t0 + 1000, "150 us in: 100 at 6 MHz, 50 at 8 MHz");
+        CHECK(c.tAfter(t0, 1000000, 400) == c.now() + 600, "past now: on at today's 6 MHz");
+        CHECK(c.scaled(t0, t0 + 7, 1000000) == 1 && c.tAfter(t0, 1000000, 1) == t0 + 6,
+              "rounding: the first whole microsecond is 6 T-states in");
+        c.power();
+        std::vector<long long> after;
+        c.advance(10);
+        c.forEachRate(0, c.now(), [&](uint64_t, long long hz) { after.push_back(hz); });
+        CHECK(after.size() == 1 && after[0] == 6000000, "POWER empties the history");
+    }
 }
