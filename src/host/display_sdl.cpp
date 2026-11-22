@@ -683,6 +683,21 @@ void SdlDisplay::pollEvents() {
             // its own pace and none is lost (host/display.h pasteKeys for the conversion).
             if (k == 'v' && ((e.key.mod & SDL_KMOD_GUI) ||
                              ((e.key.mod & SDL_KMOD_CTRL) && (e.key.mod & SDL_KMOD_SHIFT)))) {
+                // A window that takes physical keys has already sent the chord's Ctrl and
+                // Shift (or Cmd) down to the guest: let them go first, or every pasted key
+                // arrives with them held. Their real key-ups are then not ours (KEY_UP).
+                if (rawKeys(from)) {
+                    if (Window* w = windowById(e.key.windowID)) {
+                        for (auto it = w->keysDown.begin(); it != w->keysDown.end();) {
+                            if (*it >= SDL_SCANCODE_LCTRL && *it <= SDL_SCANCODE_RGUI) {
+                                emitRawKey(from, *it, false);
+                                it = w->keysDown.erase(it);
+                            } else {
+                                ++it;
+                            }
+                        }
+                    }
+                }
                 if (SDL_HasClipboardText()) {
                     char* clip = SDL_GetClipboardText();
                     const std::string keys = pasteKeys(clip ? clip : "");

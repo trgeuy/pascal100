@@ -215,6 +215,39 @@ void test_pcvideo() {
         CHECK(g.pv->ready(), "a write to port 12 sets ready");
     }
 
+    SECTION("pcvideo: two boards behind one select port -- port 0 is shared, not contention");
+    {
+        Rig g;
+        std::string err;
+        auto* two = dynamic_cast<PcVideoBoard*>(g.m.add("pcvideo", "pcv1", err));
+        CHECK(two != nullptr && setProperty(*two, "select", "1", err), err.c_str());
+        g.m.power();
+        (void)g.m.bus.drain();
+        g.out(0, 0x01);                        // pcv0 on (bit 0), pcv1 off (bit 1)
+        g.m.bus.memWriteX(0x0B8000, 0x41);
+        CHECK(g.m.bus.drain().empty(), "no contention on port 0 or on the selected board's RAM");
+        g.out(0, 0x02);                        // pcv1 on, pcv0 off
+        g.m.bus.memWriteX(0x0B8000, 0x42);
+        CHECK(g.m.bus.drain().empty(), "the other way round: none either");
+        CHECK(g.m.bus.peekX(0x0B8000) == 0x42, "pcv1 answers now");
+        g.out(0, 0x02);
+        g.out(0, 0x00);
+        CHECK(g.m.bus.drain().empty(), "a select write with none selected: none");
+    }
+
+    SECTION("pcvideo: POWER with a key deadline pending -- the keyboard still works after");
+    {
+        Rig g;
+        const uint8_t codes[] = {0x1E, 0x9E};
+        g.pv->keyCodes(codes, 2);
+        g.out(11, 0x00);                       // the next code is now 1 ms away (a deadline)
+        g.m.power();                           // the clock restarts at 0, its queue empty
+        const uint8_t next[] = {0x1F};
+        g.pv->keyCodes(next, 1);
+        g.run(g.hz() / 100);
+        CHECK(g.pv->ready() && g.in(12) == 0x1F, "a key after POWER is delivered");
+    }
+
     SECTION("pcvideo: keys = ascii -- a character is typed with Shift or Ctrl (PCKEY.DVR)");
     {
         Rig g;
@@ -233,6 +266,18 @@ void test_pcvideo() {
                                            0x2A, 0x1E, 0x9E, 0xAA,              // Shift A
                                            0x1D, 0x2E, 0xAE, 0x9D};             // Ctrl C
         CHECK(got == want, "a; Shift-A; Ctrl-C, each key down then up");
+    }
+
+    SECTION("pcvideo: a fast keyboard stream waits in the stream, not in the key queue");
+    {
+        Rig g;
+        std::string err;
+        auto feed = std::make_unique<Feed>(std::string(10000, 'a'));
+        Feed* f = feed.get();
+        CHECK(g.pv->connectStream("kbd", std::move(feed), err), err.c_str());
+        g.pv->pump();
+        CHECK(g.pv->keysQueued() < 256 + 64 * 6, "the queue stays short");
+        CHECK(f->readable(), "the rest is still in the stream");
     }
 
     SECTION("pcvideo: the window's keys -- HID usages to XT scan codes, down and up");

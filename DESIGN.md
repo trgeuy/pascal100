@@ -1317,9 +1317,10 @@ A chip that makes sound from its own model (a speech or music chip) is a further
 
 **And the window is serviced at the prompt too, for liveness** (built 2026-07-25). The run loop is not the only place that must drain the window's event queue: a *stopped* machine sits in the monitor's line editor blocked on a console read, advancing no emulated time and pumping nothing — and a window nobody drains is one the compositor pings for liveness (`_NET_WM_PING`, the Cocoa watchdog), gets no answer from, and the OS then offers to Force-Quit. So the line editor's first-byte wait is a **timeout loop** (`platform::waitForInput`), and on each idle tick it runs an injected hook that pumps the boards once (`Machine::pump()`) and calls `Display::pollEvents()` — draining SDL's whole event queue, which answers the liveness ping and tosses any keystrokes/gamepad events that arrived while stopped. This is **not a second run loop**: it does not *render* (drawing stays the running machine's job, so `SET video=reverse` and the cursor blink still wait for `RUN`) and no emulated time advances. The one thing it acts on beyond draining is a close box clicked *while stopped* — which, unlike one clicked mid-`RUN` (that stops the guest and keeps the window), means the operator is done with the window, so the hook calls `Display::closeWindow()` and it goes.
 
-### 7.4.1 The CompuPro PC Video — DESIGN, for review (2026-11-20)
+### 7.4.1 The CompuPro PC Video — DESIGN (2026-11-20)
 
-**Status: design only. No code yet.** The CompuPro (Viasyn) PC Video, board 229D, is a
+**Status: built** (color and monochrome; `docs/boards/compupro-pcvideo.md` has what is and is
+not modeled). This section is the design as reviewed before the code. The CompuPro (Viasyn) PC Video, board 229D, is a
 display board with 16K of screen RAM, a Motorola 6845, an IBM PC keyboard port and a light pen
 port. It copies the IBM Color Graphics Adapter and Monochrome Display Adapter at the bus level:
 the same memory addresses, the same port addresses and the same register bits. CompuPro's
@@ -1442,10 +1443,11 @@ are not in the manual. They are a model decision.
 
 - With `mouse`, the left button down or dragging over the window puts the pen at that dot.
   The button is the pen switch (status D2, not latched).
-- In each frame, when the beam reaches that dot and the dot is lit (not the background), the
-  pen strobes: the 6845 latches the address + 2, the ready flag sets, the data register stays
-  0, and VI5 rises if J4 selects it. A pen held on a dark area does not strobe, as on a real
-  CRT.
+- In each frame, when the beam reaches that dot and the dot is not black, the pen strobes:
+  the 6845 latches the address + 2, the ready flag sets, the data register stays 0, and VI5
+  rises if J4 selects it. A colored background or border is light to a pen too; a pen held on
+  a black area does not strobe. The manual leaves this to the pen's own logic (LPEN INPUT*,
+  p. 68), whose sensitivity depends on the phosphor and the brightness (decided 2026-11-21).
 - It uses `Display::setPointerSink`, which gives the position in picture dots.
 
 **Straps (properties).** `memory` (S1-2..9: a 16K boundary below `400000`, default

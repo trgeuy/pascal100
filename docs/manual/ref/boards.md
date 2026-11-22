@@ -827,7 +827,7 @@ SSM IO-4 (2P+2S): the real Solid State Music board -- two full-duplex serial cha
 
 ### `pcvideo`
 
-CompuPro (Viasyn) PC Video (board 229D): 16K of screen RAM, a Motorola 6845, an IBM PC keyboard port (unit kbd) and a light pen port, at the IBM Color Graphics Adapter's addresses: memory (default 0B8000, a 16K block) and ports (default 03D0, decoded on A0-A15). Port 0 enables the board (select, J3), port 1 moves it to the monochrome addresses (flip, J2), ports 4-5 the 6845, 8 the mode, 9 the color, 10 the status, 11-12 the keyboard. The keyboard and light pen pull a VI line (interrupt, default vi5). 80x25 and 40x25 text, 320x200 and 640x200 graphics in a window. Color mode only. font: the character generator (default builtin:pcvideo). lightpen: off or mouse
+CompuPro (Viasyn) PC Video (board 229D): 16K of screen RAM, a Motorola 6845, an IBM PC keyboard port (unit kbd) and a light pen port, at the IBM Color Graphics Adapter's addresses: memory (default 0B8000, a 16K block) and ports (default 03D0, decoded on A0-A15). Port 0 enables the board (select, J3), port 1 moves it to the monochrome addresses (flip, J2), ports 4-5 the 6845, 8 the mode, 9 the color, 10 the status, 11-12 the keyboard. The keyboard and light pen pull a VI line (interrupt, default vi5). 80x25 and 40x25 text, 320x200 and 640x200 graphics in a window; monitor: color or mono (S2-9: 9x14 text cells, black-and-white graphics). font: the character generator (default builtin:pcvideo). lightpen: off or mouse
 
 **Units:** `kbd` (serial, CONNECT)
 

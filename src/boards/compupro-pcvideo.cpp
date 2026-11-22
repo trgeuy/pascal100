@@ -195,6 +195,13 @@ bool PcVideoBoard::decodes(const BusCycle& c) const {
     }
 }
 
+// Up to eight boards sit behind one select port (J3 picks the bit, p. 18): a write to port 0
+// reaches all of them by design, and is not contention. Every other port is decoded by the
+// selected board alone, so two boards selected at one address still are.
+bool PcVideoBoard::sharesPort(const BusCycle& c) const {
+    return c.type == Cycle::IoWrite && ioReg(c) == 0;
+}
+
 // The port compare reads A4-A15 (S2-1..8 = A11-A4, A15-A12 = 0). Both blocks the address flip
 // can reach are named, so the answer does not change when the guest writes port 1.
 bool PcVideoBoard::decodesIoHigh(uint8_t port) const {
@@ -632,10 +639,14 @@ void PcVideoBoard::render() {
     g_display->present(this, s);
 }
 
+// The stream is read only while the queue is short: the rest waits in the stream (a socket,
+// a file), so a fast sender cannot grow the queue without limit and loses nothing. 64 bytes
+// typed as ascii are at most 384 codes, so the queue stays under 256 + 384.
 void PcVideoBoard::pump() {
     if (!enabled_) return;
     uint8_t buf[64];
-    while (kbd_->readable()) {
+    constexpr size_t kQueueHigh = 256;
+    while (kq_.size() < kQueueHigh && kbd_->readable()) {
         const size_t n = kbd_->read(buf, sizeof buf);
         if (n == 0) break;
         for (size_t i = 0; i < n; ++i) {
@@ -680,9 +691,22 @@ void PcVideoBoard::reset(Reset) {
     dirty_ = true;
 }
 
+// POWER restarts the clock before the boards (Machine::power: time 0, the queue empty), so the
+// key and pen deadlines and the key spacing belong to the old time. Without this, keyEvt_
+// still looked armed and armKey() never armed it again: the keyboard stopped.
 void PcVideoBoard::power() {
     std::fill(ram_.begin(), ram_.end(), 0);
     kq_.clear();
+    if (clock_) {
+        clock_->cancel(keyEvt_);   // a no-op for a handle the clock has already dropped
+        clock_->cancel(penEvt_);
+    }
+    keyEvt_    = Clock::kNone;
+    penEvt_    = Clock::kNone;
+    nextKeyAt_ = 0;
+    anchorT_   = clock_ ? clock_->now() : 0;
+    rem_       = 0;
+    mclkPhase_ = 0;
     reset(Reset::PowerOn);
 }
 

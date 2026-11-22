@@ -52,6 +52,8 @@ public:
 
     bool    decodes(const BusCycle& c) const override;
     bool    decodesIoHigh(uint8_t port) const override;
+    // Port 0 (board select) is written to every PC Video at once: each takes its own bit.
+    bool    sharesPort(const BusCycle& c) const override;
     bool    decodesExtended() const override { return true; }
     bool    decodeIsPageUniform() const override { return true; }
     bool    assertsPhantom(const BusCycle& c) const override;

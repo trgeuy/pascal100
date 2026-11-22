@@ -1101,10 +1101,12 @@ digit map, the read and set sequences and the register layouts.
 
 ### `pcvideo`: CompuPro PC Video
 
-The CompuPro PC Video is a color display board with a keyboard port. It answers at the
-addresses of IBM's Color Graphics Adapter: 16K of screen RAM at `0B8000` and 16 ports at
+The CompuPro PC Video is a color or monochrome display board with a keyboard port. It answers
+at the addresses of IBM's Color Graphics Adapter: 16K of screen RAM at `0B8000` and 16 ports at
 `03D0`, decoded on all 16 address bits. Its picture opens in a window: 80x25 or 40x25 text, or
-320x200 or 640x200 graphics, in 16 colors. Only the color half of the board is built.
+320x200 or 640x200 graphics, in 16 colors. With `monitor = mono` (switch S2-9), it drives a
+monochrome monitor: 80x25 text in 9x14 cells, and 320x200 and 640x200 graphics in black and
+white. The `memory` and `ports` switches set the addresses in both modes.
 
 The screen RAM must not belong to a RAM board as well. Leave a hole in the RAM at
 `0B8000`-`0BBFFF`:

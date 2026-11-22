@@ -98,9 +98,13 @@ at 2000h, 80 bytes a line.
     key down and up arrives as a USB HID usage, and the board sends the PC/XT code for it
     (`scanCodeFor`). A held key repeats as more key downs. Keys the 83-key keyboard did not
     have go to the key that did their job: the arrows, Home, End, PgUp, PgDn, Insert and
-    Delete to the keypad. A paste (Cmd-V, or Ctrl-Shift-V) is typed as ASCII.
+    Delete to the keypad. A paste (Cmd-V, or Ctrl-Shift-V) is typed as ASCII. The chord's
+    Ctrl, Shift or Cmd went to the guest as key downs; they are released before the paste, so
+    the pasted keys do not arrive with them held.
   - The unit `kbd`. With `keys = ascii` each byte is a character, typed with Shift or Ctrl
     around the key down and the key up. With `keys = scancodes` each byte is a scan code.
+    The stream is read only while the queue holds fewer than 256 codes; the rest waits in
+    the stream.
 
   The board takes one code, sets the ready flag and pulls the VI line, and holds the next code
   until the guest writes port 11; the next comes 1 ms later.
@@ -135,7 +139,9 @@ U6 goes in `font`. See `roms/PCVIDEO/README.md`.
 
 ### Reset
 
-- `Reset::PowerOn`: the RAM is cleared, the keyboard queue is emptied, then as `Reset::Bus`.
+- `Reset::PowerOn`: the RAM is cleared, the keyboard queue is emptied, the key and light pen
+  deadlines and the 1 ms key spacing start again (POWER also restarts the clock), then as
+  `Reset::Bus`.
 - `Reset::Bus`: the board is selected (U2 preset), not flipped, the mode and color registers
   are 0, the keyboard is clear and its clock free; the 6845's counters restart and its
   registers keep their values.
@@ -179,15 +185,17 @@ U6 goes in `font`. See `roms/PCVIDEO/README.md`.
 - **The light pen fires on any non-black dot**, once each field. A real pen's sensitivity
   depends on the phosphor and the brightness.
 - **Ports 2, 3, 6, 7, 13-15 and status D4-D7 read 1s.** On the board they read an undriven bus.
-- **Up to eight boards behind the board select** work as the hardware does; CompuPro's XIOS
-  uses one.
+- **Up to eight boards behind the board select** work as the hardware does: a write to port
+  0 reaches every board by design (`sharesPort`), and only two boards selected at one address
+  are contention. CompuPro's XIOS uses one.
 - J1 (the horizontal sync delay) and the composite output are not modeled.
 
 ## Verification
 
 `tests/test_pcvideo.cpp`: the decode, the board select, the flip, write-only mode, 16-bit
 transfers, the status timing over three fields of the 80x25 mode, the wait states, the keyboard
-(one code, VI5, port 11, the 1 ms, the clock hold, ASCII with Shift and Ctrl), the window's
+(one code, VI5, port 11, the 1 ms, the clock hold, ASCII with Shift and Ctrl, a key after
+POWER, the stream back-pressure), two boards behind one select, the window's
 keys (the usage table, the claim, the sink, a paste), text (the PROM,
 the attribute, blink, the cursor), 320x200 and 640x200 graphics, mono text (the field rate at
 16.257 MHz and 9 clocks, the 9x14 half, the 9th dot, attribute 00, reverse, underline,
