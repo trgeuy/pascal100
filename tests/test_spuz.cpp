@@ -538,11 +538,15 @@ void test_spuz() {
         mon(m, "DISASM spuz0:z80 0 1");
         const auto prn = std::filesystem::temp_directory_path() / "spuz-save.prn";
         mon(m, "SAVE \"" + prn.string() + "\" 0-1 FORMAT=PRN");
-        std::ifstream f(prn);
-        const std::string listing((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
+        std::string listing;
+        {
+            std::ifstream f(prn);   // closed before the remove: Windows keeps an open file
+            listing.assign(std::istreambuf_iterator<char>(f), std::istreambuf_iterator<char>());
+        }
         CHECK(listing.find("JR") != std::string::npos && listing.find("LD") == std::string::npos,
               ("SAVE PRN lists the host bus, not the board's bank: " + listing).c_str());
-        std::filesystem::remove(prn);
+        std::error_code ec;
+        std::filesystem::remove(prn, ec);
         // The named core is freed: a bare DISASM and DUMP fall back to the bus.
         mon(m, "DISASM spuz0:z80 0 1");
         mon(m, "DUMP spuz0:z80 0-F");
