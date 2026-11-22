@@ -10,6 +10,66 @@ register, the bit or the command that was wrong.
 
 ---
 
+## 0.4.0
+
+**New: CompuPro Concurrent DOS 8-16 4.1 (`examples/cdos8-16`).** A complete multi-user
+CompuPro system: Concurrent DOS 8-16 4.1 (XIOS 4.1D) on a CPU 286, from a Quantum Q540 hard disk
+on a Disk 3. Console 0 is the PC Video, with four virtual consoles, PC Mode and graphics.
+Consoles 1-3 are VT100 terminals on two Interfacer 4s. 8080 programs run on a SPUZ. Three
+printers write files through the print manager. `cdos816.toml` opens every console in a window,
+`cdos816-mono.toml` is the same system with a monochrome PC Video, and `cdos816-console.toml`
+puts tty1 on stdio. The README gives a tour, the drives, how to format a blank floppy, printing,
+and how to rebuild the system from the XIOS kit on `D:`.
+
+**New: the CompuPro CPU 286 (`cpu286`), with an 80286 core.** Board 451B (Viasyn, 1986): an
+80286 at 8, 10 or 12.5 MHz on a 16-bit IEEE 696 bus. The memory manager (even ports 01F8-01FE:
+A20-A23), J1 (wait states), J2, J3-J6 (`mm_lines`) and J7 (`sockets`, a `rom` image in page FF)
+are modeled. The 80286 runs in real mode; protected mode and the 80287 are not modeled. Its clock
+counts come from Intel's *80286 and 80287 Programmer's Reference*, and a 3,912-test sample
+recorded from a real 80C286 checks its registers, RAM and time. CP/M-86 1.1PAA Disk #2 and
+MP/M 8-16 2.1F boot on it from a real reset. `docs/boards/compupro-cpu286.md`.
+
+**New: the CompuPro SPUZ slave processor (`spuz`).** A Z80H board with 64K or 256K of RAM and
+a 2681 DUART, which Concurrent DOS 8-16 uses to run 8-bit programs beside the 16-bit host. Up to
+16 boards share the window and the ports at FC30h-FC41h; `SPZ` finds them, and `SW!SPUZ` runs
+BDOS programs and MBASIC on them. The debugger reaches each board's Z80 as `spuz0:z80`: REGS,
+STEP, DISASM, DUMP, HISTORY CPU and BREAK take `<board>:<unit>`, and so do the MCP `regs`,
+`step`, `disasm` and `mem_dump` tools. Two boards on one select do not run: the stop reason is
+`backplane-conflict`. `docs/boards/compupro-spuz.md`.
+
+**New: the CompuPro PC Video (`pcvideo`).** Board 229D: 16K of screen RAM, an MC6845, an IBM PC
+keyboard port and a light pen port, a copy of the IBM Color Graphics Adapter at the bus level.
+Color mode gives text and graphics in a window; `monitor = mono` gives the monochrome mode with
+its 9-dot characters, underline and a green monitor. The window is the IBM PC keyboard (or the
+`kbd` endpoint), and with `lightpen = mouse` the mouse is the light pen. Ctrl-Shift-V (Cmd-V on
+a Mac) pastes. The character generator is `builtin:pcvideo`: CompuPro's layout with the glyphs of the Modern DOS
+font (CC0), not a dump of CompuPro's PROM. `docs/boards/compupro-pcvideo.md`.
+
+**Changed: flat out, each CPU board divides by its as-sold crystal.** With `clock_hz = 0` (the
+default), every board that converts real time (a baud rate, a disk revolution, the SPUZ's Z80)
+divided by 2 MHz, so a flat-out CPU 286 counted as a 2 MHz 80286. The divisor is now 8 MHz for
+the CPU 286 and the CPU 86/87, 6 or 8 MHz for the CPU 8085/88 (the processor on line), and still
+2 MHz for the 88-CPU, the generic 8085 and Z80 and the Pascal-100. A paced `clock_hz` is
+unchanged. When the CPU 8085/88 swaps processors, each stretch of time converts at its own rate,
+and removing the last CPU board puts the divisor back to 2 MHz.
+
+**Changed: the Disk 1A's boot ROM answers every memory read while it is on,** as the Disk 1's
+does since 0.3.0. The manual (p. 18): the boot PROM is enabled "whenever a memory read occurs".
+An 80286 on a Disk 1A now finds its routine at its reset address.
+
+**Fixed: an 8" disk that Concurrent DOS 8-16 4.1 formatted was lost at the next start.** The
+XIOS answered "Invalid Drive". Concurrent DOS makes all of cylinder 0 single density, on both
+heads, and the Disk 1A's size probe knew only the CP/M 2.2 layout (track 0 single density). It
+now takes both layouts for the three two-sided double-density formats.
+
+**Fixed: a reset of the Disk 3 through its attention port** now restores the firmware defaults
+(ST506 parameters, absolute sector mode), as the manual says. Before, only RESET* did.
+
+**Fixed: `BREAK IO` on a port above FF** compares all 16 bits. `BREAK IO W FC3E` never fired
+before. A port of FF and below still compares the low byte.
+
+---
+
 ## 0.3.0
 
 **New: the CompuPro M-Drive/H (`mdriveh`).** 512K of RAM that the system uses as a disk drive,

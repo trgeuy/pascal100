@@ -6,10 +6,11 @@ The Pascal-100 is one S-100 board set with two processors: a Zilog Z80 and a Wes
 **Pascal MicroEngine** (WD9000). The MicroEngine runs UCSD Pascal III.0 P-code in hardware. Only one
 processor is active at a time, and the guest switches between them.
 
-**Status:** version 0.3.0. The Pascal-100 machine (`examples/pascal/pascal.toml`)
+**Status:** version 0.4.0. The Pascal-100 machine (`examples/pascal/pascal.toml`)
 boots a UCSD Pascal III.0 system disk on the MicroEngine. The CompuPro machines run CP/M 2.2 on the
-Z80, CP/M 8-16 and MP/M 8-16 on the 8088 of the CompuPro CPU 8085/88, and CP/M-86 on the 8086 of
-the CompuPro CPU 86/87. We test only
+Z80, CP/M 8-16 and MP/M 8-16 on the 8088 of the CompuPro CPU 8085/88, CP/M-86 on the 8086 of
+the CompuPro CPU 86/87, and Concurrent DOS 8-16 4.1 on the 80286 of the CompuPro CPU 286. We
+test only
 macOS by hand (see [Platforms](#platforms)). The board document is
 `docs/boards/digicomp-pascal100.md`.
 
@@ -129,7 +130,7 @@ If you use pascal100 on Windows or Linux, please open an issue and say what work
 browser if Apple has not notarized it. Remove the download mark from the folder that you unpacked:
 
 ```
-xattr -dr com.apple.quarantine pascal100-0.3.0-macos-arm64
+xattr -dr com.apple.quarantine pascal100-0.4.0-macos-arm64
 ```
 
 You can also do it in System Settings:
