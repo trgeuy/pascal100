@@ -10,6 +10,23 @@ register, the bit or the command that was wrong.
 
 ---
 
+## 0.4.1
+
+**New: 16-bit I/O transfers on the 8086 and the 80286.** IEEE 696 lets a master ask for 16 bits
+on an I/O cycle, as on a memory cycle (sXTRQ\*). Before, the bus had only the memory form, so a
+word `IN` or `OUT` on the CPU 86/87 or the CPU 286 was always two byte cycles. Now a word at an
+even port is one 16-bit request. When the board at that port answers SIXTN\*, one I/O cycle moves
+both bytes. When it does not, the card does two byte cycles, the even port first, as before. This
+applies to `IN`, `OUT`, `INSW` and `OUTSW`, also with `REP`. A word at an odd port, or at the
+card's own ports, is still two byte cycles. The CPU 8085/88 has an 8088 (an 8-bit data bus), so
+it does not change. No board in pascal100 answers SIXTN\* on an I/O cycle yet: this release adds
+what a 16-bit I/O board needs (the developer's guide, *The IEEE 696 bus*). On the CPU 286 this
+is an inference: its manual describes 16-bit transfers for memory only.
+`TRACE` and `HISTORY BUS` show a 16-bit I/O cycle as `IN16` or `OUT16`, and a `BREAK IO` on
+either of its two ports stops it.
+
+---
+
 ## 0.4.0
 
 **New: CompuPro Concurrent DOS 8-16 4.1 (`examples/cdos8-16`).** A complete multi-user
