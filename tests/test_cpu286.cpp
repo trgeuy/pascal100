@@ -380,5 +380,24 @@ void test_cpu286() {
         CHECK(r.why == StopReason::Halted && s.size() == 2 && s[0].addr == 0x01F8 &&
                   s[1].addr == 0x01F9 && !s[0].xtrq && !s[1].xtrq,
               "OUT DX,AX to 01F8 (own port): two byte cycles, no sXTRQ*, no unclaimed halt");
+
+        // REP OUTSW (80286 string I/O) feeding a 16-bit FIFO port: one cycle per word.
+        // MOV DX,0070  MOV SI,0200  MOV CX,3  CLD  REP OUTSW  HLT
+        Rig286b f;
+        auto* fifo = new Io16Board;
+        fifo->id = "io16";
+        f.m.adopt(std::unique_ptr<Board>(fifo));
+        f.load(0x000200, {0x11, 0x22, 0x33, 0x44, 0x55, 0x66});
+        s.clear();
+        h = watch(f);
+        f.load(0x0FFFF0, {0xBA, 0x70, 0x00, 0xBE, 0x00, 0x02, 0xB9, 0x03, 0x00, 0xFC, 0xF3, 0x6F,
+                          0xF4});
+        r = f.run(20);
+        f.m.bus.unobserve(h);
+        bool allWide = s.size() == 3;
+        for (const IoSeen& e : s) allWide = allWide && e.xtrq && e.addr == 0x0070;
+        CHECK(r.why == StopReason::Halted && allWide && fifo->writes16 == 3 &&
+                  fifo->writes == 0 && fifo->reg[0] == 0x55 && fifo->reg[1] == 0x66,
+              "REP OUTSW: three words, three 16-bit I/O cycles to port 70");
     }
 }
