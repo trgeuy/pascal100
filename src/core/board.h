@@ -349,17 +349,18 @@ public:
     // (more than 64K behind one decode).
     virtual bool peekX(uint32_t phys, uint8_t& out) const { return peek((uint16_t)phys, out); }
 
-    // ---- THE 16-BIT TRANSFER, sXTRQ*/SIXTN* (IEEE 696 2.6; Bus::memRead16) ----
+    // ---- THE 16-BIT TRANSFER, sXTRQ*/SIXTN* (IEEE 696 2.6; Bus::memRead16, ioRead16) ----
     //
     // Do I answer SIXTN* (pin 60) for this cycle? Asked only of the board that DECODES the
-    // cycle, and only on the IEEE bus; c.xtrq is set and c.addr is even. COMBINATIONAL AND
-    // PURE, like decodes(). An 8-bit board -- every board today -- says no, and the master
-    // then does two byte cycles.
+    // cycle; c.xtrq is set and c.addr is even. A MEMORY or an I/O cycle (c.type): a board
+    // that decodes both and answers SIXTN* on only one kind must check c.type. COMBINATIONAL
+    // AND PURE, like decodes(). An 8-bit board says no, and the master then does two byte
+    // cycles.
     virtual bool answersSixtn(const BusCycle&) const { return false; }
 
     // The one cycle of a 16-bit transfer, after answersSixtn() said yes. `even` is the byte
-    // at c.addr (ED7-ED0), `odd` the byte at c.addr + 1 (OD7-OD0). On a write the same two
-    // bytes are c.data and c.dataHi.
+    // at c.addr (ED7-ED0), `odd` the byte at c.addr + 1 (OD7-OD0): for I/O, the even port
+    // and the port after it. On a write the same two bytes are c.data and c.dataHi.
     virtual void read16(const BusCycle&, uint8_t& even, uint8_t& odd) { even = odd = 0xFF; }
     virtual void write16(const BusCycle&) {}
 

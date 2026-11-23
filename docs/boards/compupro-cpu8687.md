@@ -60,8 +60,12 @@ modes**: timer 0 mode 2 (SYSTICK), timer 1 mode 0 (DELAY), timer 2 mode 3 (BAUD)
   is one 16-bit request (`Bus::memRead16`, sXTRQ*): a board that answers SIXTN* moves both
   bytes in one cycle. Otherwise the card runs the byte-serial pair, the **even byte first**
   (schematic 5/9, A0 = LA0 XOR FLIP), at 4 clocks more. A word at an odd address is two byte
-  cycles, as on the chip. A word I/O transfer is two byte cycles, port then port + 1, because
-  no I/O board in pascal100 answers SIXTN*.
+  cycles, as on the chip. A word I/O transfer at an even port is also one 16-bit request
+  (`Bus::ioRead16`). The card asserts sXTRQ* on every cycle except INTA (manual p. 20). A board
+  that answers SIXTN* moves both bytes in one I/O cycle, with one I/O wait state. Otherwise the
+  card runs two byte cycles, port then port + 1, at 4 clocks more, with a wait state on each.
+  A word at an odd port, or at the card's own ports, is always two byte cycles. No board in
+  pascal100 answers SIXTN* on an I/O cycle yet.
 - **The card's own ports decode A8-A15**, and a bus decode must use A0-A7 only (`board.h`).
   So they are not bus decodes. The card's `AddressTranslator`, which is in place only while its
   own 8086 runs, claims them (`ownsIo`). The I/O cycle still runs on the S-100 bus: observers,

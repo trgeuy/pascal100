@@ -243,7 +243,8 @@ BREAK MEM W 10100   -> breakpoint 1: mem w  010100
 `SHOW BUS MAP` gives one row for each segment where a board answers. A board that does not
 decode A16-A23 gets one row, marked `all segments`. `TRACE` and `HISTORY BUS` show the full
 16-bit I/O address, with the byte that the processor drove on A8-A15. A 16-bit transfer shows as
-`MR16` or `MW16`, with the even byte first. `SAVE` writes an Intel HEX type 04 record for each
+`MR16`, `MW16`, `IN16` or `OUT16`, with the even byte first. A memory or I/O breakpoint stops a
+16-bit transfer when it names the even address or the odd address. `SAVE` writes an Intel HEX type 04 record for each
 64K segment above segment 00, and `LOAD` reads it. A `.PRN` listing uses processor addresses, so
 it stops at `FFFF`.
 

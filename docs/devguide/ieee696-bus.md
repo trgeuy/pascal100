@@ -22,6 +22,7 @@ Read these too:
 | Memory address | A0-A23: 256 segments of 64K |
 | I/O address | A0-A15. The processor drives A8-A15. Boards decode A0-A7. |
 | Memory transfer | 8 bits, or 16 bits when the slave answers SIXTN\* |
+| I/O transfer | 8 bits, or 16 bits at an even port when the slave answers SIXTN\* |
 | `Bus::addrMask()` | `0xFFFFFF` |
 
 `BusCycle` carries the IEEE 696 parts in three fields:
@@ -66,8 +67,11 @@ Override three functions:
 - `read16(c, even, odd)`: give the byte at the even address `c.addr` and the byte at `c.addr | 1`.
 - `write16(c)`: store `c.data` at the even address and `c.dataHi` at the odd address.
 
-The bus calls them only for an even address. The `memory` board's
-`sixteen_bit` property is the example.
+The bus calls them only for an even address. The same three functions serve a memory cycle
+and an I/O cycle: `c.type` tells which. A board that decodes both kinds, and answers SIXTN\* on
+only one of them, must check `c.type` (the PC Video answers on memory only). For I/O, the even
+byte is the even port and the odd byte is the port after it. The `memory` board's
+`sixteen_bit` property is the memory example.
 
 ## The registry-wide test
 
@@ -98,6 +102,14 @@ functions run no cycle. `memRead16` returns `sixtn == false`, and `memWrite16` r
 The master then moves the two bytes itself. The standard does not give the order of the two
 bytes, so the master chooses it: `byteSerialRead16(phys, evenFirst)` and
 `byteSerialWrite16(phys, even, odd, evenFirst)` do the two byte cycles in that order.
+
+For I/O, call `ioRead16(port)` or `ioWrite16(port, even, odd)`, with the same rules. They also
+run no cycle for an odd port, or for a port that the master's own card owns
+(`AddressTranslator::ownsIo`, on either byte). With no SIXTN\*, the master does two `ioRead` or
+`ioWrite` cycles itself. A translator's `ioAddress()` runs once, and only when the 16-bit cycle
+runs: the CPU cards add their I/O wait states there. So a translator that changes the I/O
+address cannot use these functions. The x86 cards (`src/cpu/x86_impl.h`, `BusIo`) are the
+example.
 
 ## An address translator
 

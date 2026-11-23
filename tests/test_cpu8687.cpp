@@ -11,8 +11,11 @@
 #include "core/debug.h"
 #include "core/machine.h"
 #include "core/statefile.h"
+#include "io16_board.h"
 
+#include <memory>
 #include <string>
+#include <vector>
 
 using namespace altair;
 
@@ -244,5 +247,100 @@ void test_cpu8687() {
     {
         Rig g;
         CHECK(g.m.clock.free() && g.m.clock.hz() == 8000000, "clock_hz 0: flat out at 8 MHz");
+    }
+
+    SECTION("cpu8687: 16-bit I/O -- a word at an even port is one cycle to a SIXTN* board");
+    {
+        // The I/O cycles the run made: type, port, sXTRQ*.
+        struct IoSeen { Cycle type; uint16_t addr; bool xtrq; };
+        auto watch = [](Rig& g, std::vector<IoSeen>& v) {
+            return g.m.bus.observe([&v](const BusCycle& c) {
+                if (c.type == Cycle::IoRead || c.type == Cycle::IoWrite)
+                    v.push_back({c.type, c.addr, c.xtrq});
+            });
+        };
+
+        // MOV AX,BEEF  OUT 70,AX  HLT
+        Rig g;
+        auto* io = new Io16Board;
+        io->id = "io16";
+        g.m.adopt(std::unique_ptr<Board>(io));
+        std::vector<IoSeen> s;
+        int h = watch(g, s);
+        g.load(0xFFFF0, {0xB8, 0xEF, 0xBE, 0xE7, 0x70, 0xF4});
+        RunResult r = g.run();
+        g.m.bus.unobserve(h);
+        CHECK(r.why == StopReason::Halted && io->reg[0] == 0xEF && io->reg[1] == 0xBE,
+              "OUT 70,AX: EF to port 70, BE to port 71");
+        CHECK(s.size() == 1 && s[0].type == Cycle::IoWrite && s[0].addr == 0x0070 && s[0].xtrq &&
+                  io->writes16 == 1 && io->writes == 0,
+              "...in ONE 16-bit I/O cycle (sXTRQ*)");
+
+        // IN AX,70  MOV [0200],AX  HLT
+        Rig k;
+        auto* io2 = new Io16Board;
+        io2->id = "io16";
+        k.m.adopt(std::unique_ptr<Board>(io2));
+        s.clear();
+        h = watch(k, s);
+        k.load(0xFFFF0, {0xE5, 0x70, 0xA3, 0x00, 0x02, 0xF4});
+        r = k.run();
+        k.m.bus.unobserve(h);
+        CHECK(r.why == StopReason::Halted && k.peek(0x0200) == 0x11 && k.peek(0x0201) == 0x22,
+              "IN AX,70: AL from port 70, AH from port 71");
+        CHECK(s.size() == 1 && s[0].type == Cycle::IoRead && s[0].xtrq && io2->reads16 == 1,
+              "...in ONE 16-bit I/O cycle");
+
+        // IN AX,71 (an odd port): two byte cycles, 71 then 72, even to a 16-bit board.
+        Rig o;
+        o.m.bus.setUnclaimedPolicy(Unclaimed::Silent);   // port 72: nobody
+        auto* io3 = new Io16Board;
+        io3->id = "io16";
+        o.m.adopt(std::unique_ptr<Board>(io3));
+        s.clear();
+        h = watch(o, s);
+        o.load(0xFFFF0, {0xE5, 0x71, 0xF4});
+        r = o.run();
+        o.m.bus.unobserve(h);
+        CHECK(s.size() == 2 && s[0].addr == 0x0071 && s[1].addr == 0x0072 && !s[0].xtrq &&
+                  !s[1].xtrq && io3->reads16 == 0,
+              "IN AX,71: two byte cycles, 71 then 72");
+    }
+
+    SECTION("cpu8687: 16-bit I/O -- the byte-serial pair costs 4 clocks and one more I/O wait");
+    {
+        // MOV AX,BEEF  OUT 70,AX: the OUT's clocks, with a 16-bit and an 8-bit board.
+        auto outClocks = [](bool sixteen, bool ioWait) {
+            Rig g;
+            std::string err;
+            CHECK(setProperty(*g.card, "io_wait", ioWait ? "true" : "false", err),
+                  ("io_wait: " + err).c_str());
+            auto* io = new Io16Board;
+            io->id = "io16";
+            io->sixteen = sixteen;
+            g.m.adopt(std::unique_ptr<Board>(io));
+            g.load(0xFFFF0, {0xB8, 0xEF, 0xBE, 0xE7, 0x70, 0xF4});
+            g.run(1);
+            return g.run(1).tStates;
+        };
+        const uint64_t w16 = outClocks(true, true), w8 = outClocks(false, true);
+        CHECK(w8 == w16 + 5,
+              ("io_wait on: byte-serial = 4 clocks + 1 wait more (" + std::to_string(w16) + ", " +
+               std::to_string(w8) + ")").c_str());
+        CHECK(outClocks(false, false) == outClocks(true, false) + 4,
+              "io_wait off: byte-serial = 4 clocks more");
+    }
+
+    SECTION("cpu8687: 16-bit I/O -- a breakpoint on the odd port stops the 16-bit IN");
+    {
+        Rig g;
+        auto* io = new Io16Board;
+        io->id = "io16";
+        g.m.adopt(std::unique_ptr<Board>(io));
+        g.load(0xFFFF0, {0xE5, 0x70, 0xF4});   // IN AX,70  HLT
+        int bp = g.m.debug.add(BreakKind::IoRead, 0x71, 0x71);
+        RunResult r = g.run();
+        CHECK(r.why == StopReason::Breakpoint && r.bp == bp && g.card->i8086()->pc() == 0xFFFF0,
+              "BREAK IO R 71 stops the one IN16 at 70, before it runs");
     }
 }

@@ -333,6 +333,23 @@ public:
     void byteSerialWrite16(uint32_t phys, uint8_t even, uint8_t odd, bool evenFirst,
                            uint8_t status = 0);
 
+    // ---- THE 16-BIT I/O TRANSFER (IEEE 696 2.6: "possible on every data cycle") ----
+    //
+    // The same request on an I/O cycle: 16 bits at an EVEN port, `addr` = A0-A15. The even
+    // port's byte is `even` (ED7-ED0), port + 1's is `odd` (OD7-OD0). The same rules as
+    // memRead16: if the board that decodes the port answers SIXTN*, ONE I/O cycle moves both
+    // bytes; if not -- an 8-bit board, nobody, contention, an odd port, or a port that the
+    // master card owns (AddressTranslator::ownsIo, on either byte) -- nothing has run and
+    // the master does two ordinary ioRead/ioWrite cycles itself.
+    //
+    // The translator's ioAddress() runs ONCE, and only when SIXTN* answered: it carries the
+    // card's I/O wait states (CPU 86/87 S3-3/S3-4, CPU 286 J1), and the byte-serial pair
+    // charges them per cycle through ioRead/ioWrite. So the decode uses `addr` as the master
+    // drove it. A translator that MOVES the I/O address (the Pascal-100's port mirror) must
+    // not use these; its Z80 never asks for 16 bits.
+    Transfer16 ioRead16(uint16_t addr, uint8_t status = 0);
+    bool ioWrite16(uint16_t addr, uint8_t even, uint8_t odd, uint8_t status = 0);
+
     // ---- The address translator (see AddressTranslator). Null = none. ----
     void setTranslator(AddressTranslator* t) { xlat_ = t; }
     AddressTranslator* translator() const { return xlat_; }
@@ -726,6 +743,11 @@ private:
     // Who decodes this memory cycle, for a 16-bit request: the cached answer, or the exact
     // scan on a slow page (null unless exactly one board drives). Sets c.phantom.
     Board* decoderFor16(BusCycle& c);
+    // ioRead16/ioWrite16's common gate: the board that answers SIXTN* for this I/O request,
+    // or null (an odd port, the master card's own port, no single decoder, or an 8-bit
+    // board). The decode is the cached port slot, or the exact scan with the whole A0-A15
+    // on a slow port. Pure: nothing is strobed.
+    Board* io16Responder(const BusCycle& c);
 
     bool dirty_ = true;
     bool verify_ = false;

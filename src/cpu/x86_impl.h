@@ -207,26 +207,36 @@ struct BusMemory {
     template <typename IntT> IntT read(uint32_t address) { return read2<IntT>(address, address); }
 };
 
-// I/O: a 16-bit port on A0-A15; a word is two byte cycles, port then port+1. The 8088 always
-// does this. The 8086 and 80286 ask for 16 bits at an even port, and the CPU 86/87 and CPU
-// 286 run the same two byte cycles when no board answers SIXTN*; no I/O board in pascal100
-// does, so the bus has no 16-bit I/O cycle (docs/boards/compupro-cpu8687.md).
+// I/O: a 16-bit port on A0-A15. A word at an EVEN port on the 8086 or 80286 is one 16-bit
+// request (Bus::ioRead16, sXTRQ*; the CPU 86/87 asserts it on every cycle but INTA, manual
+// p. 20): a board that answers SIXTN* moves both bytes in one I/O cycle. Otherwise the card
+// runs the byte-serial pair, the even port first, as for memory, and that costs the second
+// cycle. The 8088, or a word at an odd port: two byte cycles, port then port + 1.
 struct BusIo {
     Wire& w;
     template <typename IntT> void out(uint16_t port, IntT value) {
-        w.bus->ioWrite(port, uint8_t(value), kStOut);
         if constexpr (sizeof(IntT) >= 2) {
+            const uint8_t lo = uint8_t(value), hi = uint8_t(value >> 8);
+            if (w.wide && !(port & 1) && w.bus->ioWrite16(port, lo, hi, kStOut)) return;
             ++w.words;
-            w.bus->ioWrite(uint16_t(port + 1), uint8_t(value >> 8), kStOut);
+            w.bus->ioWrite(port, lo, kStOut);
+            w.bus->ioWrite(uint16_t(port + 1), hi, kStOut);
+        } else {
+            w.bus->ioWrite(port, uint8_t(value), kStOut);
         }
     }
     template <typename IntT> IntT in(uint16_t port) {
-        IntT v = w.bus->ioRead(port, kStIn);
         if constexpr (sizeof(IntT) >= 2) {
+            if (w.wide && !(port & 1)) {
+                const Transfer16 t = w.bus->ioRead16(port, kStIn);
+                if (t.sixtn) return IntT(t.even | (t.odd << 8));
+            }
             ++w.words;
-            v = IntT(v | (IntT(w.bus->ioRead(uint16_t(port + 1), kStIn)) << 8));
+            const uint8_t lo = w.bus->ioRead(port, kStIn);
+            return IntT(lo | (IntT(w.bus->ioRead(uint16_t(port + 1), kStIn)) << 8));
+        } else {
+            return IntT(w.bus->ioRead(port, kStIn));
         }
-        return v;
     }
 };
 

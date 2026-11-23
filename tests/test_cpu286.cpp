@@ -10,10 +10,12 @@
 #include "core/debug.h"
 #include "core/machine.h"
 #include "core/statefile.h"
+#include "io16_board.h"
 
 #include <cstdio>
 #include <filesystem>
 #include <fstream>
+#include <memory>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -337,5 +339,46 @@ void test_cpu286() {
         for (const auto& b : g.m.debug.breakpoints())
             if (b.id == bp) listed = b.describe().find("FC3E") != std::string::npos;
         CHECK(listed, "BREAK lists it with all four digits");
+    }
+
+    SECTION("cpu286: 16-bit I/O -- one cycle to a SIXTN* board; the card's own ports stay local");
+    {
+        struct IoSeen { Cycle type; uint16_t addr; bool xtrq; };
+        std::vector<IoSeen> s;
+        auto watch = [&s](Rig286b& g) {
+            return g.m.bus.observe([&s](const BusCycle& c) {
+                if (c.type == Cycle::IoRead || c.type == Cycle::IoWrite)
+                    s.push_back({c.type, c.addr, c.xtrq});
+            });
+        };
+
+        // MOV AX,BEEF  OUT 70,AX  IN AX,70  MOV [0200],AX  HLT -- at 0FFFF0, 14 bytes.
+        Rig286b g;
+        auto* io = new Io16Board;
+        io->id = "io16";
+        g.m.adopt(std::unique_ptr<Board>(io));
+        int h = watch(g);
+        g.load(0x0FFFF0, {0xB8, 0xEF, 0xBE, 0xE7, 0x70, 0xE5, 0x70, 0xA3, 0x00, 0x02, 0xF4});
+        RunResult r = g.run(10);
+        g.m.bus.unobserve(h);
+        CHECK(r.why == StopReason::Halted && io->reg[0] == 0xEF && io->reg[1] == 0xBE &&
+                  g.peek(0x0200) == 0xEF && g.peek(0x0201) == 0xBE,
+              "OUT 70,AX then IN AX,70: the word went out and came back");
+        CHECK(s.size() == 2 && s[0].type == Cycle::IoWrite && s[0].xtrq &&
+                  s[1].type == Cycle::IoRead && s[1].xtrq && io->writes16 == 1 &&
+                  io->reads16 == 1 && io->reads == 0 && io->writes == 0,
+              "each in ONE 16-bit I/O cycle (sXTRQ*)");
+
+        // MOV DX,01F8  OUT DX,AX  HLT: the memory manager is the card's own port, so the word
+        // is two byte cycles (the S-100 cycles still run), never a 16-bit request.
+        Rig286b k;
+        s.clear();
+        h = watch(k);
+        k.load(0x0FFFF0, {0xBA, 0xF8, 0x01, 0xEF, 0xF4});
+        r = k.run(10);
+        k.m.bus.unobserve(h);
+        CHECK(r.why == StopReason::Halted && s.size() == 2 && s[0].addr == 0x01F8 &&
+                  s[1].addr == 0x01F9 && !s[0].xtrq && !s[1].xtrq,
+              "OUT DX,AX to 01F8 (own port): two byte cycles, no sXTRQ*, no unclaimed halt");
     }
 }

@@ -268,7 +268,7 @@ path. A `startup` line and the same command that you type find the same file.
 ### The bus: IEEE 696
 
 pascal100 has one bus, **IEEE Std 696-1983**, the later S-100 standard. It has 24 address lines
-(A0-A23), a 16-bit I/O address and 16-bit memory transfers. There is nothing to choose, so a
+(A0-A23), a 16-bit I/O address and 16-bit memory and I/O transfers. There is nothing to choose, so a
 machine file has no `bus` key. A file written for altairsim can have a `bus` line. pascal100
 refuses it, and tells you to delete the line:
 

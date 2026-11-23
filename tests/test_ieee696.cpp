@@ -10,6 +10,7 @@
 #include "cli/monitor.h"
 #include "core/hex.h"
 #include "mcp/server.h"
+#include "io16_board.h"
 
 #include <filesystem>
 #include <fstream>
@@ -355,6 +356,106 @@ void test_ieee696() {
         CHECK(asked == 2, "no SIXTN*: the veto is asked twice (the two byte cycles), not three times");
     }
 
+    SECTION("IEEE 696: the 16-bit I/O transfer (sXTRQ* on an I/O cycle)");
+
+    {
+        // A 16-bit I/O slave at 70-71: ONE cycle, both bytes.
+        Machine m;
+        auto* io = new Io16Board;
+        io->id = "io16";
+        m.adopt(std::unique_ptr<Board>(io));
+        m.bus.setVerify(true);
+        Seen s(m.bus);
+        Transfer16 r = m.bus.ioRead16(0x0070);
+        CHECK(r.sixtn && r.even == 0x11 && r.odd == 0x22,
+              "SIXTN*: one 16-bit IN, port 70's byte 11 even, port 71's byte 22 odd");
+        CHECK(io->reads16 == 1 && io->reads == 0, "...through read16(), not two read()s");
+        CHECK(s.cycles.size() == 1 && s.cycles[0].type == Cycle::IoRead && s.cycles[0].xtrq &&
+                  s.cycles[0].addr == 0x0070 && s.cycles[0].data == 0x11 &&
+                  s.cycles[0].dataHi == 0x22,
+              "the observer sees ONE I/O cycle with sXTRQ*, ED and OD");
+
+        s.cycles.clear();
+        CHECK(m.bus.ioWrite16(0x0070, 0xA5, 0x5A), "SIXTN*: one 16-bit OUT");
+        CHECK(io->reg[0] == 0xA5 && io->reg[1] == 0x5A && io->writes16 == 1 && io->writes == 0,
+              "the even byte to the even port, the odd byte to the odd port");
+        CHECK(s.cycles.size() == 1 && s.cycles[0].type == Cycle::IoWrite && s.cycles[0].xtrq,
+              "...in one observed cycle");
+
+        s.cycles.clear();
+        CHECK(m.bus.ioRead16(0x1270).sixtn && s.cycles.size() == 1 &&
+                  s.cycles[0].addr == 0x1270,
+              "A8-A15 stay on the 16-bit I/O cycle (1270)");
+
+        s.cycles.clear();
+        CHECK(!m.bus.ioRead16(0x0071).sixtn && !m.bus.ioWrite16(0x0071, 1, 2) &&
+                  s.cycles.empty() && io->writes16 == 1,
+              "an odd port gets no 16-bit cycle, and nothing runs");
+        CHECK(!m.bus.ioRead16(0x0080).sixtn && s.cycles.empty(),
+              "nobody at port 80: no SIXTN*, nothing runs (the master goes byte-serial)");
+
+        io->set16(false);
+        CHECK(!m.bus.ioRead16(0x0070).sixtn && !m.bus.ioWrite16(0x0070, 1, 2) &&
+                  s.cycles.empty() && io->reads == 0 && io->writes == 0,
+              "an 8-bit I/O board does not answer SIXTN*: nothing driven, nothing strobed");
+        CHECK(m.bus.ioRead(0x0071) == 0x5A, "...and its byte cycles still work");
+    }
+
+    {
+        // Two boards on the same ports: contention gets no 16-bit cycle.
+        Machine m;
+        auto* a = new Io16Board;
+        a->id = "io16a";
+        auto* b = new Io16Board;
+        b->id = "io16b";
+        m.adopt(std::unique_ptr<Board>(a));
+        m.adopt(std::unique_ptr<Board>(b));
+        Seen s(m.bus);
+        CHECK(!m.bus.ioRead16(0x0070).sixtn && s.cycles.empty() && a->reads16 == 0 &&
+                  b->reads16 == 0,
+              "two decoders: no SIXTN*, nothing runs; the byte cycles report the contention");
+    }
+
+    {
+        // The master card's translator: its own ports stay off the 16-bit path, and its
+        // per-cycle work (ioAddress: the I/O wait states) runs ONCE for one 16-bit cycle.
+        struct Card : AddressTranslator {
+            uint16_t own = 0xFFFF;
+            int calls = 0;
+            uint32_t translate(uint16_t a, Cycle) override { return a; }
+            uint16_t ioAddress(uint16_t a, Cycle) override { ++calls; return a; }
+            bool ownsIo(uint16_t a, Cycle) const override { return a == own; }
+        } card;
+        Machine m;
+        auto* io = new Io16Board;
+        io->id = "io16";
+        m.adopt(std::unique_ptr<Board>(io));
+        {
+            TranslatorScope scope(m.bus, &card);
+            CHECK(m.bus.ioRead16(0x0070).sixtn && card.calls == 1,
+                  "one 16-bit I/O cycle: ioAddress() once");
+            card.calls = 0;
+            card.own = 0x0071;
+            CHECK(!m.bus.ioRead16(0x0070).sixtn && !m.bus.ioWrite16(0x0070, 1, 2) &&
+                      card.calls == 0 && io->reads16 == 1,
+                  "the card owns the odd port: no 16-bit cycle, and ioAddress() not called");
+        }
+    }
+
+    {
+        // The breakpoint veto sees the one 16-bit I/O cycle once.
+        Machine m;
+        auto* io = new Io16Board;
+        io->id = "io16";
+        m.adopt(std::unique_ptr<Board>(io));
+        int asked = 0;
+        bool xtrq = false;
+        m.bus.setPreAccessVeto([&](const BusCycle& c) { ++asked; xtrq = c.xtrq; return false; });
+        CHECK(m.bus.ioRead16(0x0070).sixtn, "SIXTN*");
+        m.bus.clearPreAccessVeto();
+        CHECK(asked == 1 && xtrq, "the veto is asked once, with sXTRQ* set");
+    }
+
     SECTION("the bus type: refusal, the loader, CONFIG SAVE");
 
     {
@@ -634,6 +735,16 @@ void test_ieee696() {
         line = Debugger::formatCycle(w, handles);
         CHECK(line == "         7  OUT    01C2 = 12      cpu      -> mem1",
               ("an IEEE I/O cycle shows A0-A15: [" + line + "]").c_str());
+        w.xtrq = true;
+        w.addr = 0x0070;
+        line = Debugger::formatCycle(w, handles);
+        CHECK(line == "         7  OUT16  0070 = 12 34   cpu      -> mem1",
+              ("a 16-bit OUT: OUT16, the port in the same column: [" + line + "]").c_str());
+        w.type = Cycle::IoRead;
+        line = Debugger::formatCycle(w, handles);
+        CHECK(line == "         7  IN16   0070 = 12 34   cpu      -> mem1",
+              ("a 16-bit IN: [" + line + "]").c_str());
+        w.xtrq = false;
         Debugger::CycleRec a;  // a plain byte read in segment 00: still 6 digits
         a.type = Cycle::MemRead;
         a.addr = 0x0100;

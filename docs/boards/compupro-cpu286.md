@@ -92,6 +92,13 @@ cycle.
   interrupt or exception (SP = 1, 3 or 5), it shuts down, as Intel describes: it stops, INTR
   cannot wake it, NMI or RESET can. The run stops with `halt`. The HALT bus cycle with A1 low
   is not modeled.
+- **16-bit I/O is an inference.** A word at an even port is one 16-bit request, as on the
+  CPU 86/87 (`Bus::ioRead16`). A board that answers SIXTN\* moves both bytes in one I/O cycle;
+  otherwise the card runs two byte cycles, the even port first. The manual (p. 17) describes the
+  byte serializer for memory transfers only, "in conformance with the IEEE 696 specification",
+  which allows a 16-bit request on every data cycle. sXTRQ\* comes from the status PROM, and
+  the manual does not give its contents, so it does not show whether an I/O cycle gets it.
+  The card's own ports (00F8-00FF, 01F8-01FF) are always two byte cycles.
 - **Only EPROMs in the sockets.** J8 and J9 (SRAM, EEPROM) are not modeled.
 - **CDSB*** (pin 19) is not modeled.
 - **The disassembler** knows the 8086 instructions only. It does not show the 80286 additions

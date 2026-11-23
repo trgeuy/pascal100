@@ -77,7 +77,7 @@ soft-sectored disk has one hole, and finds its sectors from marks written in the
 sectors became the common method. The CompuPro Disk 1 uses soft-sectored disks.
 
 **IEEE 696**: IEEE Std 696-1983, the standard version of the S-100 bus. It has 24 address
-lines, a 16-bit I/O address and 16-bit memory transfers. It is the only bus in this program. The
+lines, a 16-bit I/O address and 16-bit memory and I/O transfers. It is the only bus in this program. The
 configuring chapter tells you more.
 
 **IntAck**: Interrupt Acknowledge. The bus cycle that the processor runs when it accepts an
