@@ -268,6 +268,7 @@ CompuPro Disk 1 (1981), the Disk 1A's predecessor: an NEC uPD765A floppy control
 | `readonly` | bool | `true` \| `false` | Write-protect the disk. The 765 tells the guest (ST1 NW, ST3 WP); CP/M 2.2 reports it as Bad Sector *(also `writeprotect`)* |
 | `media` | enum | `8ss` \| `8ss-sd` \| `8ss-dd256` \| `8ss-dd512` \| `8ss-dd1024` \| `8ds` \| `8ds-sd` \| `8ds-dd256` \| `8ds-dd512` \| `8ds-dd1024` | The diskette: its size and sides, such as 8ds, or a whole format, such as 8ds-dd1024. A blank disk needs it. Without it, the size of the image decides |
 | `create` | bool | `true` \| `false` | Make an empty disk file if it is not there, then mount it as a blank disk. A blank needs `media` |
+| `faults` | string | text | Bad sectors on the disk: <track>/<head>/<sector> <kind> [count=N], with a ';' between two faults. The kind is data, id, missing or write. With no count, the sector fails each time. The image does not change |
 
 #### Board properties
 
@@ -305,6 +306,7 @@ CompuPro Disk 1A: an NEC uPD765A floppy controller for 8" and 5.25" drives, sing
 | `readonly` | bool | `true` \| `false` | Write-protect the disk. The 765 tells the guest (ST1 NW, ST3 WP); CP/M 2.2 reports it as Bad Sector *(also `writeprotect`)* |
 | `media` | enum | `8ss` \| `8ss-sd` \| `8ss-dd256` \| `8ss-dd512` \| `8ss-dd1024` \| `8ds` \| `8ds-sd` \| `8ds-dd256` \| `8ds-dd512` \| `8ds-dd1024` \| `5ss` \| `5ss-sd` \| `5ss-dd256` \| `5ss-dd512` \| `5ss-dd1024` \| `5ds` \| `5ds-sd` \| `5ds-dd256` \| `5ds-dd512` \| `5ds-dd1024` | The diskette: its size and sides, such as 8ds, or a whole format, such as 8ds-dd1024. A blank disk needs it. Without it, the size of the image decides |
 | `create` | bool | `true` \| `false` | Make an empty disk file if it is not there, then mount it as a blank disk. A blank needs `media` |
+| `faults` | string | text | Bad sectors on the disk: <track>/<head>/<sector> <kind> [count=N], with a ';' between two faults. The kind is data, id, missing or write. With no count, the sector fails each time. The image does not change |
 
 #### Board properties
 
@@ -389,6 +391,7 @@ Jade Double D Rev C: an intelligent double-density floppy controller with its ow
 | `unit` | int | `0` .. `3` | Which drive (0..3) |
 | `mount` | string | text | The disk image to put in it. Relative to THIS FILE. |
 | `readonly` | bool | `true` \| `false` | Write-protect the disk. The WD17xx tells the guest (status S6 WRITE PROTECT) and refuses the write *(also `writeprotect`)* |
+| `faults` | string | text | Bad sectors on the disk: <track>/<head>/<sector> <kind> [count=N], with a ';' between two faults. The kind is data, id, missing or write. With no count, the sector fails each time. The image does not change |
 
 #### Board properties
 
@@ -441,6 +444,7 @@ Tarbell #1011: single-density WD FD1771 floppy, up to 4 drives. Eight ports at B
 | `unit` | int | `0` .. `3` | Which drive (0..3) |
 | `mount` | string | text | The disk image to put in it. Relative to THIS FILE. |
 | `readonly` | bool | `true` \| `false` | Write-protect the disk. The WD17xx tells the guest (status S6 WRITE PROTECT) and refuses the write *(also `writeprotect`)* |
+| `faults` | string | text | Bad sectors on the disk: <track>/<head>/<sector> <kind> [count=N], with a ';' between two faults. The kind is data, id, missing or write. With no count, the sector fails each time. The image does not change |
 
 #### Board properties
 
@@ -466,6 +470,7 @@ Tarbell #2022: double-density WD FD1791 floppy (mixed-density media, SD track 0)
 | `unit` | int | `0` .. `3` | Which drive (0..3) |
 | `mount` | string | text | The disk image to put in it. Relative to THIS FILE. |
 | `readonly` | bool | `true` \| `false` | Write-protect the disk. The WD17xx tells the guest (status S6 WRITE PROTECT) and refuses the write *(also `writeprotect`)* |
+| `faults` | string | text | Bad sectors on the disk: <track>/<head>/<sector> <kind> [count=N], with a ';' between two faults. The kind is data, id, missing or write. With no count, the sector fails each time. The image does not change |
 
 #### Board properties
 
