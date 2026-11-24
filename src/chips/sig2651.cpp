@@ -185,7 +185,9 @@ uint8_t Sig2651::statusByte(const Clock& clk) const {
 
 uint8_t Sig2651::readStatus(const Clock& clk) {
     poll(clk);
-    if (!rxRdy_) ++emptyPolls_;  // the guest asked and there was no byte: it is waiting
+    // The guest asked and there was no byte: it is waiting. Not while a character waits in the
+    // holding register: then it may be waiting to SEND, and a nap would slow its output.
+    if (!rxRdy_ && tx_.holdEmpty(clk.now())) ++emptyPolls_;
     return statusByte(clk);
 }
 

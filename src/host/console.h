@@ -243,7 +243,7 @@ public:
     // waiting on another port never napped, and one spinning on the console while a
     // transfer ran elsewhere napped through it. The run loop's nap now counts the
     // guest's own empty status reads on EVERY board (Board::emptyPolls) and the bytes
-    // sent on every line (ByteStream::txBytes) -- Machine::lineActivity(), DESIGN.md 8.
+    // sent on every line (ByteStream::txBytes), DESIGN.md 8.
     // This counter also moves when a chip refreshes its receiver, which is not the guest.
     //
     // IT IS NOT starved(), AND THEY MUST NOT BE MERGED. starved() means empty AND ENDED
@@ -262,7 +262,7 @@ public:
     // early draft of the run loop napped straight through one. Bytes arriving is the
     // difference -- but this counter only ever saw the CONSOLE'S bytes, so a transfer on
     // any other line still napped (bug #6). The nap now consults Machine::rxBytes(), the
-    // same signal summed over every UART, and Machine::lineActivity() for the rest (#948).
+    // same signal summed over every UART, and Machine::emptyPolls() and txBytes() for the rest (#948).
     // This remains the console's own tally.
     uint64_t consumed() const { return consumed_; }
 

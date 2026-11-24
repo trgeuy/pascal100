@@ -147,6 +147,7 @@ private:
     uint8_t sense_  = 0xFF;  // S1-3..10 read on D7..D0; OFF = 1
 
     uint8_t latch_   = 0;    // U18: D0-D4 of the last user select write
+    uint64_t parRxBytes_ = 0;  // bytes the parallel latch took off its line (rxBytes)
     uint64_t emptyPolls_ = 0;  // RxRDY port and parallel status reads that found nothing (host bookkeeping)
     uint8_t txMask_  = 0;    // U48: TxINTEN, nibble bit 0-3
     uint8_t rxMask_  = 0;    // U52: RxINTEN

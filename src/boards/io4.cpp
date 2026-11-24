@@ -195,7 +195,7 @@ uint8_t Io4Board::read(const BusCycle& c) {
         ch->uart.poll(clock_ ? *clock_ : deadCard());
         // The DATA port's read strobe is wired to /RDAR: reading it clears Data Available. The
         // other port is /SWE -- the synthesized status byte.
-        if (!isData) ch->uart.statusRead();
+        if (!isData) ch->uart.statusRead(clock_ ? *clock_ : deadCard());
         v = isData ? ch->uart.readData() : statusByte(*ch);
         break;
     }
@@ -396,6 +396,7 @@ void Io4Board::pump() {
         pc->stream->flush();
         if (!pc->srq && pc->stream->readable()) {
             pc->inLatch = pc->stream->readByte();
+            ++parRxBytes_;
             pc->srq     = true;  // the input strobe raises the interrupt even when unaddressed
         }
     }

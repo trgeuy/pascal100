@@ -82,6 +82,14 @@ read: `Mc6850` and `Sig2651` in `readStatus()`, `BitSerialLine::rx()` for an idl
 `Uart1602::statusRead()`, which each 1602 board calls from its status port. The Interfacer 3 and
 4 also count a read of the RxRDY port (5) when no user has a byte.
 
+Two kinds of empty status read are not counted. While a character waits in the transmitter's
+holding register, the guest may be waiting to send, and a nap would slow its output. On an
+Interfacer 1 channel with `overrun = on` the line runs free, and a nap would let bytes pile up and
+overrun the receiver.
+
+A line that can raise `emptyPolls()` must also count its bytes in `rxBytes()`, a parallel input
+included. If it does not, the machine naps through a transfer on it.
+
 Two boards do not count, on purpose:
 
 - **SPUZ.** Its own Z80 reads the 2681. The judgement compares empty status reads with the main

@@ -214,6 +214,43 @@ void test_lines() {
         }
     }
 
+    SECTION("a parallel input byte is received, so a transfer on it never naps");
+    {
+        const struct { const char* type; const char* unit; } ports[] = {
+            {"interfacer4", "parallel"}, {"io4", "pa"}, {"io4", "pb"},
+        };
+        for (const auto& o : ports) {
+            Machine     m;
+            std::string err;
+            Board*      b = m.add(o.type, "x0", err);
+            CHECK(b != nullptr, o.type);
+            if (!b) continue;
+            m.power();
+            auto in = std::make_unique<ScriptedStream>();
+            in->feed("A");
+            CHECK(b->connectStream(o.unit, std::move(in), err), "the line connects");
+            m.pump();
+            CHECK(m.rxBytes() == 1, (std::string(o.type) + ":" + o.unit +
+                                     ": the latched byte moves rxBytes").c_str());
+        }
+    }
+
+    SECTION("a status read while a character waits to go out is not a key wait");
+    {
+        Chip g;
+        g.u.writeControl(0x15, g.clk);
+        const uint64_t e0 = g.u.emptyPolls();
+        (void)g.u.readStatus(g.clk);
+        CHECK(g.u.emptyPolls() == e0 + 1, "nothing to send, no byte in: a wait");
+        g.u.writeData('A', g.clk);
+        g.u.writeData('B', g.clk);
+        (void)g.u.readStatus(g.clk);
+        CHECK(g.u.emptyPolls() == e0 + 1, "B waits behind A: the guest may be waiting to send");
+        g.clk.advance(4 * g.charT());
+        (void)g.u.readStatus(g.clk);
+        CHECK(g.u.emptyPolls() == e0 + 2, "both are gone: a wait again");
+    }
+
     SECTION("SPUZ: its own Z80's status reads are not the main processor waiting");
     {
         Machine     m;

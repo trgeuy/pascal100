@@ -71,7 +71,14 @@ public:
     // /SWE STROBED: the guest read the status word. The board calls this on that read and
     // nowhere else. RDA low then means the guest asked and there was no byte -- it is
     // WAITING, the run loop's idle signal (#948, Board::emptyPolls).
-    void     statusRead() { if (!rda_) ++emptyPolls_; }
+    //
+    // Two reads are not that. With TBMT low the guest may be waiting to SEND: at 110 baud it
+    // reads this word for a tenth of a second for each character, and a nap there slows its
+    // output. With overrunMode the line runs free, so a nap would let bytes pile up and then
+    // overrun the receiver.
+    void statusRead(const Clock& clk) {
+        if (!rda_ && !overrunMode && txBufferEmpty(clk)) ++emptyPolls_;
+    }
     uint64_t emptyPolls() const { return emptyPolls_; }
     bool txBufferEmpty(const Clock& clk) const;        // TBMT -- pin 22
 

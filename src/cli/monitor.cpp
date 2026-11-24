@@ -1935,9 +1935,9 @@ void Monitor::runMachine(std::ostream& out, bool stepOver) {
         // Those three are the whole of the idle judgement at the bottom of the loop.
         // Every count is the WHOLE backplane's, not the console's (#948): a guest waiting on
         // port B, or with its console on a socket, waits as one at the host terminal does.
-        const uint64_t              wasWritten  = con.written();
-        const uint64_t              wasReceived = m_.rxBytes();
-        const uint64_t wasEmpty = m_.emptyPolls();
+        const uint64_t wasWritten  = con.written();
+        const uint64_t wasReceived = m_.rxBytes();
+        const uint64_t wasEmpty    = m_.emptyPolls();
 
         // A slice, then a look around. Short enough that ATTN feels instant and a
         // keystroke is picked up promptly; long enough that the per-slice overhead
