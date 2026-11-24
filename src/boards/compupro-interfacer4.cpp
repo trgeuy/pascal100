@@ -265,6 +265,7 @@ void InterfacerFourBoard::takeParallelInput() {
     if (dav_ || !par_.stream->readable()) return;
     inLatch_ = par_.stream->readByte();
     dav_     = true;
+    ++parRxBytes_;
 }
 
 // ---------------------------------------------------------------------------
@@ -409,7 +410,7 @@ uint64_t InterfacerFourBoard::emptyPolls() const {
 }
 
 uint64_t InterfacerFourBoard::rxBytes() const {
-    uint64_t n = 0;
+    uint64_t n = parRxBytes_;
     for (const auto& s : serial_) n += s->uart.rxBytes();
     return n;
 }

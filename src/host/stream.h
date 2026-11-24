@@ -115,7 +115,7 @@ public:
 
     // BYTES THIS STREAM TOOK FROM write(), monotonic. Only a guest's write sends a byte, so
     // this is the guest working (#948). The run loop watches its delta per slice, summed over
-    // the backplane (Machine::lineActivity). A decorator forwards to the line it wraps, so
+    // the backplane (Machine::txBytes). A decorator forwards to the line it wraps, so
     // both count; only the outermost stream, the one the unit holds, is summed.
     //
     // The other half, the guest WAITING, is not counted here: a chip also asks readable() to

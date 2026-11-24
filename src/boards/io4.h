@@ -87,8 +87,12 @@ public:
     void serialize(StateWriter& w) const override;
     void deserialize(StateReader& r) override;
 
-    // Both channels sum into the run loop's live-traffic signal (Board::rxBytes).
-    uint64_t rxBytes() const override { return a_.uart.rxBytes() + b_.uart.rxBytes(); }
+    // Both serial channels and both parallel ports sum into the run loop's live-traffic signal
+    // (Board::rxBytes). A line that can raise emptyPolls() must be in here too, or the machine
+    // naps through a transfer on it.
+    uint64_t rxBytes() const override {
+        return a_.uart.rxBytes() + b_.uart.rxBytes() + parRxBytes_;
+    }
     // The guest found no byte on a status read, on any line (Board::emptyPolls, #948).
     uint64_t emptyPolls() const override {
         return a_.uart.emptyPolls() + b_.uart.emptyPolls() + parEmptyPolls_;
@@ -232,6 +236,7 @@ private:
 
     // A parallel port's strapped data-available flag, read clear (emptyPolls).
     uint64_t parEmptyPolls_ = 0;
+    uint64_t parRxBytes_    = 0;  // bytes the parallel latches took off their lines (rxBytes)
 
     // ---- THE TWO PARALLEL PORTS. Parallel A = J6/J5, Parallel B = J4/J3. ----
     ParallelChannel pa_{"pa"};

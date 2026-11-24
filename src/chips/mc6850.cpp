@@ -458,7 +458,9 @@ uint8_t Mc6850::readStatus(const Clock& clk) {
 
     uint8_t s = 0;
     if (rdrf_) s |= kRdrf;
-    else ++emptyPolls_;  // the guest asked and there was no byte: it is waiting
+    // The guest asked and there was no byte: it is waiting. Not while a character waits in the
+    // holding register: then it may be waiting to SEND, and a nap would slow its output.
+    else if (tx_.holdEmpty(clk.now())) ++emptyPolls_;
     if (tdre(clk)) s |= kTdre;
     if (ovrn_) s |= kOvrn;
 

@@ -90,7 +90,7 @@ public:
     // bit and found no byte (waiting, Board::emptyPolls). `txBytes`: the bytes the guest sent
     // (working), read from the OUTERMOST stream on each unit (Board::unitStream), so a
     // decorator and the stream it wraps are not both summed. A line with nothing connected
-    // counts too.
+    // counts too. The tests read both at once here; the run loops use the two halves below.
     struct LineActivity {
         uint64_t emptyPolls = 0;
         uint64_t txBytes    = 0;
