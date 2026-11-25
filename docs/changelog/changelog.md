@@ -10,6 +10,130 @@ register, the bit or the command that was wrong.
 
 ---
 
+## 0.5.0
+
+**0.5.0 adds `FAULT`, which makes a sector of a disk bad to test the retry code of a guest. It
+adds `SHOW <id>:<unit>` and `--tool-log`. The 6850 now waits for its master reset, as the real
+chip does. `idle` watches every serial line, and the floppy controllers keep what a format
+writes.** Most of these changes come from altairsim 1.3.6 to 1.4.0.
+
+**Changed: a snapshot from 0.4.1 or earlier does not restore two kinds of board.** The snapshot
+format is now 10. `RESTORE` still reads the older formats, but the floppy boards (`disk1`,
+`disk1a`, `tarbell`, `tarbelldd`, `jadedd`) and the `2sio` start as at power-on. The monitor
+names each one, for example `board 'fd0' (disk1): its saved state does not fit this build`. The
+other boards are restored.
+
+**New: bad sectors on a disk, `FAULT`.** Before, nothing could make a sector fail, so the retry
+code of a guest never ran. `FAULT fd0:drive0 ADD 2/0/1 data count=2` gives two CRC errors on track
+2, head 0, sector 1. The disk image does not change.
+
+- The kinds are `data` and `id` (a CRC error), `missing` (no ID field) and `write` (the drive does
+  not write).
+- With `count=N`, the sector fails N times and is then good. With no count, it fails each time.
+- The controller reports each fault with the status bits of its chip. The CompuPro CP/M BIOS
+  retries past `count=2`. It tries a hard fault ten times, and then CP/M prints
+  `Bdos Err On A: Bad Sector`.
+- `FAULT` lists each fault with the number of times it occurred. `SHOW MOUNTS` gives the number
+  of faults on each disk. `SET <id> DEBUG=fault` writes a line for each fault that occurs.
+- The `faults` key of a drive puts faults in a machine file, and a snapshot keeps them. The MCP
+  tools are `disk_fault_add`, `disk_fault_list` and `disk_fault_clear`.
+- The boards are `disk1`, `disk1a`, `tarbell`, `tarbelldd` and `jadedd`. The hard disk boards
+  `disk2` and `disk3` refuse `FAULT`.
+
+**New: `SHOW <id>:<unit>` shows one unit.** It gives what the unit holds and its settings. For a
+serial unit, `rx waiting` and `tx waiting` count the bytes that the guest and the host have not
+taken. A host program on a `socket:` line can now see when the guest has read all that it sent.
+On the PC Video's `kbd` unit, `rx waiting` also counts the key codes that the board holds. The
+command works while the guest runs.
+
+**New: `--tool-log` shows each MCP tool call and its result.** `--mirror` and `--log` show only
+the console of the guest. `--tool-log SINK` also shows a `monitor` command, a reset or a
+breakpoint. The sink is a file, or `pty`, `pty:LINK`, `socket:PORT` or `serial:DEVICE`.
+
+**Changed: a 6850 does nothing until the program resets it.** Before, a 6850 on the `2sio` was
+ready at power-on: its status read `02`, and it sent a character. A real 6850 is held in reset
+until the program writes a master reset (`03`) to its control port. IMDW printed in altairsim and
+printed nothing on a real 88-2SIO. Now the status reads `00` and RTS is off until the master
+reset. `SET 6850 DEBUG=reset` reports a program that uses a 6850 before its reset. The `HELLO`
+debugger example now resets the 2SIO.
+
+**Changed: `idle` watches every serial line, not only the console.** Before, with the console in a
+terminal window, or on a socket or a serial port, CP/M at the `A>` prompt kept one core of the
+computer busy. With the console on port A of a `2sio`, a program that waited on port B looked like
+a prompt, and it ran slowly. Now the processor rests when the guest reads the status of an empty
+line on any port. It does not rest while a byte goes out or comes in. A parallel input of the
+Interfacer 4 or the IO-4 counts too. The SPUZ and the PC Video do not count, because their status
+reads do not show that the guest waits. If a guest runs slower, type `SET cpu0 idle=off`.
+
+**Changed: the floppy boards keep what a format writes.** A format keeps its interleave, its ID
+bytes and its deleted marks until the disk is unmounted. Before, the guest saw IDs in order from 1.
+
+- WD17xx Read Track (`E4`) returns one revolution on a raw `.DSK`, with ID fields, data marks,
+  good CRCs and IBM standard gaps. Before, it returned no bytes.
+- The µPD765A compares the H byte of a command with the H byte that the format wrote. Before, it
+  used the selected side.
+
+**Changed: the tables of the monitor line up.** In `BOARDS` and `SHOW MACHINE`, the UNITS, MEMORY
+and I/O columns wrap. The table of the default machine is 103 columns wide; it was 136. Each
+column of a `SHOW` table is as wide as its widest entry, and a long path prints whole. Before, the
+replies of `LOAD`, `SAVE` and `REGION ADD` cut a long path off.
+
+- A property that you cannot set is marked `(show-only)`. Before, the mark was `(read-only)`.
+- `HELP REGION` lists every key, `relocate` too. `SHOW BOARD` and the board reference list a
+  true/false property as `true | false`.
+- The boot ROM note of the Disk 1 and the Disk 1A is shorter.
+
+**Changed: `-x` and `-s` stop at the first command that fails.** Before, the run continued on a
+machine that was not the one you described. Now it prints `Stopped: that command failed. The
+commands after it did not run.` and exits with status 1. A `DO` file and a startup list still run
+every line.
+
+**Fixed: the M-Drive/H after `BOARDS ADD`.** The board said `fill = random` but read as zeros until
+`POWER`. Now it has its power-up pattern at once, from the `fill`, `seed` and `cascade` on that
+line. Two boards with the same seed held the same bytes; now each `cascade` has its own pattern.
+`SHOW` gives the address counter and the board that it selects.
+
+**Fixed: floppy commands.**
+
+- WD17xx Write Track records each sector under the number in its own ID field. Before, a track
+  streamed as sectors 2 to 16, then 1, was recorded as sectors 2-17. A field with a deleted data
+  mark was lost, and the sectors after it moved down by one.
+- The WD17xx set CRC Error (status bit 3) for a sector that it found, when it passed a bad ID field
+  on the way. Now it sets bit 3 only with bit 4, Record Not Found. A guest met this only through
+  `FAULT`.
+- A double-density Read Address returns a CRC that includes the three `A1` sync bytes.
+- The µPD765A Write Deleted Data command (`09`) writes a deleted mark. Before, it kept the old mark
+  of the sector.
+
+**Fixed: XMODEM through a `telnet:` line lost a byte.** Telnet (RFC 854) puts a zero byte after a
+carriage return that has no line feed after it, and the client removes it. pascal100 sent no zero
+byte, so the guest's bytes `0D 00` arrived as one carriage return. In altairsim, `PCPUT OHMS.COM`
+to Tera Term sent block 39 again and again. Now pascal100 sends the zero byte.
+
+**Fixed: a caller on a `socket:` or `telnet:` line lost the first bytes of a run.** In altairsim,
+a guest that printed `SEND` as it started reached the caller as `ND`. *Driving pascal100 with an
+AI* has a new section for a host program on a serial socket.
+
+**Fixed: `in:` and `out:` endpoints.** `SHOW` and `CONFIG SAVE` give the endpoint as you typed it.
+Before, they gave the path of the machine file's folder too, and a reload added that folder a
+second time.
+
+**Fixed: under `--mcp`.**
+
+- A console character from 80 to FF reaches the guest as one byte. Before, `ð` reached it as the
+  two bytes `C3 B0`. The server refuses a character above `ÿ`.
+- The `monitor` tool refuses a `!` command. Before, the shell command wrote its output between the
+  JSON-RPC messages, and this broke the client.
+
+**Fixed: the Linux package of 0.4.0 and 0.4.1 did not start on Ubuntu 22.04.** It needed glibc 2.43,
+and printed `version 'GLIBC_2.43' not found`. Now it is built on Ubuntu 22.04.
+
+**Fixed: a build from the source kept a deleted file.** After you deleted a ROM from `roms/` or a
+machine file from `machines/`, the next build still had it in the program. Now the build leaves it
+out.
+
+---
+
 ## 0.4.1
 
 **New: 16-bit I/O transfers on the 8086 and the 80286.** IEEE 696 lets a master ask for 16 bits

@@ -1,8 +1,12 @@
 name: Bundle
-# Build the linux-x86_64 and windows-x86_64 packages for a private bundle, on GitHub's x64
+# Build the linux-x86_64 and windows-x86_64 packages for a release, on GitHub's x64
 # runners, as tools/release-worker.sh builds them on a build machine: a static SDL3, a Release
 # build (static C runtime on Windows), then tools/build-package.sh with the committed manual.
 # The macOS arm64 package is built by hand on the maintainer's Mac.
+#
+# DO NOT RELEASE THE LINUX PACKAGE THAT THIS RUN MAKES. The program needs the glibc of the
+# ubuntu-latest runner, so the 0.4.0 and 0.4.1 packages did not start on Ubuntu 22.04. Build the
+# Linux package of a release in Ubuntu 22.04, and start it there before you publish it.
 #
 # NOT A RELEASE. No tag, no signing, no upload anywhere but this run's artifacts. Started by
 # hand only. tools/verify-package.sh is not run here: it is a POSIX shell script, run on the

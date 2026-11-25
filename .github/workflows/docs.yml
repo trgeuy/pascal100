@@ -24,9 +24,8 @@ name: Documents
 # wrote. That is noisy but honest, and it is strictly better than the two days of silence
 # above.
 
-# PASCAL100 (standalone, 2026-11-09): MANUAL ONLY. This repo is private, so every Actions
-# minute counts against the account's free monthly allowance. The inherited pascal100
-# triggers are kept below, commented out, for when the project's own process is set up.
+# PASCAL100 (standalone, 2026-11-09): MANUAL ONLY. A person starts each run. The inherited
+# pascal100 triggers are kept below, commented out, for when the project's own process is set up.
 on:
   workflow_dispatch:
 

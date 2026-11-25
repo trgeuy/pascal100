@@ -24,9 +24,8 @@ name: CPU exerciser
 # What it was guarding is real but rare: a CMake change that alters how the CPU is compiled
 # (an optimization flag, a standard level). That is a workflow_dispatch, not a standing trigger
 # -- and a release exercises all four build machines anyway (tools/release-worker.sh).
-# PASCAL100 (standalone, 2026-11-09): MANUAL ONLY. This repo is private, so every Actions
-# minute counts against the account's free monthly allowance. The inherited pascal100
-# triggers are kept below, commented out, for when the project's own process is set up.
+# PASCAL100 (standalone, 2026-11-09): MANUAL ONLY. A person starts each run. The inherited
+# pascal100 triggers are kept below, commented out, for when the project's own process is set up.
 on:
   workflow_dispatch:
 

@@ -6,7 +6,7 @@ The Pascal-100 is one S-100 board set with two processors: a Zilog Z80 and a Wes
 **Pascal MicroEngine** (WD9000). The MicroEngine runs UCSD Pascal III.0 P-code in hardware. Only one
 processor is active at a time, and the guest switches between them.
 
-**Status:** version 0.4.1. The Pascal-100 machine (`examples/pascal/pascal.toml`)
+**Status:** version 0.5.0. The Pascal-100 machine (`examples/pascal/pascal.toml`)
 boots a UCSD Pascal III.0 system disk on the MicroEngine. The CompuPro machines run CP/M 2.2 on the
 Z80, CP/M 8-16 and MP/M 8-16 on the 8088 of the CompuPro CPU 8085/88, CP/M-86 on the 8086 of
 the CompuPro CPU 86/87, and Concurrent DOS 8-16 4.1 on the 80286 of the CompuPro CPU 286. We
@@ -114,15 +114,15 @@ your own Pascal-100 system disk instead, set `PASCAL100_BOOT_DISK` to a copy of 
 
 ## Platforms
 
-**We use pascal100 by hand only on macOS on Apple silicon.** The Windows 11 x64 and Linux x64
-packages are built and tested on a real Windows 11 PC, with Linux in WSL2 on the same PC, but
-nobody has used their windows by hand yet.
+**We use pascal100 by hand only on macOS on Apple silicon.** The Windows 11 x64 package is built on
+GitHub's build machines, and the Linux x64 package in WSL2 on a real Windows 11 PC. The tests of both
+pass on that PC. Nobody has used their windows by hand yet.
 
 | Package | How it was tested |
 |---|---|
 | macOS, Apple silicon | Built and used on a Mac. Each change passes the test suite there before it is merged. |
-| Windows 11 x64 | Built on a Windows 11 PC (MSVC, Visual Studio 2026). The fast tests pass there, and CP/M boots from the unpacked package. Not used by hand. |
-| Linux x64 | Built in Ubuntu 22.04 under WSL2 on the same PC (GCC). The fast tests pass there, and CP/M boots from the unpacked package. Not used by hand. |
+| Windows 11 x64 | Built on a GitHub runner (MSVC), where CP/M boots from the unpacked package. The fast tests pass on a Windows 11 PC (MSVC, Visual Studio 2026). Not used by hand. |
+| Linux x64 | Built in Ubuntu 22.04 under WSL2 on the same PC (GCC). The fast tests pass there, and CP/M boots from the unpacked package. It needs glibc 2.35 or later. Not used by hand. |
 
 If you use pascal100 on Windows or Linux, please open an issue and say what works and what does not.
 
@@ -130,7 +130,7 @@ If you use pascal100 on Windows or Linux, please open an issue and say what work
 browser if Apple has not notarized it. Remove the download mark from the folder that you unpacked:
 
 ```
-xattr -dr com.apple.quarantine pascal100-0.4.1-macos-arm64
+xattr -dr com.apple.quarantine pascal100-0.5.0-macos-arm64
 ```
 
 You can also do it in System Settings:
