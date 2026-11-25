@@ -946,6 +946,15 @@ add_test(NAME acceptance-disk1
                  -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/acceptance/disk1.cmake)
 set_tests_properties(acceptance-disk1 PROPERTIES LABELS acceptance TIMEOUT 140)
 
+# Bad sectors (altairsim #966) under CompuPro's own BIOSes, on the Disk 1 and the Disk 1A.
+add_test(NAME acceptance-disk-fault
+         COMMAND ${CMAKE_COMMAND}
+                 -DSIM=$<TARGET_FILE:pascal100>
+                 -DSRC=${CMAKE_CURRENT_SOURCE_DIR}
+                 -DBIN=${CMAKE_CURRENT_BINARY_DIR}
+                 -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/acceptance/disk-fault.cmake)
+set_tests_properties(acceptance-disk-fault PROPERTIES LABELS acceptance TIMEOUT 250)
+
 # The CompuPro M-Drive/H: CP/M 2.2N counts one board, formats drive M:, and PIP [V] writes a
 # file there that runs (tests/acceptance/mdriveh-cpm22n.cmake).
 add_test(NAME acceptance-mdriveh

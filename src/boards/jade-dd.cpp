@@ -713,5 +713,4 @@ DiskFaults* JadeDdBoard::faults(const std::string& unit) {
     return (i >= 0 && drive_[(size_t)i].img) ? &drive_[(size_t)i].drv.faults() : nullptr;
 }
 
-
 } // namespace altair

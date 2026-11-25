@@ -360,12 +360,12 @@ TNFS carries only **single-file images**, such as the floppy images of this chap
 messages of a guest. The disk image does not change. The faults are in the drive, beside the
 image.
 
-These controllers take faults: `tarbell`, `tarbelldd`, `16fdc`, `64fdc`, `versafloppy`,
-`jadedd`, `disk1` and `disk1a`. Another controller refuses the command:
+These controllers take faults: `disk1`, `disk1a`, `tarbell`, `tarbelldd` and `jadedd`. Another
+controller refuses the command:
 
 ```
-altairsim> FAULT dsk0:drive0 ADD 2/0/1 data
-dsk0:drive0: the dcdd board does not take faults on its disk
+pascal100> FAULT hd0:drive0 ADD 2/0/1 data
+hd0:drive0: the disk3 board does not take faults on its disk
 ```
 
 ### Give a fault
@@ -405,39 +405,40 @@ a µPD765. The other controllers have a WD17xx.
 2. Add the fault. This one gives two CRC errors on track 2, head 0, sector 1:
 
    ```
-   altairsim> FAULT fdc0:drive0 ADD 2/0/1 data count=2
-   fdc0:drive0: fault 2/0/1 data count=2
+   pascal100> FAULT fd0:drive0 ADD 2/0/1 data count=2
+   fd0:drive0: fault 2/0/1 data count=2
    ```
 
 3. Run the guest.
 4. Type `FAULT` to see the faults of all the drives:
 
    ```
-   altairsim> FAULT
-     UNIT         FAULT                HITS   LEFT
-     fdc0:drive0  2/0/1 data count=2      2      0
+   pascal100> FAULT
+     UNIT        FAULT                HITS   LEFT
+     fd0:drive0  2/0/1 data count=2      2      0
    ```
 
 `HITS` is the number of times that the fault occurred. `LEFT` is the number of failures before
-the sector is good. `LEFT` is `-` for a hard fault. On this disk, CP/M reads the sector at its
-first `A>` prompt. The BIOS got two CRC errors, read the sector a third time, and continued.
+the sector is good. `LEFT` is `-` for a hard fault. On this disk, the sector holds the start of the
+CP/M directory. The BIOS got two CRC errors, read the sector a third time, and continued. With a
+hard fault, the CompuPro BIOS tries ten times, and CP/M prints `Bdos Err On A: Bad Sector`.
 
 A second `ADD` with the same address and kind replaces the fault, and sets its counts again.
 `SHOW MOUNTS` shows the number of faults beside each disk:
 
 ```
-altairsim> SHOW MOUNTS
-  UNIT         KIND  HOLDS
-  fdc0:drive0  disk  cpm22.dsk  (2 faults)
+pascal100> SHOW MOUNTS
+  UNIT        KIND  HOLDS
+  fd0:drive0  disk  CPM22N.DSK  (2 faults)
 ```
 
 ### Remove a fault
 
 | Command | What it removes |
 |---|---|
-| `FAULT fdc0:drive0 CLEAR 2/0/1` | each fault at that address |
-| `FAULT fdc0:drive0 CLEAR 2/0/1 data` | the `data` fault at that address |
-| `FAULT fdc0:drive0 CLEAR ALL` | each fault of the drive |
+| `FAULT fd0:drive0 CLEAR 2/0/1` | each fault at that address |
+| `FAULT fd0:drive0 CLEAR 2/0/1 data` | the `data` fault at that address |
+| `FAULT fd0:drive0 CLEAR ALL` | each fault of the drive |
 
 `CLEAR` matches the address as you wrote it. `CLEAR 10/*/*` removes the fault `10/*/*`. It does
 not remove a fault on one sector of track 10.
@@ -449,18 +450,18 @@ not remove a fault on one sector of track 10.
 Turn on the `fault` debug flag of the controller:
 
 ```
-altairsim> SET fdc0 DEBUG=fault
+pascal100> SET fd0 DEBUG=fault
 ```
 
 The controller then writes a line each time that a fault occurs. The line starts with the
 address of the instruction that the processor ran:
 
 ```
-AEC8  fdc0: fault drive0 2/0/1 data hit 1, 1 left
-AEC8  fdc0: fault drive0 2/0/1 data hit 2, 0 left
+ED04  fd0: fault drive0 2/0/1 data hit 1, 1 left
+ED04  fd0: fault drive0 2/0/1 data hit 2, 0 left
 ```
 
-The flag writes nothing until you turn it on. `SET fdc0 NODEBUG=fault` turns it off. The flag
+The flag writes nothing until you turn it on. `SET fd0 NODEBUG=fault` turns it off. The flag
 changes only the lines. The faults occur and count in the same way with the flag off.
 
 ### Faults in the machine file
@@ -469,12 +470,12 @@ The `faults` key of a drive gives its faults. Put a `;` between two faults:
 
 ```toml
 [[board]]
-type = "tarbell"
-id   = "fdc0"
+type = "disk1"
+id   = "fd0"
 
   [[board.drive]]
   unit   = 0
-  mount  = "cpm22.dsk"
+  mount  = "CPM22N.DSK"
   faults = "2/0/1 data count=2; 10/*/* write"
 ```
 
