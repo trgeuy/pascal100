@@ -368,7 +368,7 @@ IBM standard gaps:
   the reason to its log and ends the command.
 
 `tests/trackdecode.h` decodes a track from the IBM layout and not from the drive's code. The
-`floppydrive` and `versafloppy` suites use it to check the bytes.
+`floppydrive` and `tarbell` suites use it to check the bytes.
 
 ## The other chip: the µPD765A
 

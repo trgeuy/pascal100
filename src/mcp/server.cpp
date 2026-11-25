@@ -449,7 +449,7 @@ Json toolList() {
     // BAD SECTORS (#966): the FAULT command, with JSON back, so a test can check the hits.
     {
         Json p = Json::obj();
-        p["id"]    = strSchema("Board id of the disk controller, e.g. fdc0.");
+        p["id"]    = strSchema("Board id of the disk controller, e.g. fd0.");
         p["unit"]  = strSchema("The drive, e.g. drive0. A disk must be mounted in it.");
         p["fault"] = strSchema("<track>/<head>/<sector> <kind> [count=N]. Use * for any track, head "
                                "or sector; the sector is the number the guest asks for. Kind: data "

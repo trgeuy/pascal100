@@ -18,6 +18,7 @@
 #include "host/diskfaults.h"
 #include "host/media.h"
 #include "test.h"
+#include "trackdecode.h"
 
 #include <cstdint>
 #include <string>
@@ -1003,6 +1004,70 @@ void test_tarbell() {
         CHECK(in(b, TRK) == 0, "...and the track register is zero");
         out(b, CTL, selA);
         CHECK(((in(b, CMD) & 0x04) != 0) == (oldTrack == 0), "drive A did not move");
+    }
+
+    SECTION("boards/tarbell: Read Track end to end -- what a format wrote comes back (altairsim #937)");
+    // A guest that decodes a whole track: format it with an interleave, a deleted sector and a
+    // cylinder byte that is not the head's track, then read it back through the wait port. The IDs,
+    // their order, the marks and the data come back as written, with good CRCs.
+    for (const bool dd : {false, true}) {
+        // Sized up front and filled by index (GCC 15 -Warray-bounds), as the floppydrive suite.
+        const int        n = dd ? 51 : 26;
+        std::vector<int> order;
+        for (int k = 0; k < n; ++k) order.push_back((k % 2) ? (n + 1) / 2 + 1 + k / 2 : 1 + k / 2);
+        const size_t  sync = dd ? 8 + 3 : 6, gap = dd ? 8 : 11;
+        const size_t  per = sync + 6 + gap + sync + 1 + 128 + 1 + gap;
+        const uint8_t fill = dd ? 0x4E : 0xFF;
+        std::vector<uint8_t> track(40 + order.size() * per, fill);
+        auto syncAt = [&](size_t p) {
+            for (size_t z = 0; z < sync; ++z) track[p + z] = (dd && z >= 8) ? 0xF5 : 0x00;
+        };
+        for (size_t k = 0; k < order.size(); ++k) {
+            const size_t  p  = 40 + k * per;
+            const uint8_t r  = (uint8_t)order[k];
+            const uint8_t id[6] = {0xFE, 45, 0x00, r, 0x00, 0xF7};
+            syncAt(p);
+            for (size_t z = 0; z < 6; ++z) track[p + sync + z] = id[z];
+            const size_t d = p + sync + 6 + gap;
+            syncAt(d);
+            track[d + sync] = r == 9 ? 0xF8 : 0xFB;
+            for (size_t z = 0; z < 128; ++z) track[d + sync + 1 + z] = r;
+            track[d + sync + 1 + 128] = 0xF7;
+        }
+
+        withRampDisk(dd ? 499456ull : 77ull * 26 * 128);
+        Clock c;
+        TarbellBoard   sd;
+        TarbellDdBoard ddb;
+        TarbellBoardBase& b = dd ? (TarbellBoardBase&)ddb : (TarbellBoardBase&)sd;
+        b.attachClock(&c);
+        b.power();
+        std::string err;
+        CHECK(b.mount("drive0", "ramp.dsk", false, err), "the image mounts");
+        if (dd) out(b, CTL, 0x08);  // density DD, drive 0
+        out(b, DAT, 5);
+        out(b, CMD, 0x18);  // Seek to track 5
+        out(b, CMD, 0xF4);  // Write Track
+        pollWrite(b, track);
+        CHECK((in(b, CMD) & 0x20) == 0, "the interleaved format took: no WRITE FAULT");
+
+        out(b, CMD, 0xE4);  // Read Track
+        std::vector<uint8_t> t;
+        for (int guard = 0; guard < 20000 && (in(b, CTL) & 0x80); ++guard) t.push_back(in(b, DAT));
+        CHECK(t.size() == (dd ? 10416u : 5208u), "Read Track hands over one revolution");
+        CHECK((in(b, CMD) & 0x7C) == 0, "...and ends with no error bits");
+        const auto f  = decodeTrack(t, dd, 128);
+        bool       ok = f.size() == 1 + 2 * order.size() && f[0].mark == 0xFC;
+        for (size_t k = 0; ok && k < order.size(); ++k) {
+            const TrackField& idf = f[1 + 2 * k];
+            const TrackField& dt  = f[2 + 2 * k];
+            const uint8_t     r   = (uint8_t)order[k];
+            ok = idf.mark == 0xFE && idf.crcOk && idf.body[0] == 45 && idf.body[2] == r &&
+                 dt.mark == (r == 9 ? 0xF8 : 0xFB) && dt.crcOk &&
+                 dt.body == std::vector<uint8_t>(128, r);
+        }
+        CHECK(ok, "the IDs come back in the order written, with C 45, sector 9 deleted, each data "
+                  "field its own, and every CRC good");
     }
 
     SECTION("boards/tarbell: bad sectors -- the `faults` key, CONFIG SAVE and SNAPSHOT (#966)");
