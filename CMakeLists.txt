@@ -948,6 +948,16 @@ add_test(NAME acceptance-mdriveh
                  -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/acceptance/mdriveh-cpm22n.cmake)
 set_tests_properties(acceptance-mdriveh PROPERTIES LABELS acceptance TIMEOUT 140)
 
+# ...and eight boards: 2016K, files that live through a RESET and not a POWER
+# (tests/acceptance/mdriveh-boards.cmake).
+add_test(NAME acceptance-mdriveh-boards
+         COMMAND ${CMAKE_COMMAND}
+                 -DSIM=$<TARGET_FILE:pascal100>
+                 -DSRC=${CMAKE_CURRENT_SOURCE_DIR}
+                 -DBIN=${CMAKE_CURRENT_BINARY_DIR}
+                 -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/acceptance/mdriveh-boards.cmake)
+set_tests_properties(acceptance-mdriveh-boards PROPERTIES LABELS acceptance TIMEOUT 140)
+
 # The IEEE 696 bus (Stage 2): CP/M 2.2N on the Disk 1 machine,
 # once with 64K of aliasing memory and once with 128K of 16-bit memory in two segments.
 add_test(NAME acceptance-ieee696

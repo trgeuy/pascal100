@@ -3,6 +3,7 @@
 #include "core/statefile.h"
 
 #include <algorithm>
+#include <cstdio>
 #include <random>
 #include <string>
 #include <utility>
@@ -10,7 +11,9 @@
 
 namespace altair {
 
-CompuProMDriveHBoard::CompuProMDriveHBoard() : ram_(kSize, 0) {}
+// The RAM holds its power-up pattern from the start, so a board that BOARDS ADD plugs in does
+// not read as zeros until POWER.
+CompuProMDriveHBoard::CompuProMDriveHBoard() : ram_(kSize, 0) { fillRam(); }
 
 // ---------------------------------------------------------------------------
 // Decode (U18 port compare on A7-A1, U7/U6 cycle decode)
@@ -38,12 +41,14 @@ uint8_t CompuProMDriveHBoard::drivesBits(const BusCycle&) const { return selecte
 // ---------------------------------------------------------------------------
 uint8_t CompuProMDriveHBoard::read(const BusCycle& c) {
     if (!isData(c)) return 0;  // not decoded; the bus never asks
+    new_ = false;
     const uint8_t v = ram_[counter_ % kSize];  // masked off by drivesBits() if not selected
     count();
     return v;
 }
 
 void CompuProMDriveHBoard::write(const BusCycle& c) {
+    new_ = false;
     if (isAddress(c)) {
         // LOAD*: each counter loads the outputs eight bits below; U15/U16 load the data bus.
         counter_ = ((counter_ << 8) | c.data) & (kCounter - 1);
@@ -66,6 +71,13 @@ void CompuProMDriveHBoard::reset(Reset) {}
 void CompuProMDriveHBoard::power() {
     fillRam();
     counter_ = 0;
+    new_     = false;
+}
+
+// `BOARDS ADD mdriveh md0 fill=zero` sets the key after the board is made, so the pattern is
+// made again. Never on a board in use: a SET there waits for POWER, and drive M: keeps its files.
+void CompuProMDriveHBoard::refillIfNew() {
+    if (new_) fillRam();
 }
 
 // 0xFF does not appear here on purpose: it is the bus's answer for an empty slot, and a
@@ -75,7 +87,9 @@ void CompuProMDriveHBoard::fillRam() {
         std::fill(ram_.begin(), ram_.end(), 0);
         return;
     }
-    std::mt19937_64 rng(seed_);
+    // Each board its own stream, or two boards with one seed hold the same bytes. The 1st board
+    // (cascade 0) keeps the plain seed.
+    std::mt19937_64 rng(seed_ ^ (0x9E3779B97F4A7C15ULL * cascade_));
     for (auto& b : ram_) b = (uint8_t)(rng() & 0xFF);
 }
 
@@ -91,6 +105,7 @@ void CompuProMDriveHBoard::deserialize(StateReader& r) {
     std::vector<uint8_t> all = r.blob();
     const size_t n = std::min(all.size(), ram_.size());
     std::copy(all.begin(), all.begin() + (std::ptrdiff_t)n, ram_.begin());
+    new_ = false;
 }
 
 // ---------------------------------------------------------------------------
@@ -130,6 +145,7 @@ std::vector<Property> CompuProMDriveHBoard::properties() {
         x.get  = [this] { return Value::ofInt(cascade_); };
         x.set  = [this](const Value& v, std::string&) {
             cascade_ = (uint8_t)v.i();
+            refillIfNew();
             return true;
         };
         p.push_back(std::move(x));
@@ -143,6 +159,7 @@ std::vector<Property> CompuProMDriveHBoard::properties() {
         x.get     = [this] { return Value::ofStr(fill_ == Fill::Zero ? "zero" : "random"); };
         x.set     = [this](const Value& v, std::string&) {
             fill_ = (v.s() == "zero") ? Fill::Zero : Fill::Random;
+            refillIfNew();
             return true;
         };
         p.push_back(std::move(x));
@@ -151,16 +168,36 @@ std::vector<Property> CompuProMDriveHBoard::properties() {
         Property x;
         x.name = "seed";
         x.help = "Seed for fill=random. The same seed fills the RAM the same way at every "
-                 "POWER, so a run is repeatable";
+                 "POWER, so a run is repeatable. Each cascade has its own pattern";
         x.kind = Kind::Int;
         x.get  = [this] { return Value::ofInt((long long)seed_); };
         x.set  = [this](const Value& v, std::string&) {
             seed_ = (uint64_t)v.i();
+            refillIfNew();
             return true;
         };
         p.push_back(std::move(x));
     }
+    {
+        Property x;
+        x.name  = "address";
+        x.help  = "The 22-bit address counter. The guest loads it with three OUTs to the address "
+                  "port, high byte first";
+        x.kind  = Kind::Int;
+        x.radix = 16;
+        x.get   = [this] { return Value::ofInt(counter_); };
+        p.push_back(std::move(x));
+    }
     return p;
+}
+
+// Which 512K the next byte is in, and whether it is this board's: "reads FF" and "two boards
+// answer" are the two ways a cascade switch goes wrong.
+std::vector<std::string> CompuProMDriveHBoard::statusLines() const {
+    char buf[96];
+    std::snprintf(buf, sizeof buf, "address %06X: board %d, %s", (unsigned)counter_,
+                  (int)((counter_ >> 19) & 7), selected() ? "this one" : "not this one");
+    return {buf};
 }
 
 std::vector<MapEntry> CompuProMDriveHBoard::ioMap() const {

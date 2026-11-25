@@ -317,4 +317,110 @@ id   = "if1"
         auto* c = dynamic_cast<CompuProMDriveHBoard*>(back.find("mdh0"));
         CHECK(c != nullptr, "with the M-Drive/H in it");
     }
+
+    // ----- A board that BOARDS ADD plugs in holds its power-up pattern at once -----
+    {
+        Machine            m;
+        Monitor            mon(m);
+        std::ostringstream o;
+        auto add = [&](const char* line, const char* id) {
+            mon.exec(line, o);
+            return dynamic_cast<CompuProMDriveHBoard*>(m.find(id));
+        };
+        auto* r = add("BOARDS ADD mdriveh r", "r");
+        auto* z = add("BOARDS ADD mdriveh z port=C8 fill=zero", "z");
+        auto* s = add("BOARDS ADD mdriveh s port=CA seed=7", "s");
+        auto* c = add("BOARDS ADD mdriveh c port=CC cascade=1", "c");
+        CHECK(r && z && s && c, ("four boards are added: " + o.str()).c_str());
+        if (!r || !z || !s || !c) return;
+        auto same = [](CompuProMDriveHBoard* a, CompuProMDriveHBoard* b) {
+            for (uint32_t i = 0; i < 4096; ++i)
+                if (a->byteAt(i) != b->byteAt(i)) return false;
+            return true;
+        };
+        auto zero = [](CompuProMDriveHBoard* a) {
+            for (uint32_t i = 0; i < 4096; ++i)
+                if (a->byteAt(i) != 0) return false;
+            return true;
+        };
+        CHECK(!zero(r), "a board added with fill=random does not read as zeros before POWER");
+        CHECK(zero(z), "fill=zero on the BOARDS ADD line takes effect at once");
+        CHECK(!same(r, s), "...and so does seed");
+        CHECK(!same(r, c), "two boards with one seed hold different bytes");
+
+        std::vector<uint8_t> was;
+        for (uint32_t i = 0; i < 4096; ++i) was.push_back(s->byteAt(i));
+        m.power();
+        bool kept = true;
+        for (uint32_t i = 0; i < 4096; ++i) kept = kept && s->byteAt(i) == was[i];
+        CHECK(kept, "POWER makes the same pattern");
+        CHECK(zero(z), "...and fill=zero stays zero");
+
+        // In use: a SET waits for POWER, or drive M: loses its files.
+        m.bus.ioWrite(0xC8, 0x5A);
+        std::string err;
+        CHECK(setProperty(*z, "fill", "random", err) && setProperty(*z, "seed", "9", err) &&
+                  setProperty(*z, "cascade", "2", err), err.c_str());
+        CHECK(z->byteAt(0) == 0x5A && z->byteAt(1) == 0, "SET on a board in use leaves its RAM alone");
+        m.power();
+        CHECK(!zero(z), "...until POWER");
+
+        // Used before any POWER: the first cycle ends "new" too.
+        auto* u = add("BOARDS ADD mdriveh u port=CE fill=zero", "u");
+        CHECK(u != nullptr, "a fifth board");
+        if (!u) return;
+        m.bus.ioWrite(0xCE, 0xA5);
+        CHECK(setProperty(*u, "fill", "random", err), err.c_str());
+        CHECK(u->byteAt(0) == 0xA5 && u->byteAt(1) == 0, "a board written before POWER is in use");
+    }
+
+    // ----- A restored board is in use -----
+    {
+        CompuProMDriveHBoard from;
+        std::string          err;
+        CHECK(setProperty(from, "fill", "zero", err), err.c_str());
+        StateWriter w;
+        from.serialize(w);
+        CompuProMDriveHBoard to;
+        StateReader          r(w.data());
+        to.deserialize(r);
+        CHECK(setProperty(to, "seed", "3", err), err.c_str());
+        CHECK(to.byteAt(0) == 0 && to.byteAt(0x1000) == 0, "SET after a restore leaves the RAM alone");
+    }
+
+    // ----- Eight boards: all of the 4M, and the BIOS sizing counts them -----
+    {
+        std::string toml = "[machine]\nname = \"mdh8\"\n";
+        for (int i = 0; i < 8; ++i)
+            toml += "\n[[board]]\ntype = \"mdriveh\"\nid = \"mdh" + std::to_string(i) +
+                    "\"\ncascade = " + std::to_string(i) + "\n";
+        Rig g(toml.c_str());
+        if (!g.a || !g.b) return;
+        CHECK(sizeBoards(g) == 8, "the sizing routine finds eight boards");
+        g.addr(0x3FFFFF);
+        g.out(0xC6, 0x77);
+        g.out(0xC6, 0x88);
+        auto* last = dynamic_cast<CompuProMDriveHBoard*>(g.m.find("mdh7"));
+        CHECK(last && last->byteAt(CompuProMDriveHBoard::kSize - 1) == 0x77 && g.a->byteAt(0) == 0x88,
+              "a transfer wraps from the last byte of the 8th board to the 1st board");
+        CHECK(g.m.bus.drain().empty(), "eight boards on one port pair report nothing");
+    }
+
+    // ----- SHOW: the counter, and whose range it is in -----
+    {
+        Rig g(kTwoBoards);
+        if (!g.a || !g.b) return;
+        g.addr(0x080123);
+        const auto la = g.a->statusLines(), lb = g.b->statusLines();
+        CHECK(la.size() == 1 && la[0] == "address 080123: board 1, not this one", "the 1st board's status line");
+        CHECK(lb.size() == 1 && lb[0] == "address 080123: board 1, this one", "the 2nd board's status line");
+        Monitor            mon(g.m);
+        std::ostringstream o;
+        mon.exec("SHOW mdh1", o);
+        CHECK(o.str().find("0x80123") != std::string::npos &&
+                  o.str().find("board 1, this one") != std::string::npos, o.str().c_str());
+        std::string err;
+        CHECK(!setProperty(*g.a, "address", "5", err), "the address cannot be set");
+        CHECK(saveTomlText(g.m).find("address") == std::string::npos, "CONFIG SAVE does not write it");
+    }
 }

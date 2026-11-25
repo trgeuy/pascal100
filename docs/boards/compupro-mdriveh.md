@@ -76,7 +76,13 @@ each 64K (the 4 reserved tracks). Parity is software only; the board stores 8 bi
 | `port` | `C6` | S1-1..7 (A7-A1). Must be even: A0 picks data or address |
 | `cascade` | `0` | S1-8..10: which 512K of the 4M range, 0-7. The 1st board is 0 |
 | `fill` | `random` | RAM at power-on: `random` or `zero` |
-| `seed` | `1` | The seed for `fill = random`: the same seed fills the same way at every power |
+| `seed` | `1` | The seed for `fill = random`: the same seed fills the same way at every power. Each `cascade` has its own pattern |
+| `address` | | The 22-bit counter. Read only |
+
+- **A board that `BOARDS ADD` plugs in** has its power-up pattern at once, from the `fill`, `seed`
+  and `cascade` on that line. On a board that has had a POWER, a bus cycle or a restore, a change
+  of these keys changes the RAM only at the next POWER, so drive M: keeps its files.
+- **`SHOW <id>`** gives the counter, the board number it is in, and whether that is this board.
 
 - **Snapshot:** the counter and the 512K.
 
@@ -118,6 +124,12 @@ two boards with a transfer across the boundary, both contention rules (two board
 driver with its parity, the CP/M 2.2N sizing routine (2 boards, 1 board with random RAM, and 0
 when the only board is strapped as the 2nd), reset, power, `fill`, `seed`, a snapshot, and the
 property checks.
+
+The suite also tests eight boards (the sizing routine counts 8, and a transfer wraps from the 8th
+board to the 1st), the RAM of a board that `BOARDS ADD` plugs in, and the `SHOW` line.
+
+`tests/acceptance/mdriveh-boards.cmake` boots CP/M 2.2N with eight boards: `8 M-Drive/H` and a
+2016K drive, a file that runs from M: after a RESET, and an empty M: after POWER.
 
 `tests/acceptance/mdriveh-cpm22n.cmake` boots CompuPro CP/M 2.2N with one board: the sign-on
 says `1 M-Drive/H`, the system formats M:, and `PIP [V]` copies and verifies a file there.
