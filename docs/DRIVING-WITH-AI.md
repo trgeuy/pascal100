@@ -257,7 +257,7 @@ lines. `status` is not shown. The sink is a file (emptied at each start, followe
 watch-only. On Windows use a file or `socket:PORT`.
 
 ```
-altairsim examples/cpm/cpm22-buffered.toml --mcp --tool-log calls.log
+pascal100 examples/cpm22/cpm22-console.toml --mcp --tool-log calls.log
 ```
 
 The console mirror shows what the guest prints. The tool log shows what you did to the machine:

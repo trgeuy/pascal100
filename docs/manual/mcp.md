@@ -223,11 +223,12 @@ shows the calls that do not go to the console, such as a `monitor` command, a `r
 breakpoint. Give it with `--mcp`. The output is a file, or a terminal program that you open:
 
 ```
-$ altairsim examples/cpm/cpm22-buffered.toml --mcp --tool-log calls.log
+$ pascal100 examples/cpm22/cpm22-console.toml --mcp --tool-log calls.log
 $ tail -f calls.log
-07:51:51.231 > monitor {"command":"REGS"}
-07:51:51.231 < monitor
-    C0Z0M0E0I0 A=00 BC=0000 DE=0000 HL=0000 SP=0000 IE=0 PC=0000  CPE 9A78
+21:39:19.446 > monitor {"command":"REGS"}
+21:39:19.447 < monitor
+    C0Z0S0P0H0N0 A=00 BC=0000 DE=0000 HL=0000 SP=0000 IFF1=0 PC=0000  NOP
+    C0Z0S0P0H0N0 A'00 BC'0000 DE'0000 HL'0000 IX=0000 IY=0000 I=00 IM=00 IFF2=0
 ```
 
 Each call has two parts:
@@ -245,7 +246,7 @@ The output can be one of these:
 
 | `--tool-log` | Output |
 |---|---|
-| `FILE` | An ordinary text file. The program empties it each time that `altairsim` starts. Use a file that is different from the `--log` file. |
+| `FILE` | An ordinary text file. The program empties it each time that `pascal100` starts. Use a file that is different from the `--log` file. |
 | `pty` or `pty:LINK` | A pseudo-terminal, on macOS and Linux. Open it as for `--mirror pty`. |
 | `socket:PORT` | A TCP port. Connect to it with `nc localhost PORT` or `telnet localhost PORT`. Use this on Windows. |
 | `serial:DEVICE` | A terminal on a serial port, as for `--mirror serial:DEVICE`. |
