@@ -2853,7 +2853,7 @@ bool openToolLog(McpSession& sess, const std::string& spec, std::string& err) {
     if (!sess.toolLog) return false;
     if (auto* ms = dynamic_cast<MirrorStream*>(sess.toolLog.get()))
         if (std::string note = ms->takeNote(); !note.empty())
-            std::cerr << "altairsim: --tool-log: open " << note << "\n";
+            std::cerr << "pascal100: --tool-log: open " << note << "\n";
     return true;
 }
 
@@ -2895,7 +2895,7 @@ int runMcp(Machine& m, std::istream& in, std::ostream& out, const std::string& m
     if (!toolLog.empty()) {
         std::string terr;
         if (!openToolLog(sess, toolLog, terr)) {
-            std::cerr << "altairsim: --tool-log " << toolLog << " failed: " << terr << "\n";
+            std::cerr << "pascal100: --tool-log " << toolLog << " failed: " << terr << "\n";
             return 2;
         }
     }

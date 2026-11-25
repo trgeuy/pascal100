@@ -30,8 +30,8 @@ name: CI
 # THE MASTER RUN ALSO KEEPS THE COMPILER CACHE WARM. A PR can read only its own cache entries
 # and master's. When master merges skipped the build (altairsim #543), master's cache went stale, and
 # every PR compiled almost from scratch -- see the build job.
-# pascal100: CI STARTS BY HAND ONLY (2026-11-09). The repository is private, so every minute
-# counts against the account's free allowance. Start a run with `gh workflow run ci.yml --ref
+# pascal100: CI STARTS BY HAND ONLY (2026-11-09). The local builds (macOS, and Linux and Windows
+# on the build PC) come first, and one run confirms them before a merge. Start a run with `gh workflow run ci.yml --ref
 # <branch>` (a work branch, or master after a fast-forward). The `standalone` branch that
 # first served this was deleted on 2026-11-12, when the stand-alone work was finished. A push trigger on master only ran the suite again, and a cancelled duplicate put a
 # red X on the commit. The inherited triggers, for when the project's own process is set up:
@@ -93,8 +93,7 @@ jobs:
           linux='{"name":"linux-x86_64","os":"ubuntu-latest","artifact":"pascal100-linux-x86_64","binary":"build/pascal100"}'
           macos='{"name":"macos-arm64","os":"macos-15","artifact":"pascal100-macos-arm64","binary":"build/pascal100"}'
           windows='{"name":"windows-x86_64","os":"windows-2025-vs2026","artifact":"pascal100-windows-x86_64","binary":"build/pascal100.exe"}'
-          # PASCAL100 (standalone, 2026-11-09): NO macOS LEG. The repo is private, and a macOS
-          # minute costs about 10x a Linux one against the free monthly allowance. Every step
+          # PASCAL100 (standalone, 2026-11-09): NO macOS LEG. Every step
           # is built and tested on the developer's own Apple-Silicon Mac, with SDL3, so the
           # leg adds nothing. Put $macos back here if that changes.
           full="{\"include\":[$linux,$windows]}"
