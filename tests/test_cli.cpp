@@ -923,6 +923,50 @@ void test_cli() {
               "SHOW of a disk unit shows what it holds");
         CHECK(t.find("waiting") == std::string::npos, "and no rx/tx lines: a disk is not a line");
 
+        // A processor on a board is a unit too.
+        show("BOARDS ADD spuz spuz0");
+        CHECK(show("SHOW spuz0:z80").rfind("spuz0:z80  (cpu)\n", 0) == 0,
+              "SHOW of a cpu unit heads with it");
+
+        // The PC Video takes its keys off the line into a queue of its own. Those count too,
+        // or `rx waiting` would be 0 with most of the typing still to come.
+        show("BOARDS ADD pcvideo pcv0");
+        Board* pcv = mu.find("pcv0");
+        if (pcv) {
+            auto keys = std::make_unique<ScriptedStream>();
+            keys->feed(std::string(40, 'a'));
+            std::string why;
+            CHECK(pcv->connectStream("kbd", std::move(keys), why), "the keyboard's line connects");
+            CHECK(show("SHOW pcv0:kbd").find("  rx waiting  40\n") != std::string::npos,
+                  "40 bytes wait on the line");
+            mu.pump();
+            CHECK(pcv->unitStream("kbd")->rxPending() == 0, "the board took them all");
+            CHECK(pcv->unitRxHeld("kbd") >= 39 &&
+                      show("SHOW pcv0:kbd").find("  rx waiting  " +
+                                                 std::to_string(pcv->unitRxHeld("kbd")) + "\n") !=
+                          std::string::npos,
+                  "and its queue is what still waits");
+        }
+
+        // Every serial unit of every board shows the bytes on its line. A board that does not
+        // give its stream (Board::unitStream) would show 0 for ever. One byte may already be in
+        // the board's receive register or input latch, and that one does not count.
+        for (const BoardType& bt : boardTypes()) {
+            Machine     mt;
+            std::string why;
+            Board*      bd = mt.add(bt.name, "x0", why);
+            if (!bd) continue;
+            for (const auto& u : bd->units()) {
+                if (u.kind != UnitKind::Serial) continue;
+                auto keys = std::make_unique<ScriptedStream>();
+                keys->feed("abc");
+                if (!bd->connectStream(u.name, std::move(keys), why)) continue;
+                const ByteStream* s = bd->unitStream(u.name);
+                CHECK(s && s->rxPending() >= 2,
+                      (bt.name + ":" + u.name + " shows the bytes on its line").c_str());
+            }
+        }
+
         // The errors are subunit()'s, the same as SET <id>:<unit> gives.
         t = show("SHOW sio0:zz");
         CHECK(t.find("sio0 has no unit 'zz'.") != std::string::npos, "an unknown unit is named");

@@ -83,6 +83,10 @@ public:
                        std::string& err) override;
     bool disconnect(const std::string& unit, std::string& err) override;
     ByteStream* unitStream(const std::string& unit) override;
+    // The key codes the keyboard has not sent yet (one typed character is 2 to 6 of them).
+    size_t unitRxHeld(const std::string& unit) const override {
+        return unit == "kbd" ? kq_.size() : 0;
+    }
     void        pump() override;
 
     void serialize(StateWriter& w) const override;

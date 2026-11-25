@@ -95,7 +95,7 @@ public:
 
     bool readable() const override { return false; }
     bool writable() const override { return true; }
-    // The job not yet spooled: those bytes have not left altairsim.
+    // The job not yet spooled: those bytes have not left the program.
     size_t txPending() const override { return buf_.size(); }
 
     // NOT the job boundary -- a printer board calls it every slice. See the header note.

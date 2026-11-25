@@ -76,6 +76,12 @@ public:
     bool writable() const override { return inner_->writable(); }
     bool pacesItself() const override { return inner_->pacesItself(); }
     bool pacedReceive() const override { return inner_->pacedReceive(); }
+    // What the assistant sent waits in inject_ like the line's own bytes. out_ is NOT counted:
+    // it is the assistant's copy of the guest's output, not the line's.
+    size_t rxPending() const override {
+        return inject_.size() - injectPos_ + inner_->rxPending();
+    }
+    size_t txPending() const override { return inner_->txPending(); }
     void flush() override { inner_->flush(); }
     void pump() override { inner_->pump(); }
     LineStatus status() const override { return inner_->status(); }

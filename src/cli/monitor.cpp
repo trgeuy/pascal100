@@ -1241,17 +1241,17 @@ void Monitor::showBoard(Board* b, std::ostream& out) {
 }
 
 // ONE UNIT: what it holds, its properties and -- for a serial line -- the bytes
-// altairsim holds on it in each direction (#934). `rx waiting` is what came from the host
+// the program holds on it in each direction (altairsim #934). `rx waiting` is what came from the host
 // and the guest has not read yet; `tx waiting` is what the guest wrote and the host has
 // not taken yet. A host program that writes to a socket: unit polls this until rx waiting
 // is 0 to know the guest has read it all. Bytes still in the host kernel's buffers are
-// not counted: altairsim cannot see them (host/stream.h).
+// not counted: the program cannot see them (host/stream.h).
 void Monitor::showUnit(Board* b, const UnitDef& u, std::ostream& out) {
     out << b->id << ":" << u.name << "  (" << unitKindName(u.kind) << ")\n";
     out << "  holds       " << u.state << roNote(u) << "\n";
     if (u.kind == UnitKind::Serial) {
         const ByteStream* s = b->unitStream(u.name);
-        out << "  rx waiting  " << (s ? s->rxPending() : 0) << "\n";
+        out << "  rx waiting  " << (s ? s->rxPending() : 0) + b->unitRxHeld(u.name) << "\n";
         out << "  tx waiting  " << (s ? s->txPending() : 0) << "\n";
     }
     showProps(b->unitProperties(u.name), out);
