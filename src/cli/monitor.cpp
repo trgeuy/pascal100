@@ -2899,14 +2899,19 @@ void Monitor::showBus(const std::vector<std::string>& a, std::ostream& out) {
                 if (b->holdWire()) pulling += " " + b->id;
             out << (pulling.empty() ? "  pHOLD   idle             pin 74\n"
                                     : "  pHOLD   ASSERTED         pin 74, pulled by" + pulling + "\n");
+            // The id and type columns are as wide as their longest entry.
+            size_t wId = 8, wType = 8;
+            for (Board* b : tma) {
+                wId   = std::max(wId, b->id.size());
+                wType = std::max(wType, b->type().size());
+            }
             for (Board* b : tma) {
                 const int p = b->tmaPriority();
                 const std::string prio = p < 0 ? "--" : std::to_string(p);
-                std::snprintf(buf, sizeof buf, "  TMA %-3s %-8s %-8s %s", prio.c_str(),
-                              b->id.c_str(), b->type().c_str(),
-                              p < 0 ? "no TMA lines: cannot share the bus"
-                                    : "set by dma_priority");
-                out << buf << "\n";
+                out << "  TMA " << padRight(prio, 3) << " " << padRight(b->id, wId) << " "
+                    << padRight(b->type(), wType) << " "
+                    << (p < 0 ? "no TMA lines: cannot share the bus" : "set by dma_priority")
+                    << "\n";
             }
             if (tma.empty()) out << "  (no DMA board: the CPU is the only bus master)\n";
             std::string why;
@@ -5617,19 +5622,16 @@ bool Monitor::exec(const std::string& line, std::ostream& out) {
         // low page through high page inclusive. For a .COM loaded at 0100 that is
         // exactly the SAVE argument -- 0100-07FF is `SAVE 7`.
         unsigned pages = img.empty() ? 0 : ((img.hi() >> 8) - (img.lo() >> 8) + 1);
-        std::snprintf(buf, sizeof buf, "loaded %zu bytes (%u page%s) from %s (%s-%s)%s", img.size(),
-                      pages, pages == 1 ? "" : "s",
-                      a[1].c_str(), fa(img.lo()).c_str(), fa(img.hi()).c_str(),
-                      romOverride ? " (ROM override)" : "");
-        out << buf << "\n";
+        // The path has no length limit, so it is not formatted into the buffer (altairsim #905).
+        std::snprintf(buf, sizeof buf, "loaded %zu bytes (%u page%s) from ", img.size(), pages,
+                      pages == 1 ? "" : "s");
+        out << buf << a[1] << " (" << fa(img.lo()) << "-" << fa(img.hi()) << ")"
+            << (romOverride ? " (ROM override)" : "") << "\n";
         if (gone) {
             // Loading through the bus is a bus write, so ROM does not take it -- exactly
             // as a real machine would not. Say so; do not quietly half-load.
-            std::snprintf(buf, sizeof buf,
-                          "  WARNING: %zu byte(s) landed nowhere (ROM, or unmapped). "
-                          "To program a ROM: LOAD %s ROM",
-                          gone, a[1].c_str());
-            out << buf << "\n";
+            out << "  WARNING: " << gone << " byte(s) landed nowhere (ROM, or unmapped). "
+                << "To program a ROM: LOAD " << a[1] << " ROM\n";
         }
         if (img.hasStart) {
             std::snprintf(buf, sizeof buf, "  start address %s (no CPU yet)",
@@ -5771,9 +5773,8 @@ bool Monitor::exec(const std::string& line, std::ostream& out) {
         } else {
             for (auto v : img.flat()) f.put((char)v);
         }
-        std::snprintf(buf, sizeof buf, "saved %s-%s to %s (%s)", fa(lo).c_str(),
-                      fa(hi).c_str(), a[1].c_str(), fmtName);
-        out << buf << "\n";
+        // The path has no length limit, so it is not formatted into the buffer (altairsim #905).
+        out << "saved " << fa(lo) << "-" << fa(hi) << " to " << a[1] << " (" << fmtName << ")\n";
         return true;
     }
 

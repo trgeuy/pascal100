@@ -1409,6 +1409,25 @@ void test_cli() {
         monL.exec("SHOW MOUNTS", sm);
         CHECK(sm.str().find(" " + longPath) != std::string::npos,
               "SHOW MOUNTS holds the whole path");
+
+        // LOAD and SAVE name the file too, with the address range after it. This path goes
+        // to the host as written: long enough that the old 256-byte line was cut, and under
+        // Windows' 260-character limit.
+        std::string hostPath = dir.generic_string() + "/";
+        while (hostPath.size() < 225) hostPath += "./";
+        monL.exec("REGION ADD mem0 type=ram at=0 size=4K", sl);
+        std::ostringstream so;
+        monL.exec("SAVE " + hostPath + "out.bin 0-F", so);
+        CHECK(so.str() == "saved 000000-00000F to " + hostPath + "out.bin (bin)\n",
+              ("SAVE names the whole path: " + so.str()).c_str());
+        std::ostringstream lo;
+        monL.exec("LOAD " + hostPath + "out.bin AT F000", lo);
+        CHECK(lo.str().find("loaded 16 bytes (1 page) from " + hostPath +
+                            "out.bin (00F000-00F00F)\n") == 0,
+              ("LOAD names the whole path: " + lo.str()).c_str());
+        CHECK(lo.str().find("To program a ROM: LOAD " + hostPath + "out.bin ROM\n") !=
+                  std::string::npos,
+              "and so does its warning");
         std::filesystem::remove_all(dir);
     }
 
@@ -1525,6 +1544,20 @@ void test_cli() {
         t = show("SHOW BUS IO");
         CHECK(field(row(t, "10-11"), 2) == field(row(t, "B0"), 2),
               "SHOW BUS IO: IN/-- after a long id is in the same column as after a short one");
+
+        // ---- SHOW BUS DMA: a board id longer than 8, beside a short one ----
+        show("BOARDS ADD disk1a floppycontroller1 port=D0");
+        t = show("SHOW BUS DMA");
+        {
+            size_t at[2] = {std::string::npos, std::string::npos};
+            for (const auto& l : splitLines(t)) {
+                if (l.rfind("  TMA ", 0) != 0) continue;  // not the warning that names both
+                if (l.find(" dsk0 ") != std::string::npos) at[0] = field(l, 3);
+                if (l.find(" floppycontroller1 ") != std::string::npos) at[1] = field(l, 3);
+            }
+            CHECK(at[0] != std::string::npos && at[0] == at[1],
+                  ("SHOW BUS DMA: the type column lines up:\n" + t).c_str());
+        }
 
         // ---- SHOW BUS IRQ: two boards strapped to one line ----
         show("SET serialboard1:a interrupt=vi3");

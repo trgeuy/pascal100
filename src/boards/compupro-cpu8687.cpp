@@ -277,7 +277,7 @@ std::vector<Property> CompuProCpu8687Board::properties() {
     {
         Property x;
         x.name = "achieved_hz";
-        x.help = "LIVE: T-states per real second the run loop last reached. Read-only; 0 "
+        x.help = "LIVE: T-states per real second the run loop last reached. Show-only; 0 "
                  "until it has run.";
         x.kind = Kind::Int;
         x.radix = 10;
