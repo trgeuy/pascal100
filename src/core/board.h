@@ -768,6 +768,16 @@ public:
         return nullptr;
     }
 
+    // WHAT THE BOARD ITSELF HOLDS OF A LINE'S INPUT: a queue of its own, taken off the unit's
+    // stream and not yet given to the guest. 0 for a board that leaves the bytes in the stream
+    // until the guest reads them, which is almost all of them. A UART's receive register, or a
+    // parallel port's input latch, is one character and does not count. SHOW <id>:<unit> adds
+    // this to the stream's rxPending().
+    virtual size_t unitRxHeld(const std::string& unit) const {
+        (void)unit;
+        return 0;
+    }
+
     // BYTES THIS CARD HAS DELIVERED TO THE GUEST since power-on, across every line it
     // carries, monotonic. Zero for a card with no serial line, which is most of them.
     //

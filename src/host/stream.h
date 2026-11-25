@@ -153,11 +153,11 @@ public:
     // depends on that, because a pipe cannot wait for a prompt.
     virtual bool realWire() const { return false; }
 
-    // BYTES ALTAIRSIM IS HOLDING ON THIS LINE (#934). rxPending: received from the far end,
+    // BYTES THE PROGRAM IS HOLDING ON THIS LINE (altairsim #934). rxPending: received from the far end,
     // not yet read by the guest. txPending: written by the guest, not yet handed to the host.
-    // Only altairsim's own queues count -- a byte still in the host kernel's socket or tty
+    // Only the program's own queues count -- a byte still in the host kernel's socket or tty
     // buffer is not seen until pump() takes it, so rxPending can read 0 for one slice while
-    // data is on its way, and txPending 0 means the bytes have left altairsim, not that the
+    // data is on its way, and txPending 0 means the bytes have left the program, not that the
     // far end has them. A line with no queue reports 0; a decorator reports the line it wraps.
     // SHOW <board>:<unit> prints both.
     virtual size_t rxPending() const { return 0; }

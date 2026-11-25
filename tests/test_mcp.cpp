@@ -2759,6 +2759,27 @@ void test_mcp() {
         AgentTap buffer(std::make_unique<ScriptedStream>());
         CHECK(!buffer.realWire(), "and a tap on a host buffer does not");
     }
+    SECTION("MCP: an AgentTap counts the bytes on its line, and its own unread input");
+    {
+        // Under --mcp every unit's line is under a tap. A tap that did not pass the counts
+        // on made SHOW <id>:<unit> say 0 for every line.
+        struct Line : ScriptedStream {
+            size_t txPending() const override { return 7; }
+        };
+        auto     raw  = std::make_unique<Line>();
+        Line*    line = raw.get();
+        AgentTap tap(std::move(raw));
+        CHECK(tap.rxPending() == 0 && tap.txPending() == 7, "the line's tx count comes through");
+        line->feed("abc");
+        tap.feed("WXYZ");
+        CHECK(tap.rxPending() == 7, "three from the line and four from the assistant");
+        uint8_t b[3];
+        CHECK(tap.read(b, 3) == 3 && tap.rxPending() == 4, "the guest read three: four left");
+        CHECK(tap.read(b, 3) == 1 && tap.rxPending() == 3, "the assistant's are gone");
+        CHECK(tap.read(b, 3) == 3 && tap.rxPending() == 0, "and then the line's");
+        tap.write(b, 3);
+        CHECK(tap.rxPending() == 0, "what the guest wrote is not waiting for the guest");
+    }
     SECTION("MCP: send, recv and run reach any serial unit with `unit` (AgentTap)");
     {
         setAgentTaps(true);  // as main() does for --mcp, before the machine loads

@@ -183,33 +183,51 @@ cannot fix this from the keyboard. The Telnet protocol sets up the two ends to a
 - `tx waiting`: the bytes that the guest sent and that the host has not taken.
 
 ```
-altairsim> CONNECT sio0:b socket:2399
-sio0:b: connected to socket:2399
-altairsim> SHOW sio0:b
-sio0:b  (serial)
+pascal100> CONNECT if1:b socket:2399
+if1:b: connected to socket:2399
+pascal100> SHOW if1:b
+if1:b  (serial)
   holds       socket:2399
   rx waiting  0
   tx waiting  0
 
   property         value            legal
   ---------------- ---------------- --------------------------------
-  baud             9600             50..76800
-  interrupt        none             none|int|vi0|vi1|vi2|vi3|vi4|vi5|vi6|vi7
-  dcd              ground           ground|wired
-  cts              ground           ground|wired
-  lines            DCD CTS RTS brk  (show-only)
-  connect          socket:2399      
+  port             0x2              0x0..0xFE
+  enabled          true             true|false
+  baud             9600             50|75|110|134.5|150|300|600|1200|1800|2000|2400|3600|4800|7200|9600|19200
+  data_bits        8                7|8
+  parity_sense     odd              odd|even
+  parity           off              on|off
+  stop_bits        1                1|2
+  ca               spacing          spacing|marking
+  cd               spacing          spacing|marking
+  tx_int_enable    off              off|on
+  rx_int_enable    off              off|on
+  opt              cf               cf|eoc
+  rs232_inputs     endpoint         endpoint|open
+  overrun          false            true|false
+  rx_int           none             none|vi0|vi1|vi2|vi3|vi4|vi5|vi6|vi7
+  tx_int           none             none|vi0|vi1|vi2|vi3|vi4|vi5|vi6|vi7
+  control          0x0              (show-only)
+  connect          socket:2399
+  title
 ```
 
 A program on a `socket:` line can write many bytes at one time. The write of the program ends
 before the guest reads the bytes. The guest reads them at the baud rate of the unit. To know
-when the guest has read all the bytes, send `SHOW sio0:b` until `rx waiting` is 0.
+when the guest has read all the bytes, send `SHOW if1:b` until `rx waiting` is 0.
 
 A `tx waiting` count that does not go down shows that the host does not read the line. When
 the line holds as many bytes as it can, the guest waits to send.
 
-The counts are the bytes that altairsim holds. Your computer can also hold bytes for a socket
-or a serial port, and altairsim cannot see those bytes.
+The counts are the bytes that pascal100 holds. Your computer can also hold bytes for a socket
+or a serial port, and pascal100 cannot see those bytes. Thus `rx waiting` can be 0 for a short
+time after a program writes, before pascal100 takes the bytes. The character that is already in
+the board's receive register does not count.
+
+On the PC Video's `kbd` unit, `rx waiting` also counts the key codes that the board has taken
+from the line and has not sent. One typed character is 2 to 6 codes.
 
 ### The connect banner
 
