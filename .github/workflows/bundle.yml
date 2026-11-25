@@ -1,5 +1,5 @@
 name: Bundle
-# Build the linux-x86_64 and windows-x86_64 packages for a private bundle, on GitHub's x64
+# Build the linux-x86_64 and windows-x86_64 packages for a release, on GitHub's x64
 # runners, as tools/release-worker.sh builds them on a build machine: a static SDL3, a Release
 # build (static C runtime on Windows), then tools/build-package.sh with the committed manual.
 # The macOS arm64 package is built by hand on the maintainer's Mac.

@@ -1,9 +1,8 @@
 # Contributing to pascal100
 
-pascal100 is a private project, maintained by Timothy Geuy (`trgeuy` on GitHub). If you have access
-to the repository and you find a problem, open an issue. Give the exact command, the machine file
-and the output. A pull request is welcome, but open an issue first, so that we can agree on the
-change.
+pascal100 is maintained by Timothy Geuy (`trgeuy` on GitHub). If you find a problem, open an issue.
+Give the exact command, the machine file and the output. A pull request is welcome, but open an
+issue first, so that we can agree on the change.
 
 pascal100 is not part of altairsim. Do not report pascal100 problems to the altairsim project.
 

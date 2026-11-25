@@ -1,6 +1,6 @@
 # `pascal100` — Design Document
 
-**Status:** pascal100 0.4.1, under construction. The Z80 side runs CP/M on CompuPro boards; the
+**Status:** pascal100 0.5.0, under construction. The Z80 side runs CP/M on CompuPro boards; the
 Pascal-100 machine (`examples/pascal`) boots a UCSD Pascal III.0 system disk on the MicroEngine.
 **Started:** 2026-07-11 as altairsim's design document; a living document, revised with the code.
 

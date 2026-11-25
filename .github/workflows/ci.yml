@@ -339,6 +339,5 @@ jobs:
           name: ${{ matrix.artifact }}
           path: ${{ matrix.binary }}
           if-no-files-found: error
-          # Private repo: artifacts count against 500 MB of storage. A few days is enough to
-          # download a binary to try (pascal100, 2026-11-09).
+          # A few days is enough to download a binary to try (pascal100, 2026-11-09).
           retention-days: 5
