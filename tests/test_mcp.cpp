@@ -2680,6 +2680,21 @@ void test_mcp() {
         CHECK((status & 1) != 0, "the byte sent to the unit raises RDRF on channel B");
         CHECK(mon("IN 13").find("-> 5A") != std::string::npos, "...and the guest reads it");
 
+        // altairsim #985 on a unit: a character up to U+00FF is one byte, as on the console. A
+        // break code of a keyboard has bit 7 set. One above U+00FF is refused and types nothing.
+        mcp.call("send", R"({"unit":"sio0:b","text":"\u00f0"})");
+        mcp.call("run", R"({"timeout_ms":300})");
+        CHECK(mon("IN 13").find("-> F0") != std::string::npos, "\\u00f0 on a unit is the byte F0");
+        mcp.call("run", R"({"timeout_ms":300})");
+        CHECK(mon("IN 12").find("-> 02") != std::string::npos, "...and no second byte follows it");
+        CHECK(LiveMcp::isError(mcp.call("send", R"({"unit":"sio0:b","text":"Z\u0100"})")),
+              "a unit refuses a character above U+00FF");
+        const Json refused = mcp.call(
+            "run", R"({"unit":"sio0:b","input":"Z\u0100","from":256,"timeout_ms":300})");
+        CHECK(LiveMcp::isError(refused), "run refuses it as the input of a unit");
+        mcp.call("run", R"({"timeout_ms":300})");
+        CHECK(mon("IN 12").find("-> 02") != std::string::npos, "the refused calls typed nothing");
+
         const Json bad = mcp.call("recv", R"({"unit":"sio0:z"})");
         CHECK(LiveMcp::isError(bad), "an unknown unit is an error");
         const Json noColon = mcp.call("send", R"({"unit":"sio0","text":"x"})");
