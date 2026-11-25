@@ -125,6 +125,9 @@ second time.
 - The `monitor` tool refuses a `!` command. Before, the shell command wrote its output between the
   JSON-RPC messages, and this broke the client.
 
+**Fixed: the Linux package of 0.4.0 and 0.4.1 did not start on Ubuntu 22.04.** It needed glibc 2.43,
+and printed `version 'GLIBC_2.43' not found`. Now it is built on Ubuntu 22.04.
+
 **Fixed: a build from the source kept a deleted file.** After you deleted a ROM from `roms/` or a
 machine file from `machines/`, the next build still had it in the program. Now the build leaves it
 out.

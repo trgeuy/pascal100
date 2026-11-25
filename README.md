@@ -114,15 +114,15 @@ your own Pascal-100 system disk instead, set `PASCAL100_BOOT_DISK` to a copy of 
 
 ## Platforms
 
-**We use pascal100 by hand only on macOS on Apple silicon.** The Windows 11 x64 and Linux x64
-packages are built on GitHub's build machines. The tests pass on a real Windows 11 PC, with Linux in
-WSL2 on the same PC. Nobody has used their windows by hand yet.
+**We use pascal100 by hand only on macOS on Apple silicon.** The Windows 11 x64 package is built on
+GitHub's build machines, and the Linux x64 package in WSL2 on a real Windows 11 PC. The tests of both
+pass on that PC. Nobody has used their windows by hand yet.
 
 | Package | How it was tested |
 |---|---|
 | macOS, Apple silicon | Built and used on a Mac. Each change passes the test suite there before it is merged. |
 | Windows 11 x64 | Built on a GitHub runner (MSVC), where CP/M boots from the unpacked package. The fast tests pass on a Windows 11 PC (MSVC, Visual Studio 2026). Not used by hand. |
-| Linux x64 | Built on a GitHub runner (GCC), where CP/M boots from the unpacked package. The fast tests pass in Ubuntu 22.04 under WSL2 on the same PC (GCC). Not used by hand. |
+| Linux x64 | Built in Ubuntu 22.04 under WSL2 on the same PC (GCC). The fast tests pass there, and CP/M boots from the unpacked package. It needs glibc 2.35 or later. Not used by hand. |
 
 If you use pascal100 on Windows or Linux, please open an issue and say what works and what does not.
 
