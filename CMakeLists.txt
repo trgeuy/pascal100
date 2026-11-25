@@ -1214,7 +1214,9 @@ add_test(NAME acceptance-examples
                  -DBIN=${CMAKE_CURRENT_BINARY_DIR}
                  -DHAVE_SDL=${examples_have_sdl}
                  -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/acceptance/examples.cmake)
-set_tests_properties(acceptance-examples PROPERTIES LABELS acceptance TIMEOUT 120)
+# The limit only catches a hang. A slow host (an Intel N150 with MSVC) needs about 2 minutes, and
+# examples.cmake gives single steps up to 180 s.
+set_tests_properties(acceptance-examples PROPERTIES LABELS acceptance TIMEOUT 240)
 
 # ...and the rule that makes that true: no test script, fixture or test source may name
 # examples/ in a line of code (comments may). Text only, so it runs on every leg.
