@@ -557,15 +557,15 @@ std::vector<Property> CompuProDiskBoard::properties() {
 
 std::vector<MapEntry> CompuProDiskBoard::memMap() const {
     if (!boot_) return {};
+    // Short phrases, each 21 characters or less: BOARDS wraps the note between them.
+    const char* const until = ", over PHANTOM*, until OUT BASE+3 D0=0";
     if (traits_.romEveryRead)
         return {{0x0000, 0xFFFF, "boot ROM",
-                 std::string("every memory read gets byte ") +
-                     (traits_.romWindow > 0x100 ? "A0-A8" : "A0-A7") + " of one " +
-                     std::to_string(traits_.romWindow) +
-                     "-byte routine, over PHANTOM* until OUT BASE+3 with D0 = 0"}};
+                 std::to_string(traits_.romWindow) + " bytes by " +
+                     (traits_.romWindow > 0x100 ? "A0-A8" : "A0-A7") +
+                     ", every memory read" + until}};
     return {{0x0000, traits_.romWindow - 1, "boot ROM",
-             "one " + std::to_string(traits_.romWindow) +
-                 "-byte routine of the EPROM, over PHANTOM* until OUT BASE+3 with D0 = 0"}};
+             std::string("one EPROM routine") + until}};
 }
 
 // ---------------------------------------------------------------------------

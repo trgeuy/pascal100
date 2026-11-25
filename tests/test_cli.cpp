@@ -1608,6 +1608,8 @@ void test_cli() {
         Monitor monW(mw);
         std::ostringstream sw;
         monW.exec("BOARDS ADD disk1 dsk0", sw);
+        monW.exec("BOARDS ADD ss1 clk0", sw);
+        monW.exec("BOARDS ADD pcvideo pcv0", sw);
         monW.exec("BOARDS ADD memory mem0", sw);
         monW.exec("REGION ADD mem0 type=ram at=0 size=48K", sw);
         monW.exec("REGION ADD mem0 type=rom at=EF00 mount=" + romPath.string(), sw);
@@ -1650,6 +1652,34 @@ void test_cli() {
               "and a wrapped note sits under the column after the address range");
         CHECK(lineWith("over PHANTOM*").find("over PHANTOM*") == memCol + 11,
               "at a comma, never inside a word");
+        CHECK(lineWith("until OUT BASE+3 D0=0").size() == memCol + 32,
+              "the longest phrase of the disk's note just fits the wrap");
+
+        // ---- I/O wraps at 16, after a comma, and every port is still there ----
+        const size_t ioCol = lineWith("I/O").find("I/O");
+        auto ioOf = [&](const std::string& id) {
+            std::vector<std::string> v;
+            bool mine = false;
+            for (const auto& l : wrapped) {
+                if (l.rfind("  " + id + " ", 0) == 0) mine = true;
+                else if (mine && (l.size() <= 2 || l[2] != ' ')) break;  // the next board
+                if (!mine || l.size() <= ioCol) continue;
+                std::string cell = l.substr(ioCol, unCol - 2 - ioCol);
+                while (!cell.empty() && cell.back() == ' ') cell.pop_back();
+                if (!cell.empty()) v.push_back(cell);
+            }
+            return v;
+        };
+        CHECK(ioOf("dsk0") == std::vector<std::string>{"C0,C1,C2,C3"},
+              "a short port list stays on one line");
+        CHECK((ioOf("clk0") == std::vector<std::string>{"50,51,52,53,54,", "55,56,57,5C,5D,",
+                                                        "5E,5F,5A,5B"}),
+              ("a long one continues under I/O:\n" + bw.str()).c_str());
+        CHECK((ioOf("pcv0") == std::vector<std::string>{"03D0,03D1,03D4,", "03D5,03D8,03D9,",
+                                                        "03DA,03DB,03DC"}),
+              "and so do four-digit ports");
+        CHECK(unCol - ioCol <= 16 + 2, "the I/O column is no wider than its wrap");
+
         CHECK(lineWith("1 serial: serial").find("1 serial") == unCol,
               "each unit kind starts a line of its own");
 
@@ -1672,10 +1702,8 @@ void test_cli() {
         CHECK(memCol - unCol <= 32 + 2, "the UNITS column is no wider than the wrap");
         for (const auto& l : wrapped) {
             if (l.find(chip) != std::string::npos || l.rfind("  --", 0) == 0) continue;
-            // The two pieces of the boot ROM's note have no break point either.
-            if (l.find("every memory read") != std::string::npos ||
-                l.find("over PHANTOM*") != std::string::npos)
-                continue;
+            // The PC Video's note has a phrase longer than the wrap, with no break point.
+            if (l.find("even bytes characters") != std::string::npos) continue;
             CHECK(l.size() <= memCol + 36, ("no other line passes the wrap: " + l).c_str());
         }
     }

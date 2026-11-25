@@ -302,13 +302,14 @@ This is the built-in `default` machine, a CompuPro workbench:
 ```
 pascal100> BOARDS
   ID    TYPE         I/O          UNITS                            MEMORY
-  ----  -----------  -----------  -------------------------------  ---------------------------------------------------------------------
+  ----  -----------  -----------  -------------------------------  ------------------------------------
   cpu0  z80          -            1 cpu: z80                       -
   if1   interfacer1  00,01,02,03  2 serial: a*, b                  -
   fd0   disk1        C0,C1,C2,C3  4 disk: drive0(empty),           0000-FFFF  boot ROM  64K
-                                    drive1(empty), drive2(empty),             every memory read gets byte A0-A7 of one 256-byte routine,
-                                    drive3(empty)                             over PHANTOM* until OUT BASE+3 with D0 = 0
-                                  1 serial: serial
+                                    drive1(empty), drive2(empty),             256 bytes by A0-A7,
+                                    drive3(empty)                             every memory read,
+                                  1 serial: serial                            over PHANTOM*,
+                                                                              until OUT BASE+3 D0=0
   hb0   hostbridge   B0,B1        -                                -
   mem0  memory       -            -                                000000-00FFFF  ram  64K  ext  16-bit
 
@@ -317,7 +318,8 @@ pascal100> BOARDS
 
 The `BOARDS` output is the backplane. It shows each board in the machine, the ports and memory that the board
 decodes, and what is in its units. A UNITS entry longer than 32 characters continues on the lines
-below it, and so does a long MEMORY entry. A line breaks only after a comma or between two fields.
+below it. A long MEMORY entry or port list does the same. A line breaks only after a comma or between
+two fields.
 
 | Command | Shows |
 |---|---|

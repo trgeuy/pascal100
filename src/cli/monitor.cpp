@@ -1684,9 +1684,11 @@ static std::vector<std::string> wrapCell(const std::string& s, size_t width, siz
 void Monitor::showBoards(std::ostream& out, const Machine& m) {
     char buf[256];
     constexpr size_t kWrap = 32;  // the widest UNITS or MEMORY line, where it can break
+    constexpr size_t kWrapIo = 16;  // the widest I/O line: five two-digit ports, or three four-digit ones
 
     struct Row {
-        std::string id, type, io;
+        std::string id, type;
+        std::vector<std::string> io;     // the ports, wrapped after a comma
         std::vector<std::string> units;  // wrapped lines; each unit kind starts a new one
         std::vector<std::string> mem;    // wrapped lines; each DECODED range starts a new one
         bool disabled = false;
@@ -1700,9 +1702,16 @@ void Monitor::showBoards(std::ostream& out, const Machine& m) {
         r.type = b->type();
         r.disabled = !b->enabled();
 
-        for (const auto& e : b->ioMap()) {
-            std::snprintf(buf, sizeof buf, "%s%s", r.io.empty() ? "" : ",", fmtPort(e.lo).c_str());
-            r.io += buf;
+        // A long port list continues on the next line, under the column, and the comma stays
+        // on the line it ends. A port is never split.
+        const auto ports = b->ioMap();
+        for (size_t i = 0; i < ports.size(); ++i) {
+            std::string p = fmtPort(ports[i].lo);
+            if (i + 1 < ports.size()) p += ",";
+            if (r.io.empty() || r.io.back().size() + p.size() > kWrapIo)
+                r.io.push_back(p);
+            else
+                r.io.back() += p;
         }
 
         // A board that decodes A16-A23 gives 24-bit bus addresses: print six digits
@@ -1766,7 +1775,7 @@ void Monitor::showBoards(std::ostream& out, const Machine& m) {
     for (const auto& r : rows) {
         wId = std::max(wId, r.id.size());
         wType = std::max(wType, r.type.size());
-        wIo = std::max(wIo, r.io.empty() ? 1 : r.io.size());
+        for (const auto& ir : r.io) wIo = std::max(wIo, ir.size());
         for (const auto& ur : r.units) wUn = std::max(wUn, ur.size());
         for (const auto& mr : r.mem) wMem = std::max(wMem, mr.size());
     }
@@ -1786,19 +1795,21 @@ void Monitor::showBoards(std::ostream& out, const Machine& m) {
         << "\n";
 
     for (const auto& r : rows) {
-        const size_t n = std::max<size_t>({1, r.units.size(), r.mem.size()});
+        const size_t n = std::max<size_t>({1, r.io.size(), r.units.size(), r.mem.size()});
         for (size_t i = 0; i < n; ++i) {
             // The first line names the board and says "-" for an empty column; a
             // continuation line is blank wherever that column has run out.
+            const std::string io =
+                i < r.io.size() ? r.io[i] : (i == 0 ? std::string("-") : std::string());
             const std::string un =
                 i < r.units.size() ? r.units[i] : (i == 0 ? std::string("-") : std::string());
             const std::string mem =
                 i < r.mem.size() ? r.mem[i] : (i == 0 ? std::string("-") : std::string());
             if (i == 0) {
-                out << line(r.id, r.type, r.io.empty() ? "-" : r.io, un, mem);
+                out << line(r.id, r.type, io, un, mem);
                 if (r.disabled) out << "   [DISABLED]";
             } else {
-                out << line("", "", "", un, mem);
+                out << line("", "", io, un, mem);
             }
             out << "\n";
         }
