@@ -413,7 +413,8 @@ CompuPro M-Drive/H (board 197B): 512K of dynamic RAM used as a disk drive, on tw
 | `port` | int | `0xC6` | `0x0` .. `0xFE` | Switch S1-1..7 (A7-A1): the data port; the address port is the next one. CompuPro software uses C6H |
 | `cascade` | int | `0` | `0` .. `7` | Switch S1-8..10: which 512K of the 4M address range this board holds, 0-7. The 1st board is 0; every board in the system needs its own |
 | `fill` | enum | `random` | `zero` \| `random` | RAM contents at power-on: zero \| random (real DRAM is not zeroed) |
-| `seed` | int | `1` | any | Seed for fill=random. The same seed fills the RAM the same way at every POWER, so a run is repeatable |
+| `seed` | int | `1` | any | Seed for fill=random. The same seed fills the RAM the same way at every POWER, so a run is repeatable. Each cascade has its own pattern |
+| `address` | int | — | — | The 22-bit address counter. The guest loads it with three OUTs to the address port, high byte first **(read-only — not a key you may set)** |
 
 
 ### `selch`

@@ -45,6 +45,7 @@ public:
 
     std::vector<Property> properties() override;
     std::vector<MapEntry> ioMap() const override;
+    std::vector<std::string> statusLines() const override;
 
     // Test access.
     uint32_t counter() const { return counter_; }
@@ -58,6 +59,7 @@ private:
     bool isAddress(const BusCycle& c) const { return c.port() == (uint8_t)(base_ + 1); }
     void count() { counter_ = (counter_ + 1) & (kCounter - 1); }
     void fillRam();
+    void refillIfNew();
 
     std::vector<uint8_t> ram_;
     uint32_t counter_ = 0;      // MA21-MA0
@@ -65,6 +67,7 @@ private:
     uint8_t  cascade_ = 0;      // S1-8..10 = MA21-MA19 (ON = 0): the 1st board is 0
     Fill     fill_    = Fill::Random;
     uint64_t seed_    = 1;
+    bool     new_     = true;   // just plugged in: no power-up, no cycle, no restore yet
 };
 
 } // namespace altair
