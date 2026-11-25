@@ -236,7 +236,7 @@ Every processor board has the same three properties:
 
 - **`clock_hz`**, the crystal
 - **`idle`**, which lets the processor rest at a prompt
-- **`achieved_hz`**, a read-only value: the speed that the processor reached
+- **`achieved_hz`**, a show-only value: the speed that the processor reached
 
 ### The crystal is on the board: `clock_hz`
 

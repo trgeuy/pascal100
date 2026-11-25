@@ -192,7 +192,8 @@ hb0  (hostbridge)
   ---------------- ---------------- -----------
   port             0xB0             0x0..0xFE
   hostdir          xfer
-  hostdir_root     /home/you/pascal100/examples/cpm22/xfer (read-only)
+  hostdir_root     /home/you/pascal100/examples/cpm22/xfer
+                                    (show-only)
   readonly         false            true|false
 ```
 

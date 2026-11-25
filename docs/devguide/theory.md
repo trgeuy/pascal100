@@ -476,7 +476,7 @@ describe itself. That is the whole trick, and it is why `radix` is there: `PORT=
 
 Three things to get right when you write one.
 
-**A property with no setter is read-only.** Live pin state, a derived value, a lamp. Leave `set`
+**A property with no setter is show-only.** Live pin state, a derived value, a lamp. Leave `set`
 empty — **and that absence is the only signal any consumer has.** A setter that always refuses
 would stop a `SET`, and simultaneously fool `SHOW`, `CONFIG SAVE`, the MCP schema and the
 generated docs, all four of which read the *presence* of the function. Do not write one.

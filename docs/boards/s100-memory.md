@@ -272,7 +272,7 @@ This board is also the honest model of the **SD Systems ExpandoRAM I**: unlike t
 | Property | Type | Runtime? | Meaning |
 |---|---|---|---|
 | `region` | Region[] | config | The populated areas. Each is `type` (`ram`\|`rom`), `at` (page-aligned), and either `size` (ram) or `mount` (rom). |
-| `pages` | PageMap | **read-only** | The composite page map, as a range list — which pages this board answers for. **Derived from the regions**, and not a key you may set: the regions are the truth, and a page map you could edit behind them would be a second, disagreeing one. |
+| `pages` | PageMap | **show-only** | The composite page map, as a range list — which pages this board answers for. **Derived from the regions**, and not a key you may set: the regions are the truth, and a page map you could edit behind them would be a second, disagreeing one. |
 | `honors_phantom` | Enum | config | A **jumper**. Another board pulls PHANTOM\* — do I switch off? `none` (never), `read` (reads only), `all`. Default `all`. |
 | `phantom` | Enum | config | What **I** assert over my `rom` regions: `none \| read \| all`. Default `all`. |
 | `fill` | Enum | config | `random` (default) or `zero`. Applies to `ram` regions. |
@@ -291,27 +291,21 @@ mem0  (memory)
     0  ram  0000-DFFF  56K
     1  rom  F000-F7FF  builtin:ssm-8080mon
 
-  unit     kind    holds
-    rom0    rom     builtin:ssm-8080mon  (read-only)
+  unit    kind    holds
+  ------- ------- --------------------------------
+  rom0    rom     builtin:ssm-8080mon  (read-only)
 
-  property         value            legal
-  honors_phantom   all              none|read|all
-  phantom          all              none|read|all
-  fill             random           zero|random
+  property         value               legal
+  ---------------- ------------------- -------------
+  honors_phantom   all                 none|read|all
+  phantom          all                 none|read|all
+  fill             random              zero|random
   seed             1
-  ext              false            true|false
-  sixteen_bit      false            true|false
-  pages            0000-DFFF,F000-F7FF (read-only)
+  ext              false               true|false
+  sixteen_bit      false               true|false
+  pages            0000-DFFF,F000-F7FF (show-only)
 
-  [[board.region]]  (in a machine file)
-
-  key              type             legal
-  ---------------- ---------------- ----------
-  type             enum             ram|rom
-  at               int              0000..FFFFFF
-  size             int              1..16777216
-  mount            string
-  relocate         bool             true|false
+  [[board.region]] keys: SHOW BOARD memory UNITS
 ```
 
 **`pages` is the hole, stated as a range list.** This card answers for `0000-DFFF` and

@@ -24,7 +24,7 @@ It shares its card code with the other CPU cards; only the core differs:
 - **It decodes nothing.** A bus master originates cycles; it does not answer them.
   `WHO 0100` says the CPU is not there, and that is the truth.
 - **The crystal and the idle nap are on the card**, as `clock_hz` and `idle`, with
-  the same defaults (flat out; stand down at a prompt) and the same read-only
+  the same defaults (flat out; stand down at a prompt) and the same show-only
   `achieved_hz` companion. `SET cpu0 clock_hz=4000000` gives a period 4 MHz Z80;
   emulated time is identical either way and only the host sleep differs.
 - **The core is a soldered-on unit**, neither mounted nor connected.
@@ -35,7 +35,7 @@ It shares its card code with the other CPU cards; only the core differs:
 |---|---|---|---|
 | `clock_hz` | `0` | yes | The crystal on the card. `0` runs flat out (the default). `2000000` or `4000000` buy back a period Z80's real timing and the real waiting with it; the guest cannot tell the difference in emulated time. |
 | `idle` | `on` | yes | Stand down when the guest is only polling an empty keyboard. A host policy, orthogonal to `clock_hz`; the guest cannot tell. `SET cpu0 idle=off` for the spin. |
-| `achieved_hz` | — | read-only | T-states per real second the run loop last reached. `0` until it has run. |
+| `achieved_hz` | — | show-only | T-states per real second the run loop last reached. `0` until it has run. |
 
 ## Units
 

@@ -217,7 +217,7 @@ The SS-1 manual (pp.1-2, 5, 8-10, 87-89) gives every switch:
   not program the on-board controllers. Leave it `none` when using the 8259As. **DMA:** none.
 - **`properties()`:** `base` (the 16-port block base, default 50H), `math` (`none`, `9511a` or
   `9512`, default `none`), `memory`, `memory_at`, `memory_global` and `memory_phantom` (the 4K
-  block), and read-only `clock`, `timer`, `pic` and `mathchip` strings. `pic`
+  block), and show-only `clock`, `timer`, `pic` and `mathchip` strings. `pic`
   shows each controller's IRR/ISR/IMR and the master's INT pin. `mathchip` shows busy or idle,
   the stack pointer, the status and the top of the stack, and END, SVREQ and ERR when they are
   up. The
